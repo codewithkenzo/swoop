@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medium Test Page - News Article</title>
+    <meta name="description" content="A medium-sized HTML page with complex content for testing">
+    <meta name="keywords" content="testing, html, parsing, crawl4ai">
+    <meta name="author" content="Test Author">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/analytics.js" defer></script>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <nav class="navbar">
+                <div class="brand">
+                    <a href="/" class="logo">NewsTest</a>
+                </div>
+                <ul class="nav-menu">
+                    <li><a href="/news">News</a></li>
+                    <li><a href="/sports">Sports</a></li>
+                    <li><a href="/tech">Technology</a></li>
+                    <li><a href="/business">Business</a></li>
+                    <li><a href="/health">Health</a></li>
+                    <li><a href="/entertainment">Entertainment</a></li>
+                </ul>
+                <div class="search-box">
+                    <input type="text" placeholder="Search articles...">
+                    <button type="submit">Search</button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <article class="news-article">
+                <header class="article-header">
+                    <div class="breadcrumb">
+                        <a href="/">Home</a> > <a href="/tech">Technology</a> > <span>AI Advances</span>
+                    </div>
+                    <h1 class="article-title">Revolutionary AI System Transforms Web Crawling Technology</h1>
+                    <div class="article-meta">
+                        <span class="author">By John Tech Writer</span>
+                        <time datetime="2024-01-15">January 15, 2024</time>
+                        <span class="reading-time">5 min read</span>
+                        <div class="tags">
+                            <span class="tag">AI</span>
+                            <span class="tag">Technology</span>
+                            <span class="tag">Web Crawling</span>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="article-content">
+                    <p class="lead">A groundbreaking artificial intelligence system has emerged that promises to revolutionize how we extract and process information from the web, offering unprecedented speed and accuracy in data crawling operations.</p>
+
+                    <h2>The Technology Behind the Innovation</h2>
+                    <p>The new system, developed by researchers at various institutions, combines advanced machine learning algorithms with sophisticated parsing techniques. This hybrid approach allows for more intelligent content extraction that can adapt to different website structures and layouts.</p>
+
+                    <blockquote class="highlight">
+                        "This represents a significant leap forward in web data extraction technology. We're seeing performance improvements of 300-400% over traditional methods while maintaining higher accuracy rates."
+                        <cite>- Dr. Sarah Johnson, AI Research Lead</cite>
+                    </blockquote>
+
+                    <h3>Key Features and Capabilities</h3>
+                    <ul class="feature-list">
+                        <li><strong>Intelligent Content Recognition:</strong> Advanced AI algorithms can identify and extract relevant content even from complex, dynamically generated pages.</li>
+                        <li><strong>Multi-format Support:</strong> Seamlessly handles HTML, JSON, XML, and other data formats with unified processing.</li>
+                        <li><strong>Scalable Architecture:</strong> Built for high-throughput operations with concurrent processing capabilities.</li>
+                        <li><strong>Error Resilience:</strong> Sophisticated error handling and retry mechanisms ensure reliable operation.</li>
+                        <li><strong>Real-time Processing:</strong> WebSocket and Server-Sent Events support for live data streaming.</li>
+                    </ul>
+
+                    <h3>Performance Benchmarks</h3>
+                    <div class="stats-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Traditional Crawlers</th>
+                                    <th>AI-Enhanced System</th>
+                                    <th>Improvement</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Pages/Second</td>
+                                    <td>50-100</td>
+                                    <td>300-500</td>
+                                    <td>400%</td>
+                                </tr>
+                                <tr>
+                                    <td>Accuracy Rate</td>
+                                    <td>85-90%</td>
+                                    <td>96-98%</td>
+                                    <td>12%</td>
+                                </tr>
+                                <tr>
+                                    <td>Error Rate</td>
+                                    <td>10-15%</td>
+                                    <td>2-4%</td>
+                                    <td>75% reduction</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h2>Real-World Applications</h2>
+                    <p>The applications for this technology span numerous industries and use cases:</p>
+
+                    <div class="application-grid">
+                        <div class="app-card">
+                            <h4>E-commerce Intelligence</h4>
+                            <p>Monitor competitor pricing, product availability, and market trends in real-time across thousands of online stores.</p>
+                        </div>
+                        <div class="app-card">
+                            <h4>News Aggregation</h4>
+                            <p>Collect and process breaking news from multiple sources, providing comprehensive coverage and analysis.</p>
+                        </div>
+                        <div class="app-card">
+                            <h4>Academic Research</h4>
+                            <p>Gather research papers, citations, and academic content for meta-analyses and literature reviews.</p>
+                        </div>
+                        <div class="app-card">
+                            <h4>Financial Monitoring</h4>
+                            <p>Track market data, regulatory filings, and financial news for investment and compliance purposes.</p>
+                        </div>
+                    </div>
+
+                    <h2>Technical Implementation</h2>
+                    <p>The system is built using modern Rust programming language, leveraging its performance characteristics and memory safety features. Key components include:</p>
+
+                    <pre><code class="rust">
+// Example of the crawler configuration
+let config = CrawlConfig {
+    max_concurrent_requests: 100,
+    request_delay_ms: 50,
+    max_depth: 5,
+    follow_redirects: true,
+    respect_robots_txt: true,
+    user_agent: "CrawlAI/1.0".to_string(),
+};
+
+let crawler = Crawler::new(config);
+let result = crawler.crawl("https://example.com").await?;
+                    </code></pre>
+
+                    <h3>Architecture Overview</h3>
+                    <p>The system employs a modular architecture with clearly separated concerns:</p>
+                    <ol>
+                        <li><strong>HTTP Client Layer:</strong> Handles network requests with connection pooling and rate limiting</li>
+                        <li><strong>Parser Engine:</strong> Processes different content types with specialized parsers</li>
+                        <li><strong>Storage Layer:</strong> Provides multiple storage backends including memory and filesystem</li>
+                        <li><strong>API Server:</strong> Exposes functionality through REST and WebSocket endpoints</li>
+                    </ol>
+
+                    <h2>Future Developments</h2>
+                    <p>The development team has outlined several exciting features planned for upcoming releases:</p>
+                    
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <h4>Q2 2024: JavaScript Rendering</h4>
+                            <p>Integration with headless browsers for dynamic content extraction from JavaScript-heavy sites.</p>
+                        </div>
+                        <div class="timeline-item">
+                            <h4>Q3 2024: Distributed Processing</h4>
+                            <p>Redis-based distributed crawling for large-scale operations across multiple servers.</p>
+                        </div>
+                        <div class="timeline-item">
+                            <h4>Q4 2024: Machine Learning Integration</h4>
+                            <p>Advanced content classification and automatic extraction rule generation.</p>
+                        </div>
+                    </div>
+
+                    <h2>Getting Started</h2>
+                    <p>Developers interested in incorporating this technology into their projects can access the open-source implementation through the project repository. Comprehensive documentation and examples are provided to facilitate rapid integration.</p>
+
+                    <div class="code-example">
+                        <h4>Quick Start Example:</h4>
+                        <pre><code class="bash">
+# Install the library
+cargo add crawl4ai_core
+
+# Run a simple crawl
+use crawl4ai_core::Crawler;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let crawler = Crawler::new(Default::default());
+    let result = crawler.crawl("https://example.com").await?;
+    println!("Title: {}", result.document.unwrap().title);
+    Ok(())
+}
+                        </code></pre>
+                    </div>
+                </div>
+            </article>
+
+            <aside class="sidebar">
+                <div class="related-articles">
+                    <h3>Related Articles</h3>
+                    <ul>
+                        <li><a href="/articles/web-scraping-ethics">The Ethics of Web Scraping</a></li>
+                        <li><a href="/articles/ai-content-analysis">AI-Powered Content Analysis</a></li>
+                        <li><a href="/articles/scalable-crawling">Building Scalable Crawling Systems</a></li>
+                        <li><a href="/articles/data-extraction-techniques">Modern Data Extraction Techniques</a></li>
+                    </ul>
+                </div>
+
+                <div class="newsletter-signup">
+                    <h3>Stay Updated</h3>
+                    <p>Get the latest news on AI and web technology delivered to your inbox.</p>
+                    <form class="signup-form">
+                        <input type="email" placeholder="Enter your email" required>
+                        <button type="submit">Subscribe</button>
+                    </form>
+                </div>
+
+                <div class="social-share">
+                    <h3>Share This Article</h3>
+                    <div class="share-buttons">
+                        <a href="#" class="share-btn twitter">Twitter</a>
+                        <a href="#" class="share-btn linkedin">LinkedIn</a>
+                        <a href="#" class="share-btn facebook">Facebook</a>
+                        <a href="#" class="share-btn reddit">Reddit</a>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>About NewsTest</h4>
+                    <p>Your trusted source for technology news and analysis.</p>
+                    <div class="social-links">
+                        <a href="#" aria-label="Twitter">Twitter</a>
+                        <a href="#" aria-label="LinkedIn">LinkedIn</a>
+                        <a href="#" aria-label="YouTube">YouTube</a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h4>Categories</h4>
+                    <ul>
+                        <li><a href="/ai">Artificial Intelligence</a></li>
+                        <li><a href="/cybersecurity">Cybersecurity</a></li>
+                        <li><a href="/startups">Startups</a></li>
+                        <li><a href="/blockchain">Blockchain</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="/about">About Us</a></li>
+                        <li><a href="/careers">Careers</a></li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="/privacy">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 NewsTest. All rights reserved.</p>
+                <p>Built with <span class="heart">❤️</span> and cutting-edge technology.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Analytics and user interaction tracking
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded successfully');
+            
+            // Track article reading time
+            let startTime = Date.now();
+            window.addEventListener('beforeunload', function() {
+                let readingTime = Date.now() - startTime;
+                console.log('Article reading time:', readingTime + 'ms');
+            });
+        });
+    </script>
+</body>
+</html> 

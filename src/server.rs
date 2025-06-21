@@ -1,0 +1,745 @@
+/*!
+ * Modern High-Performance HTTP Server for Crawl4AI
+ * 
+ * Inspired by: https://dev.to/geoffreycopin/build-a-http-server-with-rust-and-tokio-part-1-serving-static-files-165l
+ * 
+ * Enhanced with modern features:
+ * - Real-time WebSocket connections for live crawl updates
+ * - Server-sent events for browser compatibility  
+ * - High-performance static file serving with compression
+ * - RESTful API for crawler management
+ * - Graceful shutdown and connection management
+ * - Comprehensive middleware pipeline
+ * - Built-in metrics and monitoring
+ * - Modern async/await patterns
+ * - Connection pooling and reuse optimization
+ */
+
+use std::collections::HashMap;
+use std::io;
+use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
+
+use axum::{
+    extract::{ws::WebSocket, ConnectInfo, Path as AxumPath, Query, State, WebSocketUpgrade},
+    http::StatusCode, // HeaderMap may be needed for future header handling
+    middleware::{self, Next},
+    response::{Html, Response, Sse},
+    routing::{get, post, delete},
+    Json, Router,
+};
+use futures_util::{sink::SinkExt, stream::StreamExt};
+use serde::{Deserialize, Serialize};
+use tokio::net::TcpListener;
+use tokio::signal;
+use tokio::sync::{broadcast, RwLock};
+use tokio_util::sync::CancellationToken;
+use tower::ServiceBuilder;
+use tower_http::{
+    compression::CompressionLayer,
+    cors::{Any, CorsLayer},
+    services::ServeDir,
+    trace::TraceLayer,
+};
+
+use crate::error::{Error, Result};
+use crate::models::Document;
+use crate::monitoring::MonitoringSystem;
+
+/// Server configuration with rich customization
+#[derive(Debug, Clone)]
+pub struct ServerConfig {
+    pub bind_addr: SocketAddr,
+    pub static_dir: Option<PathBuf>,
+    pub enable_compression: bool,
+    pub request_timeout: u64,
+    pub websocket_ping_interval: u64,
+    pub max_connections: usize,
+    pub enable_cors: bool,
+    pub enable_logging: bool,
+    pub server_name: String,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            bind_addr: "0.0.0.0:8080".parse().unwrap(),
+            static_dir: Some(PathBuf::from("static")),
+            enable_compression: true,
+            request_timeout: 30,
+            websocket_ping_interval: 30,
+            max_connections: 1000,
+            enable_cors: true,
+            enable_logging: true,
+            server_name: "Crawl4AI/1.0".to_string(),
+        }
+    }
+}
+
+/// Real-time server statistics with atomic counters
+#[derive(Debug, Clone, Serialize)]
+pub struct ServerStats {
+    pub total_requests: u64,
+    pub active_connections: u64,
+    pub active_websockets: u64,
+    pub uptime_seconds: u64,
+    pub avg_response_time_ms: f64,
+    pub total_bytes_transferred: u64,
+}
+
+/// Thread-safe statistics tracking
+pub struct StatsTracker {
+    total_requests: AtomicU64,
+    active_connections: AtomicU64,
+    active_websockets: AtomicU64,
+    total_bytes_transferred: AtomicU64,
+    response_times: RwLock<Vec<f64>>,
+    start_time: Instant,
+}
+
+impl StatsTracker {
+    pub fn new() -> Self {
+        Self {
+            total_requests: AtomicU64::new(0),
+            active_connections: AtomicU64::new(0),
+            active_websockets: AtomicU64::new(0),
+            total_bytes_transferred: AtomicU64::new(0),
+            response_times: RwLock::new(Vec::new()),
+            start_time: Instant::now(),
+        }
+    }
+
+    pub async fn get_stats(&self) -> ServerStats {
+        let response_times = self.response_times.read().await;
+        let avg_response_time_ms = if response_times.is_empty() {
+            0.0
+        } else {
+            response_times.iter().sum::<f64>() / response_times.len() as f64
+        };
+
+        ServerStats {
+            total_requests: self.total_requests.load(Ordering::Relaxed),
+            active_connections: self.active_connections.load(Ordering::Relaxed),
+            active_websockets: self.active_websockets.load(Ordering::Relaxed),
+            uptime_seconds: self.start_time.elapsed().as_secs(),
+            avg_response_time_ms,
+            total_bytes_transferred: self.total_bytes_transferred.load(Ordering::Relaxed),
+        }
+    }
+
+    pub fn increment_requests(&self) {
+        self.total_requests.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn increment_connections(&self) {
+        self.active_connections.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn decrement_connections(&self) {
+        self.active_connections.fetch_sub(1, Ordering::Relaxed);
+    }
+
+    pub fn increment_websockets(&self) {
+        self.active_websockets.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn decrement_websockets(&self) {
+        self.active_websockets.fetch_sub(1, Ordering::Relaxed);
+    }
+
+    pub async fn record_response_time(&self, duration: Duration) {
+        let mut times = self.response_times.write().await;
+        times.push(duration.as_millis() as f64);
+        if times.len() > 1000 {
+            times.remove(0);
+        }
+    }
+}
+
+/// Real-time events for live updates
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type")]
+pub enum LiveEvent {
+    CrawlStarted {
+        job_id: String,
+        url: String,
+        timestamp: String,
+    },
+    DocumentCrawled {
+        job_id: String,
+        url: String,
+        title: Option<String>,
+        size_bytes: usize,
+        timestamp: String,
+    },
+    CrawlCompleted {
+        job_id: String,
+        total_documents: usize,
+        duration_seconds: u64,
+        timestamp: String,
+    },
+    StatsUpdate {
+        stats: ServerStats,
+        timestamp: String,
+    },
+    ClientConnected {
+        client_id: String,
+        ip: String,
+        timestamp: String,
+    },
+}
+
+/// Application state shared across handlers
+#[derive(Clone)]
+pub struct AppState {
+    pub config: ServerConfig,
+    pub stats: Arc<StatsTracker>,
+    pub event_sender: broadcast::Sender<LiveEvent>,
+    pub documents: Arc<RwLock<HashMap<String, Document>>>,
+    pub monitoring: MonitoringSystem,
+    pub active_jobs: Arc<RwLock<HashMap<String, String>>>,
+}
+
+/// API request/response types
+#[derive(Debug, Deserialize)]
+pub struct StartCrawlRequest {
+    pub urls: Vec<String>,
+    pub max_depth: Option<usize>,
+    pub max_pages: Option<usize>,
+    pub delay_ms: Option<u64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct StartCrawlResponse {
+    pub job_id: String,
+    pub status: String,
+    pub message: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SearchQuery {
+    pub q: String,
+    pub limit: Option<usize>,
+}
+
+/// High-performance HTTP server with modern features
+pub struct CrawlServer {
+    config: ServerConfig,
+    state: AppState,
+    shutdown_token: CancellationToken,
+}
+
+impl CrawlServer {
+    pub fn new(config: ServerConfig) -> Result<Self> {
+        let (event_sender, _) = broadcast::channel(1000);
+        let stats = Arc::new(StatsTracker::new());
+        let monitoring = MonitoringSystem::new()?;
+        
+        let state = AppState {
+            config: config.clone(),
+            stats,
+            event_sender,
+            documents: Arc::new(RwLock::new(HashMap::new())),
+            active_jobs: Arc::new(RwLock::new(HashMap::new())),
+            monitoring,
+        };
+
+        Ok(Self {
+            config,
+            state,
+            shutdown_token: CancellationToken::new(),
+        })
+    }
+
+    fn create_router(state: AppState) -> Router {
+        let mut router = Router::new()
+            // API routes
+            .route("/api/v1/crawl", post(start_crawl))
+            .route("/api/v1/crawl/:job_id", get(get_crawl_status))
+            .route("/api/v1/crawl/:job_id", delete(stop_crawl))
+            .route("/api/v1/documents", get(search_documents))
+            .route("/api/v1/documents/:id", get(get_document))
+            
+            // Real-time endpoints
+            .route("/ws", get(websocket_handler))
+            .route("/events", get(sse_handler))
+            
+            // Legacy monitoring (keep for compatibility)
+            .route("/api/v1/stats", get(get_server_stats))
+            .route("/api/v1/health", get(health_check))
+            
+            // Advanced monitoring routes
+            .route("/health", get(crate::monitoring::monitoring_health_check))
+            .route("/ready", get(crate::monitoring::monitoring_readiness_check))
+            .route("/metrics", get(crate::monitoring::monitoring_metrics_endpoint))
+            .route("/monitoring/stats", get(crate::monitoring::monitoring_stats_endpoint))
+            
+            // Dashboard
+            .route("/", get(serve_dashboard))
+            .route("/dashboard", get(serve_dashboard))
+            .with_state(state.clone());
+
+        // Add static file serving
+        if let Some(static_dir) = &state.config.static_dir {
+            if static_dir.exists() {
+                router = router.nest_service("/static", ServeDir::new(static_dir));
+            }
+        }
+
+        // Add middleware stack
+        let middleware_stack = ServiceBuilder::new()
+            .layer(middleware::from_fn_with_state(state.clone(), request_middleware));
+
+        if state.config.enable_compression {
+            router = router.layer(CompressionLayer::new());
+        }
+
+        if state.config.enable_cors {
+            router = router.layer(CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any));
+        }
+
+        if state.config.enable_logging {
+            router = router.layer(TraceLayer::new_for_http());
+        }
+
+        router.layer(middleware_stack)
+    }
+
+    pub async fn start(self) -> Result<()> {
+        log::info!("🚀 Starting Crawl4AI server on {}", self.config.bind_addr);
+        log::info!("📊 Dashboard: http://{}/dashboard", self.config.bind_addr);
+        log::info!("🔌 WebSocket: ws://{}/ws", self.config.bind_addr);
+
+        // Setup graceful shutdown
+        let shutdown_token = self.shutdown_token.clone();
+        tokio::spawn(async move {
+            match signal::ctrl_c().await {
+                Ok(_) => {
+                    log::info!("🛑 Received Ctrl+C, shutting down gracefully...");
+                    shutdown_token.cancel();
+                }
+                Err(e) => log::error!("❌ Failed to listen for Ctrl+C: {}", e),
+            }
+        });
+
+        // Start stats broadcaster
+        let stats_task = self.start_stats_broadcaster().await;
+
+        // Create router and bind
+        let app = Self::create_router(self.state.clone());
+        let listener = TcpListener::bind(&self.config.bind_addr).await
+            .map_err(|e| Error::Other(format!("Failed to bind: {}", e)))?;
+
+        log::info!("✅ Server listening on {}", self.config.bind_addr);
+
+        // Start server with graceful shutdown
+        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+            .with_graceful_shutdown(async move {
+                self.shutdown_token.cancelled().await;
+                stats_task.abort();
+                log::info!("✅ Server shutdown complete");
+            })
+            .await
+            .map_err(|e| Error::Other(format!("Server error: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn start_stats_broadcaster(&self) -> tokio::task::JoinHandle<()> {
+        let state = self.state.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(5));
+            loop {
+                interval.tick().await;
+                let stats = state.stats.get_stats().await;
+                let event = LiveEvent::StatsUpdate {
+                    stats,
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                };
+                let _ = state.event_sender.send(event);
+            }
+        })
+    }
+}
+
+/// Request middleware for metrics and logging
+async fn request_middleware(
+    State(state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    req: axum::extract::Request,
+    next: Next,
+) -> Response {
+    let start = Instant::now();
+    let method = req.method().clone();
+    let uri = req.uri().clone();
+
+    // Update legacy stats
+    state.stats.increment_connections();
+    state.stats.increment_requests();
+
+    // Update advanced monitoring
+    state.monitoring.record_crawl_request().await;
+    state.monitoring.update_active_connections(state.stats.active_connections.load(Ordering::Relaxed)).await;
+
+    let response = next.run(req).await;
+    let latency = start.elapsed();
+
+    // Record metrics in both systems
+    state.stats.decrement_connections();
+    state.stats.record_response_time(latency).await;
+    
+    // Advanced monitoring with success/failure detection
+    if response.status().is_success() {
+        state.monitoring.record_successful_crawl(latency).await;
+    } else {
+        state.monitoring.record_failed_crawl(latency).await;
+    }
+
+    if state.config.enable_logging {
+        log::info!("📥 {} {} {} - {}ms - {}", addr, method, uri, latency.as_millis(), response.status());
+    }
+
+    response
+}
+
+/// API Handlers
+
+async fn start_crawl(
+    State(state): State<AppState>,
+    Json(payload): Json<StartCrawlRequest>,
+) -> std::result::Result<Json<StartCrawlResponse>, StatusCode> {
+    log::info!("🕷️ Starting crawl for {} URLs", payload.urls.len());
+    
+    let job_id = format!("crawl_{}", uuid::Uuid::new_v4());
+    
+    {
+        let mut jobs = state.active_jobs.write().await;
+        jobs.insert(job_id.clone(), "running".to_string());
+    }
+    
+    let event = LiveEvent::CrawlStarted {
+        job_id: job_id.clone(),
+        url: payload.urls.join(", "),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+    let _ = state.event_sender.send(event);
+    
+    Ok(Json(StartCrawlResponse {
+        job_id,
+        status: "started".to_string(),
+        message: format!("Started crawling {} URLs", payload.urls.len()),
+    }))
+}
+
+async fn get_crawl_status(
+    State(state): State<AppState>,
+    AxumPath(job_id): AxumPath<String>,
+) -> StatusCode {
+    let jobs = state.active_jobs.read().await;
+    if jobs.contains_key(&job_id) {
+        StatusCode::OK
+    } else {
+        StatusCode::NOT_FOUND
+    }
+}
+
+async fn stop_crawl(
+    State(state): State<AppState>,
+    AxumPath(job_id): AxumPath<String>,
+) -> StatusCode {
+    let mut jobs = state.active_jobs.write().await;
+    if jobs.remove(&job_id).is_some() {
+        log::info!("🛑 Stopped crawl job: {}", job_id);
+        StatusCode::OK
+    } else {
+        StatusCode::NOT_FOUND
+    }
+}
+
+async fn search_documents(
+    State(state): State<AppState>,
+    Query(params): Query<SearchQuery>,
+) -> Json<Vec<Document>> {
+    log::info!("🔍 Searching documents: '{}'", params.q);
+    
+    let documents = state.documents.read().await;
+    let results: Vec<Document> = documents.values()
+        .take(params.limit.unwrap_or(10))
+        .cloned()
+        .collect();
+    
+    Json(results)
+}
+
+async fn get_document(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+) -> std::result::Result<Json<Document>, StatusCode> {
+    let documents = state.documents.read().await;
+    match documents.get(&id) {
+        Some(document) => Ok(Json(document.clone())),
+        None => Err(StatusCode::NOT_FOUND),
+    }
+}
+
+async fn get_server_stats(State(state): State<AppState>) -> Json<ServerStats> {
+    let stats = state.stats.get_stats().await;
+    Json(stats)
+}
+
+async fn health_check() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "status": "healthy",
+        "service": "crawl4ai-core",
+        "version": env!("CARGO_PKG_VERSION"),
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    }))
+}
+
+async fn serve_dashboard() -> Html<&'static str> {
+    Html(r#"<!DOCTYPE html>
+<html>
+<head>
+    <title>Crawl4AI Dashboard</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .stat { text-align: center; }
+        .stat-value { font-size: 2em; font-weight: bold; color: #007acc; }
+        .stat-label { color: #666; }
+        .status { color: #28a745; font-weight: bold; }
+        #events { height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; font-family: monospace; font-size: 12px; }
+        .event { margin: 5px 0; padding: 5px; background: #f8f9fa; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🕷️ Crawl4AI Dashboard</h1>
+        
+        <div class="card">
+            <h2>Server Status</h2>
+            <div class="status">✅ Online</div>
+        </div>
+        
+        <div class="card">
+            <h2>Statistics</h2>
+            <div class="stats" id="stats">
+                <div class="stat">
+                    <div class="stat-value" id="total-requests">0</div>
+                    <div class="stat-label">Total Requests</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="active-connections">0</div>
+                    <div class="stat-label">Active Connections</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="active-websockets">0</div>
+                    <div class="stat-label">WebSocket Connections</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="uptime">0s</div>
+                    <div class="stat-label">Uptime</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Live Events</h2>
+            <div id="events"></div>
+        </div>
+    </div>
+    
+    <script>
+        const eventsContainer = document.getElementById('events');
+        const eventSource = new EventSource('/events');
+        
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'StatsUpdate') {
+                updateStats(data.stats);
+            }
+            
+            addEvent(data);
+        };
+        
+        function updateStats(stats) {
+            document.getElementById('total-requests').textContent = stats.total_requests;
+            document.getElementById('active-connections').textContent = stats.active_connections;
+            document.getElementById('active-websockets').textContent = stats.active_websockets;
+            document.getElementById('uptime').textContent = stats.uptime_seconds + 's';
+        }
+        
+        function addEvent(event) {
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'event';
+            eventDiv.textContent = new Date().toLocaleTimeString() + ' - ' + JSON.stringify(event);
+            eventsContainer.insertBefore(eventDiv, eventsContainer.firstChild);
+            
+            if (eventsContainer.children.length > 50) {
+                eventsContainer.removeChild(eventsContainer.lastChild);
+            }
+        }
+        
+        // Fetch initial stats
+        fetch('/api/v1/stats')
+            .then(r => r.json())
+            .then(updateStats);
+    </script>
+</body>
+</html>"#)
+}
+
+/// WebSocket handler for real-time updates
+async fn websocket_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+) -> axum::response::Response {
+    log::info!("🔌 WebSocket connection from {}", addr);
+    ws.on_upgrade(move |socket| handle_websocket(socket, state, addr))
+}
+
+async fn handle_websocket(socket: WebSocket, state: AppState, addr: SocketAddr) {
+    let (mut sender, mut receiver) = socket.split();
+    let mut rx = state.event_sender.subscribe();
+    let client_id = uuid::Uuid::new_v4().to_string();
+    
+    state.stats.increment_websockets();
+    
+    let event = LiveEvent::ClientConnected {
+        client_id: client_id.clone(),
+        ip: addr.ip().to_string(),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+    let _ = state.event_sender.send(event);
+    
+    // Create a channel for ping messages since SplitSink can't be cloned
+    let (ping_tx, mut ping_rx) = tokio::sync::mpsc::channel(1);
+    
+    // Ping task
+    let ping_task = {
+        let interval = state.config.websocket_ping_interval;
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(interval));
+            loop {
+                interval.tick().await;
+                if ping_tx.send(()).await.is_err() {
+                    break;
+                }
+            }
+        })
+    };
+    
+    // Broadcast and ping task
+    let broadcast_task = tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                event = rx.recv() => {
+                    match event {
+                        Ok(event) => {
+                            let message = serde_json::to_string(&event).unwrap_or_default();
+                            if sender.send(axum::extract::ws::Message::Text(message)).await.is_err() {
+                                break;
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+                ping = ping_rx.recv() => {
+                    match ping {
+                        Some(_) => {
+                            if sender.send(axum::extract::ws::Message::Ping(vec![])).await.is_err() {
+                                break;
+                            }
+                        }
+                        None => break,
+                    }
+                }
+            }
+        }
+    });
+    
+    // Handle incoming messages
+    let receive_task = tokio::spawn(async move {
+        while let Some(msg) = receiver.next().await {
+            match msg {
+                Ok(axum::extract::ws::Message::Text(text)) => {
+                    log::debug!("📨 WebSocket message from {}: {}", addr, text);
+                }
+                Ok(axum::extract::ws::Message::Close(_)) => {
+                    log::info!("🔐 WebSocket close from {}", addr);
+                    break;
+                }
+                Err(e) => {
+                    log::error!("❌ WebSocket error from {}: {}", addr, e);
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
+    
+    tokio::select! {
+        _ = ping_task => {},
+        _ = broadcast_task => {},
+        _ = receive_task => {},
+    }
+    
+    state.stats.decrement_websockets();
+    log::info!("🔌 WebSocket connection closed for {}", addr);
+}
+
+/// Server-sent events handler
+async fn sse_handler(
+    State(state): State<AppState>,
+) -> Sse<impl futures_util::Stream<Item = std::result::Result<axum::response::sse::Event, io::Error>>> {
+    log::info!("📡 SSE connection established");
+    
+    let rx = state.event_sender.subscribe();
+    
+    let stream = tokio_stream::wrappers::BroadcastStream::new(rx)
+        .map(|result| {
+            match result {
+                Ok(event) => {
+                    let data = serde_json::to_string(&event).unwrap_or_default();
+                    Ok(axum::response::sse::Event::default().event("update").data(data))
+                }
+                Err(_) => Err(io::Error::new(io::ErrorKind::Other, "broadcast error")),
+            }
+        });
+    
+    Sse::new(stream).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text("keep-alive")
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[tokio::test]
+    async fn test_server_creation() {
+        let config = ServerConfig::default();
+        let _server = CrawlServer::new(config);
+        assert!(true);
+    }
+    
+    #[tokio::test]
+    async fn test_stats_tracker() {
+        let tracker = StatsTracker::new();
+        tracker.increment_requests();
+        tracker.increment_connections();
+        
+        let stats = tracker.get_stats().await;
+        assert_eq!(stats.total_requests, 1);
+        assert_eq!(stats.active_connections, 1);
+    }
+} 

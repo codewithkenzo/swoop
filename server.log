@@ -1,0 +1,16 @@
+🚀 Starting Crawl4AI Server...
+📊 Dashboard: http://0.0.0.0:8080/
+🔌 WebSocket: ws://0.0.0.0:8080/ws
+📡 Events: http://0.0.0.0:8080/events
+🔍 Health: http://0.0.0.0:8080/api/v1/health
+📈 Stats: http://0.0.0.0:8080/api/v1/stats
+[2025-06-20T22:25:18Z INFO  crawl4ai_core::server] 🚀 Starting Crawl4AI server on 0.0.0.0:8080
+[2025-06-20T22:25:18Z INFO  crawl4ai_core::server] 📊 Dashboard: http://0.0.0.0:8080/dashboard
+[2025-06-20T22:25:18Z INFO  crawl4ai_core::server] 🔌 WebSocket: ws://0.0.0.0:8080/ws
+[2025-06-20T22:25:18Z INFO  crawl4ai_core::server] ✅ Server listening on 0.0.0.0:8080
+[2025-06-20T22:25:21Z INFO  crawl4ai_core::server] 📥 127.0.0.1:47500 GET /dashboard - 0ms - 200 OK
+[2025-06-20T22:25:21Z INFO  crawl4ai_core::server] 📥 127.0.0.1:47510 GET /api/v1/health - 0ms - 200 OK
+[2025-06-20T22:25:21Z INFO  crawl4ai_core::server] 📥 127.0.0.1:47520 GET /api/v1/stats - 0ms - 200 OK
+[2025-06-20T22:25:21Z INFO  crawl4ai_core::server] 📥 127.0.0.1:47526 GET /health - 0ms - 404 Not Found
+[2025-06-20T22:25:44Z INFO  crawl4ai_core::server] 📡 SSE connection established
+[2025-06-20T22:25:44Z INFO  crawl4ai_core::server] 📥 127.0.0.1:43894 GET /events - 0ms - 200 OK

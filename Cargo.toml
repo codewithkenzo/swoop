@@ -1,0 +1,134 @@
+[package]
+name = "crawl4ai_core"
+version = "0.1.0"
+edition = "2021"
+authors = ["QuantumScribe Team"]
+description = "High-performance web crawling and data extraction engine"
+license = "MIT"
+
+[lib]
+name = "crawl4ai_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.28", features = ["full"] }
+futures = "0.3.28"
+
+# Web and networking
+reqwest = { version = "0.11.18", features = ["json", "cookies", "gzip", "brotli", "rustls-tls", "stream"] }
+url = "2.4.0"
+http = "0.2.9"
+hyper = { version = "0.14.27", features = ["full"] }
+
+# HTML parsing
+scraper = "0.17.1"
+html5ever = "0.26.0"
+selectors = "0.25.0"
+kuchiki = "0.8.1"
+
+# JSON processing
+serde = { version = "1.0.164", features = ["derive"] }
+serde_json = "1.0.97"
+
+# Error handling
+thiserror = "1.0.40"
+anyhow = "1.0.71"
+
+# Utilities
+log = "0.4.19"
+env_logger = "0.10.0"
+regex = "1.8.4"
+lazy_static = "1.4.0"
+rayon = "1.7.0"
+parking_lot = "0.12.1"
+
+# Storage
+qdrant-client = "1.4.0"
+redis = { version = "0.23.0", features = ["tokio-comp", "connection-manager"] }
+
+# PDF processing
+pdf = "0.8.1"
+lopdf = "0.31.0"
+
+# Headless browser
+fantoccini = "0.19.3"
+thirtyfour = "0.31.0"
+
+# Python bindings (optional)
+pyo3 = { version = "0.19.0", features = ["extension-module"], optional = true }
+
+# Async traits
+async-trait = "0.1.73"
+
+# Additional storage dependencies
+dashmap = "5.5.3"
+flate2 = "1.0.27"
+
+# HTTP server dependencies
+axum = { version = "0.7.2", features = ["ws", "tokio"] }
+axum-extra = { version = "0.9.0", features = ["cookie"] }
+tower = { version = "0.4.13", features = ["timeout"] }
+tower-http = { version = "0.5.0", features = ["compression-gzip", "cors", "trace", "fs"] }
+tokio-stream = { version = "0.1.14", features = ["sync"] }
+tokio-util = "0.7.10"
+futures-util = "0.3.29"
+uuid = { version = "1.6.1", features = ["v4", "serde"] }
+chrono = { version = "0.4.31", features = ["serde"] }
+
+# Rate limiting
+governor = "0.6.0"
+
+# GPU acceleration
+half = { version = "2.3.1", features = ["serde"] }
+ndarray = { version = "0.15.6", features = ["rayon"] }
+
+# Optimization
+mimalloc = { version = "0.1.39", default-features = false }
+smartstring = "1.0.1"
+ahash = "0.8.3"
+
+# CLI and user interface
+clap = { version = "4.4", features = ["derive"] }
+
+# Monitoring and observability (production features)
+metrics = "0.24.1"
+metrics-exporter-prometheus = "0.16.0"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
+opentelemetry = "0.20.0"
+axum-prometheus = "0.8.0"
+backoff = "0.4.0"
+
+[features]
+default = []
+python = ["pyo3"]
+gpu = []
+# GPU feature is now a compile-time flag only
+# Implementation will need to check for this feature at runtime
+# and provide a CPU fallback when CUDA is not available
+
+[dev-dependencies]
+criterion = "0.5.1"
+tempfile = "3.8.0"
+rstest = "0.18.2"
+mockito = "1.1.0"
+wiremock = "0.5.19"
+# Additional testing dependencies for comprehensive feature testing
+tokio-test = "0.4.3"
+axum-test = "14.0.0"
+httpmock = "0.6.8"
+testcontainers = "0.15.0"
+proptest = "1.4.0"
+serial_test = "3.0.0"
+futures = "0.3.30"
+
+# Scalability and production dependencies (moved to main dependencies)
+# These are now in the main [dependencies] section above
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true

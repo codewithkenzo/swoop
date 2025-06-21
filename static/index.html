@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swoop 🚀 - Lightning-Fast Web Crawler</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 80px 0;
+            color: white;
+        }
+        
+        .hero h1 {
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            opacity: 0;
+            animation: fadeInUp 1s ease forwards;
+        }
+        
+        .hero p {
+            font-size: 1.4em;
+            margin-bottom: 40px;
+            opacity: 0;
+            animation: fadeInUp 1s ease 0.3s forwards;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 60px 0;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            opacity: 0;
+            animation: fadeInUp 1s ease forwards;
+        }
+        
+        .feature-card:nth-child(2) { animation-delay: 0.2s; }
+        .feature-card:nth-child(3) { animation-delay: 0.4s; }
+        .feature-card:nth-child(4) { animation-delay: 0.6s; }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .feature-card h3 {
+            color: white;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .feature-card p {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+        }
+        
+        .cta-section {
+            text-align: center;
+            margin: 60px 0;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        
+        .btn:hover {
+            background: white;
+            color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-primary {
+            background: rgba(102, 126, 234, 0.8);
+            border-color: #667eea;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: white;
+            display: block;
+            margin-bottom: 10px;
+        }
+        
+        .stat-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .live-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 1000;
+        }
+        
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .tech-stack {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 40px 0;
+        }
+        
+        .tech-badge {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="live-indicator">
+        <span class="pulse"></span>
+        Server Online
+    </div>
+    
+    <div class="container">
+        <section class="hero">
+            <h1 class="floating">🚀 Swoop</h1>
+            <p>Lightning-Fast Web Crawling Engine Built with Rust</p>
+            <div class="tech-stack">
+                <span class="tech-badge">🦀 Rust</span>
+                <span class="tech-badge">⚡ Tokio</span>
+                <span class="tech-badge">🌐 Axum</span>
+                <span class="tech-badge">🔌 WebSocket</span>
+                <span class="tech-badge">📡 SSE</span>
+            </div>
+        </section>
+        
+        <section class="stats-grid" id="live-stats">
+            <div class="stat-card">
+                <span class="stat-value" id="total-requests">0</span>
+                <span class="stat-label">Total Requests</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="active-connections">0</span>
+                <span class="stat-label">Active Connections</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="active-websockets">0</span>
+                <span class="stat-label">WebSocket Connections</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="uptime">0s</span>
+                <span class="stat-label">Server Uptime</span>
+            </div>
+        </section>
+        
+        <section class="features">
+            <div class="feature-card">
+                <span class="feature-icon">⚡</span>
+                <h3>Lightning Fast</h3>
+                <p>Built with Rust and Tokio for maximum performance. Handles thousands of concurrent connections with minimal resource usage.</p>
+            </div>
+            
+            <div class="feature-card">
+                <span class="feature-icon">🔄</span>
+                <h3>Real-time Updates</h3>
+                <p>WebSocket and Server-Sent Events support for live crawl status updates and real-time monitoring dashboards.</p>
+            </div>
+            
+            <div class="feature-card">
+                <span class="feature-icon">🛡️</span>
+                <h3>Production Ready</h3>
+                <p>Comprehensive error handling, graceful shutdown, request logging, and built-in security headers for production deployment.</p>
+            </div>
+            
+            <div class="feature-card">
+                <span class="feature-icon">🎯</span>
+                <h3>Modern API</h3>
+                <p>RESTful API design with automatic compression, CORS support, and comprehensive middleware pipeline.</p>
+            </div>
+        </section>
+        
+        <section class="cta-section">
+            <a href="/dashboard" class="btn btn-primary">📊 Open Dashboard</a>
+            <a href="/api/v1/health" class="btn">🔍 Health Check</a>
+            <a href="/api/v1/stats" class="btn">📈 View Stats</a>
+        </section>
+    </div>
+    
+    <script>
+        // Real-time stats updates via Server-Sent Events
+        const eventSource = new EventSource('/events');
+        
+        eventSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'StatsUpdate') {
+                    updateStats(data.stats);
+                }
+            } catch (e) {
+                console.log('Event parsing error:', e);
+            }
+        };
+        
+        eventSource.onerror = function(event) {
+            console.log('EventSource error:', event);
+        };
+        
+        function updateStats(stats) {
+            document.getElementById('total-requests').textContent = stats.total_requests;
+            document.getElementById('active-connections').textContent = stats.active_connections;
+            document.getElementById('active-websockets').textContent = stats.active_websockets;
+            document.getElementById('uptime').textContent = formatUptime(stats.uptime_seconds);
+        }
+        
+        function formatUptime(seconds) {
+            if (seconds < 60) return seconds + 's';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + 'h';
+            return Math.floor(seconds / 86400) + 'd';
+        }
+        
+        // Initial stats load
+        fetch('/api/v1/stats')
+            .then(response => response.json())
+            .then(updateStats)
+            .catch(console.error);
+        
+        // Add some interactive elements
+        document.querySelectorAll('.feature-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+    </script>
+</body>
+</html> 
