@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
         server_name: "Crawl4AI/1.0".to_string(),
     };
     
-    println!("🚀 Starting Crawl4AI Server...");
+    println!("🚀 Starting swoop Server...");
     println!("📊 Dashboard: http://{}/", config.bind_addr);
     println!("🔌 WebSocket: ws://{}/ws", config.bind_addr);
     println!("📡 Events: http://{}/events", config.bind_addr);

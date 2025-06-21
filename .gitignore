@@ -1,1 +1,64 @@
- 
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data directories
+swoop_data/
+crawl_data/
+data/
+
+# Test files
+test_output/
+temp/
+tmp/
+
+# Environment
+.env
+.env.local
+
+# Coverage
+tarpaulin-report.html
+coverage/
+cobertura.xml
+
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+*.lnk
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Backup files
+README_bk.md
+*.bk
+*_backup.* 
