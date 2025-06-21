@@ -1,13 +1,18 @@
 [package]
-name = "crawl4ai_core"
+name = "swoop"
 version = "0.1.0"
 edition = "2021"
-authors = ["QuantumScribe Team"]
-description = "High-performance web crawling and data extraction engine"
+authors = ["Kenzo <codewithkenzo@github.com>"]
+description = "Intelligent document analysis and management platform with advanced web crawling capabilities"
 license = "MIT"
+repository = "https://github.com/codewithkenzo/swoop"
+homepage = "https://github.com/codewithkenzo/swoop"
+keywords = ["document-analysis", "web-crawling", "data-extraction", "workspace", "enterprise"]
+categories = ["web-programming", "filesystem", "data-structures", "asynchronous"]
+readme = "README.md"
 
 [lib]
-name = "crawl4ai_core"
+name = "swoop"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]

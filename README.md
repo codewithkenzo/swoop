@@ -1,309 +1,300 @@
-# Swoop 🚀
+# Swoop
 
-> Lightning-fast web crawler and data extraction engine with production-grade monitoring
+> Intelligent document analysis and management platform with advanced web crawling capabilities
 
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Crates.io](https://img.shields.io/badge/crates.io-swoop-blue.svg)](https://crates.io/crates/swoop)
 
-**Swoop** is a high-performance, async-first web crawler built in Rust that makes data extraction effortless. Whether you're building a search engine, monitoring competitors, or gathering research data, Swoop handles it with speed and reliability.
+**Swoop** is a comprehensive document analysis and management platform that combines advanced web crawling, intelligent content extraction, and sophisticated document organization capabilities. Built with modern technologies, it serves both as a powerful backend engine and a complete desktop application for document research and analysis workflows.
 
-## ✨ Features
+## Key Capabilities
 
-- 🚀 **Blazing Fast**: Async-first architecture with intelligent rate limiting
-- 🔍 **Smart Extraction**: CSS selectors, XPath, JSON parsing, and custom rules
-- 📊 **Production Ready**: Built-in Prometheus metrics, health checks, and monitoring
-- 🔒 **Thread Safe**: Concurrent crawling with proper synchronization
-- 🎯 **Zero Config**: Works out of the box with sensible defaults
-- 🌐 **Web Server**: Built-in HTTP server with REST API
-- 💾 **Multiple Storage**: Memory, SQLite, Redis, and filesystem backends
-- 🛡️ **Rate Limiting**: Per-domain and global rate limiting with burst capacity
-- 📈 **Real-time Stats**: Live crawling statistics and performance metrics
-- 🔧 **Extensible**: Plugin architecture for custom parsers and extractors
+- **Document Intelligence**: Advanced content extraction using CSS selectors, XPath, and JSONPath with semantic analysis
+- **Unified Workspace**: Desktop application with React/TypeScript frontend and Tauri integration
+- **Multi-Source Ingestion**: Web crawling, file system monitoring, and direct document import
+- **Production Monitoring**: Comprehensive observability with Prometheus metrics and health monitoring
+- **Enterprise Storage**: Multiple backend options including distributed Redis, SQLite, and filesystem
+- **Concurrent Processing**: Thread-safe architecture with intelligent rate limiting and resource management
+- **Content Organization**: Smart document categorization, tagging, and full-text search capabilities
+- **Export Workflows**: Multiple output formats with customizable processing pipelines
 
-## 🚀 Quick Start
+## Architecture Overview
 
-### Installation
+Swoop operates as a full-stack platform with three primary components:
 
-Add Swoop to your `Cargo.toml`:
+### Core Engine (Rust)
+High-performance document processing and web crawling engine with production-grade monitoring and storage management.
 
+### Desktop Application (Tauri + React + TypeScript)
+Cross-platform desktop application providing:
+- Document workspace and file management
+- Visual content extraction rule builder
+- Real-time crawling and processing monitoring
+- Advanced search and filtering interfaces
+- Export and workflow management
+
+### Web Interface
+Browser-based dashboard for monitoring, configuration, and remote management of document processing workflows.
+
+## Installation
+
+### Desktop Application
+Download the latest release for your platform:
+- **Windows**: `swoop-setup.exe`
+- **macOS**: `swoop.dmg`
+- **Linux**: `swoop.AppImage` or package manager
+
+### Developer Installation
 ```toml
 [dependencies]
 swoop = "0.1"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
-### Basic Usage
+## Usage Examples
 
+### Document Workspace Integration
 ```rust
-use swoop::{Crawler, CrawlRequest};
+use swoop::{DocumentWorkspace, CrawlConfig, ExtractionRule};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create a new crawler
-    let crawler = Crawler::new().await?;
+    let workspace = DocumentWorkspace::new("./documents").await?;
     
-    // Configure what to extract
-    let mut request = CrawlRequest::new("https://example.com");
-    request.add_css_selector("title", "title, h1");
-    request.add_css_selector("links", "a[href]");
+    // Configure intelligent extraction
+    let mut config = CrawlConfig::new();
+    config.add_rule(ExtractionRule::css("articles", "article h2, .content"));
+    config.add_rule(ExtractionRule::xpath("metadata", "//meta[@name='description']/@content"));
     
-    // Crawl and extract
-    let result = crawler.crawl(request).await?;
+    // Process and organize documents
+    let results = workspace.process_urls(vec![
+        "https://research.example.com/papers",
+        "https://docs.example.com/guides"
+    ], config).await?;
     
-    println!("Title: {}", result.title.unwrap_or_default());
-    println!("Found {} links", result.extracted_data.len());
-    
+    // Results are automatically organized and indexed
+    println!("Processed {} documents", results.len());
     Ok(())
 }
 ```
 
-### Server Mode
-
-Launch Swoop as a web server with monitoring:
-
-```bash
-cargo run --bin swoop_demo --features monitoring
-```
-
-Then visit:
-- 🌐 **Dashboard**: http://localhost:8080/dashboard
-- 📊 **Metrics**: http://localhost:8080/metrics
-- ❤️ **Health**: http://localhost:8080/health
-
-## 📋 Examples
-
-### Advanced Extraction
-
+### Advanced Content Analysis
 ```rust
-use swoop::{Crawler, CrawlRequest, SelectorType};
+use swoop::{Analyzer, ContentFilter, OutputFormat};
 
-let mut request = CrawlRequest::new("https://news.ycombinator.com");
+let analyzer = Analyzer::new()
+    .with_semantic_extraction()
+    .with_content_filtering(ContentFilter::academic_papers())
+    .with_output_format(OutputFormat::structured_json());
 
-// Extract titles with CSS selectors
-request.add_extraction_rule("titles", SelectorType::CSS, ".titleline > a");
-
-// Extract metadata with XPath
-request.add_extraction_rule("scores", SelectorType::XPath, "//span[@class='score']");
-
-// Extract JSON data
-request.add_extraction_rule("api_data", SelectorType::JSONPath, "$.data.articles[*].title");
-
-let result = crawler.crawl(request).await?;
+let analysis = analyzer.process_directory("./research_docs").await?;
+analysis.export_to("./analysis_results").await?;
 ```
 
-### Rate Limiting
-
+### Enterprise Deployment
 ```rust
-use swoop::{Crawler, RateLimitConfig};
+use swoop::{EnterpriseServer, MonitoringConfig, StorageConfig};
 
-let rate_config = RateLimitConfig {
-    requests_per_second: 2,
-    burst_capacity: 5,
-    default_delay_ms: 500,
-    ip_requests_per_minute: 60,
-    global_requests_per_second: 10,
-};
+let server = EnterpriseServer::builder()
+    .with_monitoring(MonitoringConfig::prometheus())
+    .with_storage(StorageConfig::distributed_redis("cluster.internal"))
+    .with_concurrent_workers(50)
+    .bind("0.0.0.0:8080")
+    .await?;
 
-let crawler = Crawler::with_rate_limit(rate_config).await?;
+server.run().await?;
 ```
 
-### Storage Backends
+## Configuration
 
-```rust
-use swoop::{Crawler, FileSystemStorage, RedisStorage};
-
-// Filesystem storage
-let storage = FileSystemStorage::new("./crawl_data").await?;
-let crawler = Crawler::with_storage(Box::new(storage)).await?;
-
-// Redis storage (distributed crawling)
-let storage = RedisStorage::new("redis://localhost:6379").await?;
-let crawler = Crawler::with_storage(Box::new(storage)).await?;
-```
-
-## 🛠️ Configuration
-
-Swoop is highly configurable through environment variables or configuration files:
-
+### Workspace Configuration
 ```toml
-# swoop.toml
-[crawler]
-max_concurrent_requests = 10
-request_timeout_ms = 30000
-user_agent = "Swoop/1.0 (Your Bot Description)"
+[workspace]
+default_storage = "filesystem"
+index_path = "./workspace/index"
+temp_directory = "./workspace/temp"
+max_file_size = "100MB"
 
-[rate_limiting]
-requests_per_second = 1
-burst_capacity = 3
-default_delay_ms = 1000
+[crawling]
+concurrent_requests = 10
+request_timeout = 30000
+respect_robots_txt = true
+user_agent = "Swoop Document Analyzer/1.0"
 
-[storage]
-type = "filesystem"
-path = "./data"
+[extraction]
+enable_semantic_analysis = true
+extract_images = true
+preserve_formatting = true
+generate_summaries = true
 
 [monitoring]
-enable_metrics = true
+enable_prometheus = true
 metrics_port = 9090
+log_level = "info"
 ```
 
-## 📊 Monitoring & Observability
+## Desktop Application Features
 
-Swoop includes comprehensive monitoring out of the box:
+### Document Workspace
+- **File System Integration**: Native file monitoring and organization
+- **Visual Rule Builder**: Drag-and-drop interface for creating extraction rules
+- **Preview System**: Real-time preview of extraction results
+- **Batch Processing**: Queue management for large document sets
 
-### Prometheus Metrics
-- Request counts and rates
-- Response time histograms
-- Error rates by type
-- Active connections
-- Storage statistics
+### Analysis Dashboard
+- **Content Visualization**: Interactive charts and content analysis
+- **Search Interface**: Advanced filtering and full-text search
+- **Export Tools**: Multiple format support with custom templates
+- **Workflow Management**: Automated processing pipelines
 
-### Health Checks
-- `/health` - Basic health status
-- `/ready` - Readiness probe (Kubernetes-ready)
-- `/metrics` - Prometheus metrics
-- `/stats` - Real-time statistics JSON
+### Monitoring Console
+- **Real-time Metrics**: System performance and processing statistics
+- **Health Monitoring**: Component status and error tracking
+- **Resource Management**: Memory, storage, and network utilization
+- **Audit Logging**: Complete activity tracking and reporting
 
-### Dashboard
-Beautiful web dashboard showing:
-- Live crawling activity
-- Performance graphs
-- Error tracking
-- Storage usage
-- Rate limiting status
+## Deployment Options
 
-## 🏗️ Architecture
+### Standalone Desktop
+Single-user installation with local storage and processing capabilities.
 
-```mermaid
-graph TB
-    A[HTTP Client] --> B[Rate Limiter]
-    B --> C[Crawler Engine]
-    C --> D[Parser]
-    C --> E[Storage Backend]
-    
-    D --> F[CSS Selectors]
-    D --> G[XPath Engine]
-    D --> H[JSON Parser]
-    
-    E --> I[Memory]
-    E --> J[SQLite]
-    E --> K[Redis]
-    E --> L[Filesystem]
-    
-    M[Monitoring] --> N[Prometheus]
-    M --> O[Health Checks]
-    M --> P[Web Dashboard]
-```
-
-## 🚢 Deployment
-
-### Docker
-
+### Enterprise Server
 ```dockerfile
 FROM rust:1.70 as builder
 WORKDIR /app
 COPY . .
-RUN cargo build --release
+RUN cargo build --release --features enterprise
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates
-COPY --from=builder /app/target/release/swoop_demo /usr/local/bin/
-EXPOSE 8080
-CMD ["swoop_demo", "--server", "--port", "8080"]
+COPY --from=builder /app/target/release/swoop-server /usr/local/bin/
+EXPOSE 8080 9090
+CMD ["swoop-server", "--config", "/etc/swoop/config.toml"]
 ```
 
-### Kubernetes
-
+### Kubernetes Deployment
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: swoop
+  name: swoop-enterprise
 spec:
   replicas: 3
   selector:
     matchLabels:
       app: swoop
   template:
-    metadata:
-      labels:
-        app: swoop
     spec:
       containers:
       - name: swoop
-        image: codewithkenzo/swoop:latest
+        image: swoop/enterprise:latest
         ports:
         - containerPort: 8080
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8080
+        - containerPort: 9090
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
 ```
 
-## 🔧 Development
+## API Reference
+
+### Document Processing
+- `POST /api/v1/documents/process` - Process documents from URLs or files
+- `GET /api/v1/documents/{id}` - Retrieve processed document
+- `POST /api/v1/documents/search` - Full-text search across document corpus
+- `GET /api/v1/documents/export` - Export documents in various formats
+
+### Workspace Management
+- `GET /api/v1/workspace/status` - Workspace health and statistics
+- `POST /api/v1/workspace/rules` - Create or update extraction rules
+- `GET /api/v1/workspace/files` - List and manage workspace files
+- `POST /api/v1/workspace/analyze` - Run analysis on document sets
+
+### Monitoring Endpoints
+- `/health` - Application health status
+- `/ready` - Kubernetes readiness probe
+- `/metrics` - Prometheus metrics endpoint
+- `/api/v1/monitoring/stats` - Detailed system statistics
+
+## Development
 
 ### Building from Source
-
 ```bash
 git clone https://github.com/codewithkenzo/swoop.git
 cd swoop
+
+# Build core engine
 cargo build --release
+
+# Build desktop application
+cd desktop
+npm install
+npm run tauri build
+
+# Run development server
+cargo run --bin swoop-server
 ```
 
-### Running Tests
-
+### Testing
 ```bash
-# Unit tests
+# Unit and integration tests
 cargo test
 
-# Integration tests
-cargo test --test integration_tests
+# Frontend tests
+cd desktop && npm test
 
-# Benchmarks
-cargo bench
+# End-to-end testing
+cargo test --test e2e_tests
 ```
 
-### Contributing
+## Use Cases
+
+**Research and Analysis**
+- Academic paper collection and analysis
+- Market research document processing
+- Legal document review and organization
+- Technical documentation management
+
+**Enterprise Content Management**
+- Automated content ingestion from multiple sources
+- Document compliance and audit workflows
+- Knowledge base construction and maintenance
+- Competitive intelligence gathering
+
+**Development and Documentation**
+- API documentation extraction and organization
+- Code repository analysis and documentation
+- Technical specification management
+- Automated reporting and documentation generation
+
+## Contributing
+
+We welcome contributions to improve Swoop's capabilities. Please read our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes and add tests
-4. Ensure tests pass: `cargo test`
-5. Commit your changes: `git commit -m 'Add amazing feature'`
-6. Push to the branch: `git push origin feature/amazing-feature`
-7. Open a Pull Request
+2. Create a feature branch: `git checkout -b feature/enhancement`
+3. Implement changes with appropriate tests
+4. Ensure all tests pass: `cargo test && cd desktop && npm test`
+5. Submit a pull request with detailed description
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🤝 Support
+## Support and Documentation
 
-- 📖 **Documentation**: [Coming Soon]
-- 💬 **Discord**: [Coming Soon]
-- 🐛 **Issues**: [GitHub Issues](https://github.com/codewithkenzo/swoop/issues)
-- 📧 **Email**: [codewithkenzo@github.com]
-
-## 🌟 Showcase
-
-**Built with Swoop:**
-- 🔍 **Search Engines**: Index millions of pages efficiently
-- 📊 **Market Research**: Monitor competitor prices and content
-- 📰 **News Aggregation**: Collect articles from multiple sources
-- 🏢 **Lead Generation**: Extract contact information at scale
-- 📈 **SEO Analysis**: Analyze website structures and content
+- **Documentation**: [https://swoop-docs.dev](https://swoop-docs.dev)
+- **Community**: [GitHub Discussions](https://github.com/codewithkenzo/swoop/discussions)
+- **Issues**: [GitHub Issues](https://github.com/codewithkenzo/swoop/issues)
+- **Enterprise Support**: [contact@swoop-platform.com](mailto:contact@swoop-platform.com)
 
 ---
 
 <p align="center">
-  <strong>Made with ❤️ by <a href="https://github.com/codewithkenzo">@codewithkenzo</a></strong>
-</p>
-
-<p align="center">
-  ⭐ <strong>Star us on GitHub if Swoop helps you!</strong> ⭐
+  <strong>Built by <a href="https://github.com/codewithkenzo">@codewithkenzo</a> • Made for document intelligence professionals</strong>
 </p> 
