@@ -15,6 +15,14 @@ readme = "README.md"
 name = "swoop"
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "swoop_demo"
+path = "src/bin/swoop_demo.rs"
+
+[[bin]]
+name = "swoop_high_performance"
+path = "src/bin/swoop_high_performance.rs"
+
 [dependencies]
 # Async runtime
 tokio = { version = "1.28", features = ["full"] }
@@ -43,10 +51,11 @@ anyhow = "1.0.71"
 # Utilities
 log = "0.4.19"
 env_logger = "0.10.0"
-regex = "1.8.4"
+regex = "1.10"
 lazy_static = "1.4.0"
 rayon = "1.7.0"
 parking_lot = "0.12.1"
+rand = "0.8"
 
 # Storage
 qdrant-client = "1.4.0"
@@ -84,8 +93,8 @@ chrono = { version = "0.4.31", features = ["serde"] }
 # Rate limiting
 governor = "0.6.0"
 
-# GPU acceleration
-half = { version = "2.3.1", features = ["serde"] }
+# GPU acceleration (for future ML model integration)
+half = { version = "2.4", features = ["serde"] }
 ndarray = { version = "0.15.6", features = ["rayon"] }
 
 # Optimization
@@ -105,6 +114,22 @@ opentelemetry = "0.20.0"
 axum-prometheus = "0.8.0"
 backoff = "0.4.0"
 
+# AI/NLP dependencies (enabled with the 'ai' feature flag)
+# Note: Candle temporarily disabled due to dependency conflicts
+# candle-core = { version = "0.4", optional = true }
+# candle-transformers = { version = "0.4", optional = true }
+linfa = { version = "0.7", optional = true }
+tokenizers = { version = "0.15", optional = true }
+whatlang = { version = "0.16", optional = true }
+
+# Additional dependencies for AI functionality
+# regex = "1.10" # Already defined above
+
+# (Optional for future: polars, tantivy)
+# polars = { version = "0.38", optional = true }
+# tantivy = { version = "0.21", optional = true }
+# ferrules = { git = "https://github.com/AmineDiro/ferrules", optional = true }
+
 [features]
 default = []
 python = ["pyo3"]
@@ -112,6 +137,7 @@ gpu = []
 # GPU feature is now a compile-time flag only
 # Implementation will need to check for this feature at runtime
 # and provide a CPU fallback when CUDA is not available
+ai = ["linfa", "tokenizers", "whatlang"]
 
 [dev-dependencies]
 criterion = "0.5.1"

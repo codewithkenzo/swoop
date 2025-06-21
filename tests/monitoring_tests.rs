@@ -21,7 +21,7 @@ async fn test_monitoring_system_initialization() {
         .expect("Should initialize monitoring system");
     
     let stats = monitoring.get_stats().await;
-    assert_eq!(stats.total_crawl_requests, 0);
+    assert_eq!(stats.requests_total, 0);
     assert_eq!(stats.successful_crawls, 0);
     assert_eq!(stats.failed_crawls, 0);
     
@@ -100,7 +100,7 @@ async fn test_health_endpoints_integration() {
     
     assert!(stats_response.status().is_success());
     let stats_json: Value = stats_response.json().await.expect("Should be valid JSON");
-    assert!(stats_json.get("total_crawl_requests").is_some());
+    assert!(stats_json.get("requests_total").is_some());
     assert!(stats_json.get("uptime_seconds").is_some());
     println!("✅ Monitoring stats endpoint working");
     
@@ -146,11 +146,11 @@ async fn test_stress_monitoring_system() {
     
     // Check final stats
     let final_stats = monitoring.get_stats().await;
-    assert_eq!(final_stats.total_crawl_requests, 10);
+    assert_eq!(final_stats.requests_total, 10);
     assert_eq!(final_stats.successful_crawls, 10);
     assert_eq!(final_stats.failed_crawls, 0);
     
-    println!("✅ Monitoring system handled {} operations correctly", final_stats.total_crawl_requests);
+    println!("✅ Monitoring system handled {} operations correctly", final_stats.requests_total);
     println!("🎉 Stress test completed successfully!");
 }
 
@@ -185,7 +185,7 @@ async fn test_real_crawl_with_monitoring() {
         .expect("Stats endpoint should respond");
     
     let initial_stats: Value = initial_stats_response.json().await.expect("Should be valid JSON");
-    let initial_requests = initial_stats["total_crawl_requests"].as_u64().unwrap_or(0);
+    let initial_requests = initial_stats["requests_total"].as_u64().unwrap_or(0);
     
     // Start a crawl job
     println!("🕷️ Starting crawl job...");
@@ -219,7 +219,7 @@ async fn test_real_crawl_with_monitoring() {
         .expect("Stats endpoint should respond");
     
     let updated_stats: Value = updated_stats_response.json().await.expect("Should be valid JSON");
-    let updated_requests = updated_stats["total_crawl_requests"].as_u64().unwrap_or(0);
+    let updated_requests = updated_stats["requests_total"].as_u64().unwrap_or(0);
     
     // Verify metrics were updated
     assert!(updated_requests > initial_requests, "Request count should have increased");

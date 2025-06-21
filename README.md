@@ -61,14 +61,37 @@ Each signup provisions a dedicated instance:
 git clone https://github.com/codewithkenzo/swoop.git
 cd swoop
 
-# Backend: build Rust services
-cargo build --release
+# Backend: build Rust services with AI features
+cargo build --release --features ai
 
-# Frontend: install and build React app
-cd frontend
-npm install
-npm run build
+# Frontend: automated setup (React + TypeScript)
+./setup_frontend.sh
+
+# Start development servers
+cargo run --features ai --bin swoop_demo &  # Backend on :8080
+cd frontend && npm run dev                  # Frontend on :3000
 ```
+
+### 🎯 Phase 2 Complete: Modern React Frontend
+
+**Phase 2** of the Swoop transformation is now complete! We've successfully implemented a modern React TypeScript frontend that bridges the gap between the README's promises and reality.
+
+#### ✅ What's New in Phase 2:
+
+- **🎨 Beautiful Modern UI**: Responsive React + TypeScript frontend with shadcn/ui components
+- **📱 Mobile-First Design**: Collapsible sidebar navigation optimized for all devices  
+- **🚀 Drag & Drop Upload**: Intuitive file upload with real-time progress tracking
+- **📊 Interactive Dashboard**: Live statistics, activity feeds, and quick actions
+- **🔗 Full Backend Integration**: Type-safe API client connecting to Rust AI backend
+- **⚡ Modern Tech Stack**: Vite, Tailwind CSS, TanStack Query, React Router
+- **🎛️ AI Configuration**: Granular control over document analysis features
+
+The frontend now delivers on all the README promises:
+- ✅ Modern React + TypeScript frontend  
+- ✅ Visual rule builder foundation
+- ✅ Workspace dashboard and document explorer
+- ✅ Advanced filtering and export controls
+- ✅ Responsive, cross-platform UI
 
 ---
 

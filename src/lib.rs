@@ -1,37 +1,109 @@
-//! # Swoop
-//! 
-//! Intelligent document analysis and management platform with advanced web crawling capabilities.
-//! 
-//! Swoop provides a comprehensive solution for document processing, content extraction, and 
-//! workspace management. It combines a high-performance Rust backend with a modern desktop 
-//! application built using Tauri, React, and TypeScript.
-//! 
-//! ## Core Capabilities
-//! 
-//! - **Document Workspace**: Full-featured document management with file system integration
-//! - **Advanced Extraction**: Sophisticated content parsing using CSS, XPath, and JSONPath
-//! - **Production Monitoring**: Enterprise-grade observability and health monitoring
-//! - **Concurrent Processing**: Thread-safe architecture with intelligent resource management
-//! - **Multi-Platform**: Cross-platform desktop application and web interface
-//! 
-//! ## Architecture
-//! 
-//! The platform consists of three main components:
-//! - **Core Engine** (Rust): High-performance document processing and web crawling
-//! - **Desktop Application** (Tauri + React + TypeScript): Cross-platform workspace interface
-//! - **Web Interface**: Browser-based monitoring and configuration dashboard
-//! 
-//! ## Quick Start
-//! 
-//! ```rust
-//! use swoop::{DocumentWorkspace, CrawlConfig};
-//! 
+//! # Swoop - AI-Powered Document Intelligence Platform
+//!
+//! Swoop is a comprehensive document analysis and web crawling platform built in Rust.
+//! It provides intelligent document processing, automated content extraction, and
+//! advanced analytics capabilities.
+//!
+//! ## Features
+//!
+//! - **Web Crawling**: High-performance web crawling with rate limiting and respect for robots.txt
+//! - **Document Analysis**: AI-powered document categorization, entity extraction, and semantic analysis
+//! - **Storage Backends**: Multiple storage options including memory, filesystem, SQLite, and Redis
+//! - **Monitoring**: Built-in Prometheus metrics and health checks
+//! - **API Server**: RESTful API with real-time status updates
+//!
+//! ## Usage
+//!
+//! ```rust,no_run
+//! use swoop::{Crawler, CrawlConfig, storage::MemoryStorage};
+//!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let workspace = DocumentWorkspace::new("./documents").await?;
+//!     let storage = MemoryStorage::new();
+//!     let crawler = Crawler::new(storage);
+//!     
 //!     let config = CrawlConfig::default();
-//!     let results = workspace.process_url("https://example.com", config).await?;
-//!     println!("Processed document: {}", results.title.unwrap_or_default());
+//!     let results = crawler.crawl_url("https://example.com", &config).await?;
+//!     
+//!     println!("Crawled {} pages", results.len());
 //!     Ok(())
 //! }
-//! ``` 
+//! ```
+
+// Core modules
+pub mod config;
+pub mod crawler;
+pub mod error;
+pub mod models;
+pub mod parser;
+pub mod rate_limiter;
+pub mod server;
+pub mod storage;
+pub mod utils;
+pub mod monitoring;
+
+// AI module (conditionally compiled)
+#[cfg(feature = "ai")]
+pub mod ai;
+
+// Re-export commonly used types
+pub use config::{Config, CrawlConfig};
+pub use crawler::Crawler;
+pub use error::Error as SwoopError;
+pub use models::{Document, CrawlResult, DocumentSummary};
+pub use rate_limiter::RateLimiter;
+pub use server::CrawlServer;
+pub use storage::Storage;
+pub use monitoring::{MonitoringSystem, HealthStatus};
+
+// Re-export AI types when feature is enabled
+#[cfg(feature = "ai")]
+pub use ai::{
+    DocumentAnalyzer, AnalysisConfig, AnalysisResults,
+    DocumentCategory, ExtractedEntity,
+    detect_language,
+};
+
+#[cfg(feature = "ai")]
+pub use ai::ner::EntityType;
+
+/// Result type alias for convenience
+pub type Result<T> = std::result::Result<T, SwoopError>;
+
+/// Version information
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Build information
+pub const BUILD_INFO: &str = concat!(
+    "Swoop v",
+    env!("CARGO_PKG_VERSION"),
+    " - AI-Powered Document Intelligence Platform"
+);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_version_info() {
+        assert!(!VERSION.is_empty());
+        println!("Swoop version: {}", VERSION);
+    }
+
+    #[cfg(feature = "ai")]
+    #[test]
+    fn test_ai_feature_enabled() {
+        // Test that AI types are available when feature is enabled
+        let config = AnalysisConfig::default();
+        assert!(config.categorization);
+        assert!(config.entity_extraction);
+    }
+
+    #[cfg(not(feature = "ai"))]
+    #[test]
+    fn test_ai_feature_disabled() {
+        // Test that core functionality works without AI features
+        let _config = Config::default();
+        // This test just ensures compilation works without AI features
+    }
+} 
