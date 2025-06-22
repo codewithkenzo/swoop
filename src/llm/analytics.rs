@@ -3,7 +3,7 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
 use tracing::{debug, info};
 
@@ -97,13 +97,13 @@ pub struct UserAnalytics {
     pub total_tokens: u64,
     pub cache_hits: u64,
     pub model_usage: HashMap<String, ModelUsage>,
-    pub first_request_time: Instant,
-    pub last_request_time: Instant,
+    pub first_request_time: SystemTime,
+    pub last_request_time: SystemTime,
 }
 
 impl UserAnalytics {
     pub fn new(user_id: &str) -> Self {
-        let now = Instant::now();
+        let now = SystemTime::now();
         Self {
             user_id: user_id.to_string(),
             total_requests: 0,
@@ -118,7 +118,7 @@ impl UserAnalytics {
 
     pub fn record_request(&mut self, model_id: &str, duration: Duration, usage: Option<&Usage>) {
         self.total_requests += 1;
-        self.last_request_time = Instant::now();
+        self.last_request_time = SystemTime::now();
 
         if let Some(usage) = usage {
             self.total_tokens += usage.total_tokens as u64;
@@ -142,7 +142,7 @@ pub struct ModelUsage {
     pub total_cost: f64,
     pub total_tokens: u64,
     pub avg_response_time: Duration,
-    pub last_used: Instant,
+    pub last_used: SystemTime,
 }
 
 impl ModelUsage {
@@ -153,13 +153,13 @@ impl ModelUsage {
             total_cost: 0.0,
             total_tokens: 0,
             avg_response_time: Duration::from_millis(0),
-            last_used: Instant::now(),
+            last_used: SystemTime::now(),
         }
     }
 
     pub fn record_request(&mut self, duration: Duration, usage: Option<&Usage>) {
         self.requests += 1;
-        self.last_used = Instant::now();
+        self.last_used = SystemTime::now();
 
         // Update average response time
         let total_time = self.avg_response_time.as_millis() as u64 * (self.requests - 1) + duration.as_millis() as u64;

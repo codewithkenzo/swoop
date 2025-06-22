@@ -80,38 +80,28 @@ impl DocumentProcessor {
         let extracted = extractors::extract_text(content, content_type, filename)
             .map_err(|e| anyhow!("Content extraction failed: {}", e))?;
 
+        let text_clone = extracted.text.clone();
         Ok(ExtractedContent {
             text: extracted.text,
             format: document_format,
             word_count: extracted.word_count,
             char_count: extracted.character_count,
-            line_count: extracted.text.lines().count(),
-            language: self.detect_language(&extracted.text),
-            quality_score: self.calculate_quality_score(extracted.word_count, extracted.character_count, extracted.text.lines().count()),
+            line_count: text_clone.lines().count(),
+            language: self.detect_language(&text_clone),
+            quality_score: self.calculate_quality_score(extracted.word_count, extracted.character_count, text_clone.lines().count()),
         })
     }
 
     /// Analyze document using LLM
     async fn analyze_with_llm(&self, llm_service: &LLMService, content: &ExtractedContent) -> Result<DocumentAnalysis> {
-        let mut analysis_tasks = Vec::new();
-        
-        // Summary
-        analysis_tasks.push(self.generate_summary(llm_service, &content.text));
-        
-        // Key points
-        analysis_tasks.push(self.extract_key_points(llm_service, &content.text));
-        
-        // Entities
-        analysis_tasks.push(self.extract_entities(llm_service, &content.text));
-        
-        // Sentiment
-        analysis_tasks.push(self.analyze_sentiment(llm_service, &content.text));
-        
-        // Topics
-        analysis_tasks.push(self.extract_topics(llm_service, &content.text));
+        // Execute analysis tasks sequentially to avoid type issues
+        let summary = self.generate_summary(llm_service, &content.text).await?;
+        let key_points_str = self.extract_key_points(llm_service, &content.text).await?;
+        let entities_str = self.extract_entities(llm_service, &content.text).await?;
+        let sentiment_str = self.analyze_sentiment(llm_service, &content.text).await?;
+        let topics_str = self.extract_topics(llm_service, &content.text).await?;
 
-        // Execute all analysis tasks concurrently
-        let results = futures::future::try_join_all(analysis_tasks).await?;
+        let results = vec![summary, key_points_str, entities_str, sentiment_str, topics_str];
         
         Ok(DocumentAnalysis {
             summary: results[0].clone(),
@@ -340,7 +330,7 @@ impl DocumentProcessor {
         }
 
         DocumentStructure {
-            headings,
+            headings: headings.clone(),
             sections,
             has_table_of_contents: headings.len() > 2,
             estimated_reading_time_minutes: (text.split_whitespace().count() / 200) as u32,
@@ -401,7 +391,7 @@ impl DocumentProcessor {
 
     /// Calculate content quality score
     fn calculate_quality_score(&self, word_count: usize, char_count: usize, line_count: usize) -> f32 {
-        let mut score = 0.5; // Base score
+        let mut score: f32 = 0.5; // Base score
         
         // Word count factor
         if word_count > 100 {
@@ -411,16 +401,26 @@ impl DocumentProcessor {
             score += 0.1;
         }
         
-        // Character to word ratio (indicates good content density)
-        let char_per_word = if word_count > 0 { char_count as f32 / word_count as f32 } else { 0.0 };
-        if char_per_word > 4.0 && char_per_word < 8.0 {
-            score += 0.1;
+        // Character to word ratio (average word length)
+        let avg_word_length = if word_count > 0 {
+            char_count as f32 / word_count as f32
+        } else {
+            0.0
+        };
+        
+        if avg_word_length >= 4.0 && avg_word_length <= 8.0 {
+            score += 0.1; // Good average word length
         }
         
-        // Line structure (indicates good formatting)
-        let words_per_line = if line_count > 0 { word_count as f32 / line_count as f32 } else { 0.0 };
-        if words_per_line > 5.0 && words_per_line < 20.0 {
-            score += 0.1;
+        // Line density
+        let words_per_line = if line_count > 0 {
+            word_count as f32 / line_count as f32
+        } else {
+            0.0
+        };
+        
+        if words_per_line >= 8.0 && words_per_line <= 20.0 {
+            score += 0.1; // Good line density
         }
         
         score.min(1.0)
@@ -428,10 +428,10 @@ impl DocumentProcessor {
 
     /// Parse sentiment result
     fn parse_sentiment(&self, sentiment_text: &str) -> DocumentSentiment {
-        let sentiment_lower = sentiment_text.to_lowercase();
-        if sentiment_lower.contains("positive") {
+        let text = sentiment_text.to_lowercase();
+        if text.contains("positive") {
             DocumentSentiment::Positive
-        } else if sentiment_lower.contains("negative") {
+        } else if text.contains("negative") {
             DocumentSentiment::Negative
         } else {
             DocumentSentiment::Neutral
@@ -440,11 +440,11 @@ impl DocumentProcessor {
 
     /// Calculate analysis confidence
     fn calculate_analysis_confidence(&self, results: &[String]) -> f32 {
-        let mut confidence = 1.0;
+        let mut confidence: f32 = 1.0;
         
-        // Reduce confidence for failed analyses
+        // Reduce confidence for each empty or error result
         for result in results {
-            if result.contains("failed") || result.contains("error") || result.is_empty() {
+            if result.is_empty() || result.contains("error") || result.contains("failed") {
                 confidence -= 0.2;
             }
         }

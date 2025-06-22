@@ -22,7 +22,7 @@ pub struct OpenRouterRequest {
 }
 
 /// Message structure for chat completions
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct Message {
     pub role: String,
     pub content: String,
@@ -46,7 +46,7 @@ pub struct CompletionRequest {
 }
 
 /// Task categories for model routing
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum TaskCategory {
     DocumentAnalysis,
     Summarization,

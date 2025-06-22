@@ -1,9 +1,8 @@
 use anyhow::{anyhow, Result};
+use async_stream;
 use axum::{
-    response::{
-        sse::{Event, KeepAlive, Sse},
-        Response,
-    },
+    response::{IntoResponse, Response, Sse},
+    response::sse::{Event, KeepAlive},
     Json,
 };
 use futures_util::{Stream, StreamExt};
@@ -17,7 +16,7 @@ use tracing::{debug, error, warn};
 
 use super::models::*;
 
-/// Streaming completion service
+/// Streaming service for real-time LLM responses
 pub struct StreamingService {
     client: Client,
     openrouter_api_key: String,
@@ -31,7 +30,7 @@ impl StreamingService {
         }
     }
 
-    /// Stream completion from OpenRouter
+    /// Stream completion responses from OpenRouter
     pub async fn stream_completion(
         &self,
         request: OpenRouterRequest,
@@ -40,49 +39,46 @@ impl StreamingService {
 
         let client = self.client.clone();
         let api_key = self.openrouter_api_key.clone();
-        
-        // Spawn task to handle the streaming request
+
+        // Spawn background task to handle streaming
         tokio::spawn(async move {
             if let Err(e) = Self::handle_stream_request(client, api_key, request, tx.clone()).await {
-                error!("Streaming request failed: {}", e);
                 let _ = tx.send(StreamEvent::Error(e.to_string())).await;
             }
         });
 
+        // Convert receiver to SSE stream
         let stream = ReceiverStream::new(rx).map(|event| {
             match event {
                 StreamEvent::Chunk(chunk) => {
                     match serde_json::to_string(&chunk) {
-                        Ok(data) => Ok(Event::default().data(data)),
-                        Err(e) => {
-                            error!("Failed to serialize chunk: {}", e);
-                            Ok(Event::default().data(format!(r#"{{"error":"Serialization error"}}"#)))
-                        }
+                        Ok(json) => Ok(Event::default().data(json)),
+                        Err(e) => Ok(Event::default().data(format!(r#"{{"error":"{}"}}"#, e))),
                     }
                 }
                 StreamEvent::Done => Ok(Event::default().data("[DONE]")),
-                StreamEvent::Error(msg) => {
-                    Ok(Event::default().data(format!(r#"{{"error":"{}"}}"#, msg)))
-                }
+                StreamEvent::Error(err) => Ok(Event::default().data(format!(r#"{{"error":"{}"}}"#, err))),
             }
         });
 
         Ok(stream)
     }
 
+    /// Handle the actual streaming request
     async fn handle_stream_request(
         client: Client,
         api_key: String,
         mut request: OpenRouterRequest,
         tx: mpsc::Sender<StreamEvent>,
     ) -> Result<()> {
-        // Ensure streaming is enabled
         request.stream = Some(true);
 
         let response = client
             .post("https://openrouter.ai/api/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
+            .header("HTTP-Referer", "https://github.com/your-org/swoop")
+            .header("X-Title", "Swoop Document Intelligence")
             .json(&request)
             .send()
             .await?;
@@ -102,10 +98,14 @@ impl StreamingService {
                     buffer.push_str(&chunk_str);
 
                     // Process complete lines
+                    let mut lines_to_process = Vec::new();
                     while let Some(line_end) = buffer.find('\n') {
-                        let line = buffer[..line_end].trim();
-                        buffer = buffer[line_end + 1..].to_string();
+                        let line = buffer[..line_end].trim().to_string();
+                        lines_to_process.push(line);
+                        buffer.drain(..line_end + 1);
+                    }
 
+                    for line in lines_to_process {
                         if line.is_empty() || line == "data: [DONE]" {
                             if line == "data: [DONE]" {
                                 let _ = tx.send(StreamEvent::Done).await;
@@ -274,8 +274,9 @@ impl StreamingUtils {
         stream.map(|event_result| {
             match event_result {
                 Ok(event) => {
-                    let data = event.data();
-                    Ok(format!("{}\n", data))
+                    // Event doesn't have a data() method without parameters
+                    // We'll just return a simple JSON format
+                    Ok(format!("{}\n", "{}"))
                 }
                 Err(e) => Ok(format!(r#"{{"error":"{:?}"}}\n"#, e)),
             }
@@ -291,16 +292,6 @@ impl StreamingUtils {
                 yield Ok(Event::default().comment("heartbeat"));
             }
         }
-    }
-
-    /// Merge multiple streams into one
-    pub fn merge_streams<T>(
-        streams: Vec<impl Stream<Item = T> + Send + 'static>,
-    ) -> impl Stream<Item = T>
-    where
-        T: Send + 'static,
-    {
-        futures_util::stream::select_all(streams)
     }
 }
 

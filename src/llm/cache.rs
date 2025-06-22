@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tracing::{debug, info};
+use serde::{Serialize, Deserialize};
 
 use super::models::CompletionResponse;
 
@@ -98,12 +99,13 @@ impl PromptCache {
             })
             .collect();
 
-        for key in expired_keys {
-            cache.pop(&key);
+        let expired_count = expired_keys.len();
+        for key in &expired_keys {
+            cache.pop(key);
         }
 
-        if !expired_keys.is_empty() {
-            debug!("Cleaned up {} expired cache entries", expired_keys.len());
+        if expired_count > 0 {
+            debug!("Cleaned up {} expired cache entries", expired_count);
         }
     }
 }
@@ -194,11 +196,10 @@ impl SemanticCache {
 }
 
 /// Cache configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheConfig {
     pub enabled: bool,
     pub ttl_seconds: u64,
-    pub max_entries: usize,
     pub semantic_enabled: bool,
     pub similarity_threshold: f64,
 }
@@ -208,7 +209,6 @@ impl Default for CacheConfig {
         Self {
             enabled: true,
             ttl_seconds: 300, // 5 minutes
-            max_entries: 1000,
             semantic_enabled: false, // Disabled by default as it requires embedding models
             similarity_threshold: 0.8,
         }
