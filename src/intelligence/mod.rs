@@ -67,7 +67,7 @@ impl IntelligenceProcessor {
     pub fn new(config: IntelligenceConfig) -> Self {
         Self { config }
     }
-    
+
     /// Process document for intelligence extraction
     pub async fn process(&self, document: &Document) -> Result<HashMap<String, String>> {
         let mut results = HashMap::new();
