@@ -30,6 +30,45 @@ pub struct Document {
     pub links: Vec<Link>,
     /// Extracted structured content
     pub extracted: HashMap<String, ExtractedContent>,
+    /// Content type (MIME type)
+    pub content_type: Option<String>,
+    /// File size in bytes
+    pub file_size: Option<u64>,
+    /// When the document was extracted/processed
+    pub extracted_at: DateTime<Utc>,
+}
+
+impl Document {
+    /// Create a new document
+    pub fn new(url: &str, content: &str) -> Self {
+        let id = format!("doc_{}", uuid::Uuid::new_v4().to_string().replace('-', "")[..8].to_string());
+        let title = if url.contains('/') {
+            url.split('/').last().unwrap_or(url).to_string()
+        } else {
+            url.to_string()
+        };
+        
+        Self {
+            id,
+            url: url.to_string(),
+            title,
+            content: content.to_string(),
+            html: String::new(),
+            text: content.to_string(),
+            metadata: Metadata {
+                url: url.to_string(),
+                content_type: "text/plain".to_string(),
+                fetch_time: Utc::now(),
+                status_code: 200,
+                headers: HashMap::new(),
+            },
+            links: Vec::new(),
+            extracted: HashMap::new(),
+            content_type: None,
+            file_size: None,
+            extracted_at: Utc::now(),
+        }
+    }
 }
 
 /// Metadata about a document

@@ -8,17 +8,20 @@
 // Core modules
 pub mod error;
 pub mod models;
-// pub mod extractors;
-// pub mod intelligence;
-// pub mod chat;
-// pub mod ai;
-// pub mod monitoring;
-// pub mod server;
-// pub mod api_server;
+pub mod config;
+pub mod extractors;
+// pub mod parser;    // Disabled for now
+// pub mod storage;   // Disabled for now
+// pub mod intelligence;  // Re-enable gradually
+// pub mod chat;          // Re-enable gradually
+// pub mod ai;            // Re-enable gradually
+// pub mod monitoring;    // Re-enable gradually
+// pub mod server;        // Keep disabled for now
+// pub mod api_server;    // Keep disabled for now
 
 // Re-export main types
 pub use error::{Result, Error};
-// pub use models::{Document, DocumentWorkspace};
+pub use models::{Document, DocumentWorkspace};
 
 /// System information and version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -35,6 +38,7 @@ pub fn system_info() -> std::collections::HashMap<String, String> {
     let mut info = std::collections::HashMap::new();
     info.insert("name".to_string(), NAME.to_string());
     info.insert("version".to_string(), VERSION.to_string());
-    info.insert("status".to_string(), "minimal".to_string());
+    info.insert("rust_version".to_string(), "1.88.0-nightly".to_string());
+    info.insert("features".to_string(), "document_processing,extraction,storage".to_string());
     info
 } 
