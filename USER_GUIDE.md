@@ -3,72 +3,83 @@
 ## Table of Contents
 1. [Getting Started](#getting-started)
 2. [Document Processing](#document-processing)
-3. [Web Crawling](#web-crawling)
-4. [API Reference](#api-reference)
-5. [Advanced Usage](#advanced-usage)
-6. [Troubleshooting](#troubleshooting)
+3. [LLM Integration](#llm-integration)
+4. [Storage Backends](#storage-backends)
+5. [API Reference](#api-reference)
+6. [Advanced Usage](#advanced-usage)
+7. [Troubleshooting](#troubleshooting)
 
 ## Getting Started
 
 ### Installation
 
 #### System Requirements
-- Rust 1.75 or higher
+- Rust 1.88+ (nightly recommended)
 - 4GB RAM minimum (8GB recommended for large documents)
 - 100MB disk space for installation
+- OpenRouter API key for LLM features
 - Network access for web crawling features
 
 #### Quick Installation
 ```bash
 # Clone repository
-git clone https://github.com/your-org/swoop.git
+git clone https://github.com/codewithkenzo/swoop.git
 cd swoop
 
-# Build optimized binary
-cargo build --release
+# Build optimized binary (choose your deployment target)
+cargo build --release --features libsql  # For edge/serverless
+cargo build --release                    # For traditional server
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your OpenRouter API key
 
 # Start server
-./target/release/swoop_server 3000
+./target/release/swoop_server --port 4000
 ```
 
 #### Verify Installation
 ```bash
 # Check server status
-curl http://localhost:3000/health
+curl http://localhost:4000/health
 
 # Expected response:
-# {"status":"healthy","version":"0.2.0","uptime_seconds":5}
+# {"status":"healthy","version":"0.3.0","uptime_seconds":5}
 ```
 
 ### Basic Configuration
 
 #### Environment Variables
 ```bash
-export SWOOP_PORT=3000              # Server port (default: 3001)
-export SWOOP_LOG_LEVEL=info         # Logging: debug, info, warn, error
-export SWOOP_MAX_UPLOAD_SIZE=10MB   # Maximum file size
-export SWOOP_WORKER_THREADS=4       # Processing threads
+export OPENROUTER_API_KEY=sk-or-v1-xxx    # Required for LLM features
+export STORAGE_BACKEND=libsql              # or sqlite/memory
+export DATABASE_URL=libsql://your-db.turso.io
+export DEFAULT_MODEL=openai/gpt-4o-mini
+export ANALYTICS_ENABLED=true
+export STREAMING_ENABLED=true
+export SWOOP_PORT=4000                     # Server port
+export SWOOP_LOG_LEVEL=info               # Logging: debug, info, warn, error
 ```
 
 #### Command Line Options
 ```bash
 # Start with custom port
-swoop_server 8080
+swoop_server --port 8080
 
-# Start with environment file
-swoop_server --config .env
+# Start with configuration file
+swoop_server --config production.toml
 
 # Start with verbose logging
-RUST_LOG=debug swoop_server
+RUST_LOG=debug swoop_server --port 4000
 ```
 
 ## Document Processing
 
 ### Supported Formats
-- **HTML**: Full parsing with content extraction
-- **Plain Text**: Direct processing with metadata analysis
-- **PDF**: Text extraction with layout preservation (planned)
-- **Markdown**: Structured content processing (planned)
+- **HTML**: Full parsing with content extraction and metadata analysis
+- **Plain Text**: Direct processing with intelligent structure detection
+- **Markdown**: Structured content processing with heading extraction
+- **PDF**: Text extraction with layout preservation (via external libraries)
 
 ### Upload Methods
 
@@ -77,345 +88,393 @@ RUST_LOG=debug swoop_server
 # Upload HTML file
 curl -F "file=@document.html" \
      -H "Content-Type: multipart/form-data" \
-     http://localhost:3000/api/documents/upload
+     http://localhost:4000/api/documents/upload
 
-# Upload with custom filename
-curl -F "file=@document.html;filename=custom-name.html" \
-     http://localhost:3000/api/documents/upload
+# Response includes document ID and initial analysis
+{
+  "id": "doc_abc123",
+  "status": "processed",
+  "analysis": {
+    "word_count": 1250,
+    "character_count": 8500,
+    "readability_score": 65.2
+  }
+}
 ```
 
-#### Batch Upload
+#### Batch Upload with Progress Tracking
 ```bash
-# Upload multiple files
-for file in *.html; do
-    curl -F "file=@$file" http://localhost:3000/api/documents/upload
-    sleep 0.1  # Rate limiting
+# Upload multiple files with streaming progress
+for file in documents/*.html; do
+    echo "Processing $file..."
+    
+    response=$(curl -s -F "file=@$file" \
+                    http://localhost:4000/api/documents/upload)
+    
+    doc_id=$(echo $response | jq -r '.id')
+    echo "Document ID: $doc_id"
+    
+    # Monitor processing progress
+    curl -N http://localhost:4000/api/documents/$doc_id/stream
 done
 ```
 
 ### Document Analysis
 
-#### Basic Analysis
+#### AI-Powered Analysis
 ```bash
-# Get document analysis
-curl -X POST http://localhost:3000/api/documents/{document_id}/analyze
+# Get comprehensive document analysis
+curl -X POST \
+     -H "Content-Type: application/json" \
+     -d '{
+       "analysis_type": "comprehensive",
+       "include_summary": true,
+       "include_entities": true,
+       "include_sentiment": true
+     }' \
+     http://localhost:4000/api/documents/{document_id}/analyze
 
 # Response includes:
-# - Word count and character statistics
-# - Readability metrics (Flesch-Kincaid score)
-# - Content classification
-# - Language detection
-# - Processing time metrics
+# - AI-generated summary
+# - Named entity recognition
+# - Sentiment analysis
+# - Topic classification
+# - Readability metrics
 ```
 
-#### Advanced Analysis Options
+#### Real-Time Processing Status
 ```bash
-# Analysis with entity extraction
-curl -X POST \
-     -H "Content-Type: application/json" \
-     -d '{"include_entities": true, "include_keywords": true}' \
-     http://localhost:3000/api/documents/{document_id}/analyze
+# Stream processing status
+curl -N http://localhost:4000/api/documents/{document_id}/stream
 
-# Custom analysis parameters
-curl -X POST \
-     -H "Content-Type: application/json" \
-     -d '{
-       "analysis_depth": "comprehensive",
-       "extract_summaries": true,
-       "confidence_threshold": 0.8
-     }' \
-     http://localhost:3000/api/documents/{document_id}/analyze
+# Server-Sent Events format:
+# event: progress
+# data: {"stage": "extracting", "progress": 0.3}
+#
+# event: complete
+# data: {"status": "processed", "analysis": {...}}
 ```
 
-### Content Extraction Examples
+## LLM Integration
 
-#### HTML Document Processing
-Input HTML:
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Sample Document</title>
-    <script>console.log('removed');</script>
-</head>
-<body>
-    <h1>Main Title</h1>
-    <p>This is a sample paragraph with <strong>important</strong> content.</p>
-    <style>.hidden { display: none; }</style>
-</body>
-</html>
-```
+### OpenRouter Model Access
 
-Extracted Content:
-```json
-{
-  "title": "Sample Document",
-  "text": "Main Title\n\nThis is a sample paragraph with important content.",
-  "word_count": 9,
-  "character_count": 52,
-  "metadata": {
-    "has_title": true,
-    "scripts_removed": 1,
-    "styles_removed": 1
-  }
-}
-```
-
-## Web Crawling
-
-### Basic Crawling
-
-#### Single Page Crawl
+#### Available Models
 ```bash
+# List all available models
+curl http://localhost:4000/api/llm/models
+
+# Filter by capabilities
+curl "http://localhost:4000/api/llm/models?capability=document_analysis"
+
+# Get model details
+curl http://localhost:4000/api/llm/models/openai/gpt-4o-mini
+```
+
+#### Chat with Document Context
+```bash
+# Chat with specific document
 curl -X POST \
      -H "Content-Type: application/json" \
      -d '{
-       "start_url": "https://example.com",
-       "max_pages": 1
+       "messages": [
+         {"role": "user", "content": "Summarize the key points"}
+       ],
+       "document_ids": ["doc_abc123"],
+       "model": "openai/gpt-4o-mini"
      }' \
-     http://localhost:3000/api/crawl
-```
+     http://localhost:4000/api/llm/chat
 
-#### Site Crawling
-```bash
+# Streaming chat responses
 curl -X POST \
      -H "Content-Type: application/json" \
      -d '{
-       "start_url": "https://example.com",
-       "max_depth": 3,
-       "max_pages": 100,
-       "rate_limit_ms": 1000,
-       "follow_external": false
+       "messages": [
+         {"role": "user", "content": "What are the main themes?"}
+       ],
+       "document_ids": ["doc_abc123"],
+       "stream": true
      }' \
-     http://localhost:3000/api/crawl
+     http://localhost:4000/api/llm/chat/stream
 ```
 
-### Crawl Configuration
+### User Tier Management
 
-#### Rate Limiting
-```json
-{
-  "rate_limit_ms": 1000,        // Delay between requests
-  "concurrent_requests": 5,      // Simultaneous connections
-  "respect_robots_txt": true,    // Honor robots.txt
-  "user_agent": "Swoop/0.2.0"   // Custom user agent
-}
-```
-
-#### Content Filtering
-```json
-{
-  "include_patterns": ["*.html", "*.htm"],
-  "exclude_patterns": ["*/admin/*", "*/private/*"],
-  "min_content_length": 100,
-  "max_content_length": 1048576
-}
-```
-
-### Monitoring Crawl Progress
-
-#### Check Crawl Status
+#### Tier Capabilities
 ```bash
-curl http://localhost:3000/api/crawl/{crawl_id}/status
+# Free Tier: Basic models, 100 requests/day
+# Basic Tier: Standard models, 1000 requests/day  
+# Premium Tier: Advanced models, 10,000 requests/day
+# Enterprise Tier: All models, unlimited usage
+
+# Check current tier and usage
+curl -H "Authorization: Bearer your-api-key" \
+     http://localhost:4000/api/user/tier
 
 # Response:
 {
-  "crawl_id": "crawl_abc123",
-  "status": "running",
-  "progress": {
-    "pages_discovered": 47,
-    "pages_processed": 23,
-    "pages_failed": 2,
-    "documents_extracted": 18
-  },
-  "performance": {
-    "pages_per_minute": 15.2,
-    "avg_response_time_ms": 850,
-    "success_rate": 0.956
+  "tier": "premium",
+  "usage": {
+    "requests_today": 245,
+    "requests_limit": 10000,
+    "cost_today": 2.45
   }
 }
+```
+
+## Storage Backends
+
+### libSQL (Recommended for Production)
+
+#### Turso Setup
+```bash
+# Install Turso CLI
+curl -sSfL https://get.tur.so/install.sh | bash
+
+# Create database
+turso db create swoop-production
+turso db show swoop-production
+
+# Get connection details
+turso db tokens create swoop-production
+
+# Configure Swoop
+export DATABASE_URL="libsql://swoop-production-[username].turso.io"
+export TURSO_AUTH_TOKEN="your-auth-token"
+```
+
+#### Local Development with libSQL
+```bash
+# Use local libSQL file
+export DATABASE_URL="file:./swoop.db"
+cargo run --features libsql
+```
+
+### SQLite (Traditional)
+```bash
+# Configure SQLite backend
+export STORAGE_BACKEND=sqlite
+export DATABASE_URL="sqlite:./swoop.sqlite"
+cargo run --features sqlite
+```
+
+### Memory Storage (Development)
+```bash
+# In-memory storage (data not persisted)
+export STORAGE_BACKEND=memory
+cargo run
 ```
 
 ## API Reference
 
 ### Authentication
-Currently, Swoop operates without authentication. For production deployment, implement authentication middleware.
-
-### Base URL
-```
-http://localhost:3000
-```
-
-### Error Handling
-All API endpoints return structured error responses:
-
-```json
-{
-  "error": {
-    "code": "DOCUMENT_NOT_FOUND",
-    "message": "Document with ID 'doc_123' not found",
-    "details": {
-      "document_id": "doc_123",
-      "available_documents": 5
-    }
-  }
-}
-```
-
-### Common HTTP Status Codes
-- `200 OK`: Successful operation
-- `201 Created`: Resource created successfully
-- `400 Bad Request`: Invalid request parameters
-- `404 Not Found`: Resource not found
-- `413 Payload Too Large`: File size exceeds limit
-- `422 Unprocessable Entity`: Invalid file format
-- `500 Internal Server Error`: Server processing error
-
-### Endpoints
-
-#### System Endpoints
 ```bash
-# Health check
-GET /health
-Response: {"status": "healthy", "version": "0.2.0"}
-
-# System status
-GET /api/status
-Response: {"documents": 15, "crawls_active": 2, "uptime": 3600}
+# API key authentication
+curl -H "Authorization: Bearer your-api-key" \
+     http://localhost:4000/api/protected-endpoint
 ```
 
-#### Document Endpoints
+### Document Endpoints
+
+#### Core Operations
 ```bash
 # Upload document
 POST /api/documents/upload
 Content-Type: multipart/form-data
 Body: file=@document.html
 
-# List documents
-GET /api/documents
-Query parameters:
-  - limit: number of results (default: 50)
-  - offset: pagination offset (default: 0)
-  - sort: sort field (created_at, size, filename)
-
-# Get specific document
+# Get document details
 GET /api/documents/{id}
 
-# Analyze document
+# List documents with filtering
+GET /api/documents?limit=50&offset=0&format=html
+
+# Analyze document with AI
 POST /api/documents/{id}/analyze
+Body: {"analysis_type": "comprehensive"}
+
+# Stream processing status
+GET /api/documents/{id}/stream
+Accept: text/event-stream
 
 # Delete document
 DELETE /api/documents/{id}
 ```
 
-#### Crawling Endpoints
+#### Search and Query
 ```bash
-# Start crawl
-POST /api/crawl
-Body: {"start_url": "https://example.com", ...}
+# Search documents by content
+GET /api/documents/search?q=machine+learning&limit=20
 
-# Get crawl status
-GET /api/crawl/{id}/status
+# Advanced search with filters
+POST /api/documents/search
+Body: {
+  "query": "artificial intelligence",
+  "filters": {
+    "date_range": "2024-01-01:2024-12-31",
+    "content_type": "html",
+    "min_word_count": 1000
+  }
+}
+```
 
-# Stop crawl
-POST /api/crawl/{id}/stop
+### LLM Endpoints
 
-# Get crawl results
-GET /api/crawl/{id}/results
+#### Chat Interface
+```bash
+# Standard chat
+POST /api/llm/chat
+Body: {
+  "messages": [...],
+  "model": "openai/gpt-4o-mini",
+  "document_context": ["doc_123"]
+}
+
+# Streaming chat
+POST /api/llm/chat/stream
+Body: {
+  "messages": [...],
+  "stream": true
+}
+```
+
+#### Model Management
+```bash
+# List available models
+GET /api/llm/models
+
+# Get model pricing
+GET /api/llm/models/{model_id}/pricing
+
+# Model performance metrics
+GET /api/llm/models/{model_id}/metrics
+```
+
+#### Analytics
+```bash
+# Usage analytics
+GET /api/llm/analytics
+Query params: ?start_date=2024-01-01&end_date=2024-01-31
+
+# Cost breakdown
+GET /api/llm/analytics/costs
+
+# Performance metrics
+GET /api/llm/analytics/performance
+```
+
+### System Endpoints
+```bash
+# Health check
+GET /health
+
+# System statistics
+GET /api/stats
+
+# Performance metrics
+GET /api/metrics
+
+# Configuration
+GET /api/config
 ```
 
 ## Advanced Usage
 
-### Batch Processing
+### Batch Processing with AI Analysis
 
-#### Process Multiple Documents
-```bash
-#!/bin/bash
-# batch_process.sh
+#### Intelligent Document Processing Pipeline
+```python
+import requests
+import json
+import time
 
-for file in documents/*.html; do
-    echo "Processing $file..."
+class SwoopClient:
+    def __init__(self, base_url="http://localhost:4000", api_key=None):
+        self.base_url = base_url
+        self.headers = {}
+        if api_key:
+            self.headers['Authorization'] = f'Bearer {api_key}'
     
-    # Upload document
-    response=$(curl -s -F "file=@$file" \
-                    http://localhost:3000/api/documents/upload)
-    
-    # Extract document ID
-    doc_id=$(echo $response | jq -r '.id')
-    
-    # Analyze document
-    curl -s -X POST \
-         http://localhost:3000/api/documents/$doc_id/analyze \
-         | jq '.analysis' > "results/${file%.html}.json"
-    
-    echo "Analysis saved to results/${file%.html}.json"
-done
+    def process_document_batch(self, file_paths, analysis_config):
+        """Process multiple documents with AI analysis"""
+        results = []
+        
+        for file_path in file_paths:
+            # Upload document
+            with open(file_path, 'rb') as f:
+                files = {'file': f}
+                response = requests.post(
+                    f"{self.base_url}/api/documents/upload",
+                    files=files,
+                    headers=self.headers
+                )
+            
+            doc_data = response.json()
+            doc_id = doc_data['id']
+            
+            # AI analysis
+            analysis_response = requests.post(
+                f"{self.base_url}/api/documents/{doc_id}/analyze",
+                json=analysis_config,
+                headers=self.headers
+            )
+            
+            results.append({
+                'file': file_path,
+                'document_id': doc_id,
+                'analysis': analysis_response.json()
+            })
+            
+            time.sleep(0.1)  # Rate limiting
+        
+        return results
+
+# Usage
+client = SwoopClient(api_key="your-api-key")
+results = client.process_document_batch(
+    ['doc1.html', 'doc2.html', 'doc3.html'],
+    {
+        'analysis_type': 'comprehensive',
+        'include_summary': True,
+        'include_entities': True
+    }
+)
 ```
 
 ### Performance Optimization
 
 #### Concurrent Processing
 ```bash
-# Process documents in parallel
+# Process documents in parallel with xargs
 find documents/ -name "*.html" | \
 xargs -P 4 -I {} bash -c '
-    response=$(curl -s -F "file=@{}" http://localhost:3000/api/documents/upload)
+    response=$(curl -s -F "file=@{}" http://localhost:4000/api/documents/upload)
     doc_id=$(echo $response | jq -r ".id")
-    curl -s -X POST http://localhost:3000/api/documents/$doc_id/analyze
+    curl -s -X POST http://localhost:4000/api/documents/$doc_id/analyze
 '
 ```
 
-#### Memory Management
+#### Connection Pooling and Caching
 ```bash
-# Monitor memory usage
-curl http://localhost:3000/api/status | jq '.memory_usage'
+# Monitor connection pool status
+curl http://localhost:4000/api/stats | jq '.connection_pool'
 
-# Clear document cache (if implemented)
-curl -X POST http://localhost:3000/api/cache/clear
+# Cache performance metrics
+curl http://localhost:4000/api/metrics | jq '.cache_stats'
 ```
 
 ### Integration Examples
 
-#### Python Integration
-```python
-import requests
-import json
-
-class SwoopClient:
-    def __init__(self, base_url="http://localhost:3000"):
-        self.base_url = base_url
-    
-    def upload_document(self, file_path):
-        with open(file_path, 'rb') as f:
-            files = {'file': f}
-            response = requests.post(
-                f"{self.base_url}/api/documents/upload",
-                files=files
-            )
-        return response.json()
-    
-    def analyze_document(self, doc_id):
-        response = requests.post(
-            f"{self.base_url}/api/documents/{doc_id}/analyze"
-        )
-        return response.json()
-
-# Usage
-client = SwoopClient()
-doc = client.upload_document("sample.html")
-analysis = client.analyze_document(doc['id'])
-print(f"Word count: {analysis['analysis']['word_count']}")
-```
-
-#### Node.js Integration
+#### Node.js Integration with Streaming
 ```javascript
 const axios = require('axios');
 const FormData = require('form-data');
-const fs = require('fs');
+const EventSource = require('eventsource');
 
 class SwoopClient {
-    constructor(baseUrl = 'http://localhost:3000') {
+    constructor(baseUrl = 'http://localhost:4000', apiKey = null) {
         this.baseUrl = baseUrl;
+        this.headers = apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {};
     }
     
     async uploadDocument(filePath) {
@@ -425,26 +484,61 @@ class SwoopClient {
         const response = await axios.post(
             `${this.baseUrl}/api/documents/upload`,
             form,
-            { headers: form.getHeaders() }
+            { 
+                headers: { 
+                    ...form.getHeaders(),
+                    ...this.headers 
+                }
+            }
         );
         
         return response.data;
     }
     
-    async analyzeDocument(docId) {
+    async chatWithDocument(docId, message) {
         const response = await axios.post(
-            `${this.baseUrl}/api/documents/${docId}/analyze`
+            `${this.baseUrl}/api/llm/chat`,
+            {
+                messages: [{ role: 'user', content: message }],
+                document_ids: [docId]
+            },
+            { headers: this.headers }
         );
         
         return response.data;
     }
+    
+    streamProcessing(docId, callback) {
+        const eventSource = new EventSource(
+            `${this.baseUrl}/api/documents/${docId}/stream`
+        );
+        
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            callback(data);
+        };
+        
+        return eventSource;
+    }
 }
 
 // Usage
-const client = new SwoopClient();
-client.uploadDocument('sample.html')
-    .then(doc => client.analyzeDocument(doc.id))
-    .then(analysis => console.log(analysis));
+const client = new SwoopClient('http://localhost:4000', 'your-api-key');
+
+// Upload and analyze
+client.uploadDocument('document.html')
+    .then(doc => {
+        console.log('Document uploaded:', doc.id);
+        
+        // Stream processing status
+        client.streamProcessing(doc.id, (status) => {
+            console.log('Processing status:', status);
+        });
+        
+        // Chat with document
+        return client.chatWithDocument(doc.id, 'What are the main topics?');
+    })
+    .then(response => console.log('AI Response:', response));
 ```
 
 ## Troubleshooting
@@ -454,73 +548,87 @@ client.uploadDocument('sample.html')
 #### Server Won't Start
 ```bash
 # Check if port is in use
-netstat -tlnp | grep :3000
+netstat -tlnp | grep :4000
 
 # Kill existing process
 pkill -f swoop_server
 
 # Start with different port
-swoop_server 3001
+swoop_server --port 4001
 ```
 
-#### Upload Failures
+#### OpenRouter API Issues
 ```bash
-# Check file size
-ls -lh document.html
+# Test API key
+curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+     https://openrouter.ai/api/v1/models
 
-# Verify file format
-file document.html
-
-# Test with small file
-echo "<html><body>Test</body></html>" > test.html
-curl -F "file=@test.html" http://localhost:3000/api/documents/upload
+# Check API quota
+curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+     https://openrouter.ai/api/v1/auth/key
 ```
 
-#### Performance Issues
+#### Storage Backend Issues
 ```bash
-# Monitor system resources
-htop
+# libSQL connection test
+curl -X POST \
+     -H "Content-Type: application/json" \
+     -d '{"query": "SELECT 1"}' \
+     "$DATABASE_URL/v1/execute"
 
-# Check server logs
-RUST_LOG=debug swoop_server
+# SQLite file permissions
+ls -la swoop.sqlite
+chmod 666 swoop.sqlite
+```
 
+### Performance Issues
+
+#### Monitor System Resources
+```bash
+# Check memory usage
+curl http://localhost:4000/api/stats | jq '.memory_usage'
+
+# Monitor processing queue
+curl http://localhost:4000/api/metrics | jq '.processing_queue'
+
+# Database performance
+curl http://localhost:4000/api/metrics | jq '.database_stats'
+```
+
+#### Optimize Configuration
+```bash
 # Reduce concurrent processing
 export SWOOP_WORKER_THREADS=2
+
+# Increase memory limits
+export SWOOP_MAX_DOCUMENT_SIZE=50MB
+
+# Adjust rate limiting
+export SWOOP_RATE_LIMIT=100/minute
 ```
 
 ### Debugging
 
 #### Enable Debug Logging
 ```bash
-RUST_LOG=debug swoop_server 2>&1 | tee swoop.log
+RUST_LOG=debug swoop_server --port 4000 2>&1 | tee swoop.log
 ```
 
 #### API Response Debugging
 ```bash
 # Verbose curl output
-curl -v -F "file=@document.html" http://localhost:3000/api/documents/upload
+curl -v -F "file=@document.html" http://localhost:4000/api/documents/upload
 
-# Pretty print JSON responses
-curl -s http://localhost:3000/api/documents | jq .
-```
-
-#### Performance Profiling
-```bash
-# Time API calls
-time curl -F "file=@large_document.html" \
-          http://localhost:3000/api/documents/upload
-
-# Monitor processing time
-curl -X POST http://localhost:3000/api/documents/{id}/analyze | \
-jq '.processing_time_ms'
+# Monitor streaming responses
+curl -N -v http://localhost:4000/api/documents/doc_123/stream
 ```
 
 ### Getting Help
 
-1. **Check Logs**: Enable debug logging to see detailed error messages
-2. **Verify Configuration**: Ensure environment variables are set correctly
-3. **Test with Simple Cases**: Use small, well-formed documents first
-4. **Check System Resources**: Monitor CPU and memory usage
-5. **Review API Documentation**: Ensure correct request format
+1. **Check Logs**: Enable debug logging for detailed error messages
+2. **Verify API Keys**: Ensure OpenRouter API key is valid and has credits
+3. **Test Storage**: Verify database connectivity and permissions
+4. **Monitor Resources**: Check CPU, memory, and disk usage
+5. **Review Configuration**: Ensure environment variables are set correctly
 
-For additional support, visit the [GitHub Issues](https://github.com/your-org/swoop/issues) page. 
+For additional support, visit the [GitHub Issues](https://github.com/codewithkenzo/swoop/issues) page. 
