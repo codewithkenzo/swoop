@@ -1,0 +1,37 @@
+{
+  "name": "swoop-vercel-edge",
+  "version": "1.0.0",
+  "description": "Swoop Document Intelligence - Vercel Edge Runtime",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "tsc",
+    "deploy": "vercel --prod",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "@vercel/edge": "^1.1.2",
+    "openai": "^4.67.3",
+    "zod": "^3.23.8",
+    "jose": "^5.9.6",
+    "nanoid": "^5.0.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vercel": "^37.17.4"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "document-intelligence",
+    "ai",
+    "edge-computing",
+    "serverless",
+    "vercel"
+  ],
+  "author": "Swoop Team",
+  "license": "MIT"
+} 

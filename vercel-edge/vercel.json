@@ -1,0 +1,88 @@
+{
+  "version": 2,
+  "name": "swoop-edge",
+  "functions": {
+    "api/edge/**/*.ts": {
+      "runtime": "edge"
+    },
+    "api/serverless/**/*.ts": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/edge/(.*)",
+      "dest": "/api/edge/$1"
+    },
+    {
+      "src": "/api/serverless/(.*)",
+      "dest": "/api/serverless/$1"
+    },
+    {
+      "src": "/health",
+      "dest": "/api/edge/health"
+    },
+    {
+      "src": "/api/documents/upload",
+      "dest": "/api/serverless/documents/upload"
+    },
+    {
+      "src": "/api/documents/(.*)",
+      "dest": "/api/edge/documents/$1"
+    },
+    {
+      "src": "/api/llm/chat",
+      "dest": "/api/serverless/llm/chat"
+    },
+    {
+      "src": "/api/auth/verify",
+      "dest": "/api/edge/auth/verify"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/edge/health",
+      "status": 404
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization, X-Requested-With"
+        },
+        {
+          "key": "Access-Control-Max-Age",
+          "value": "86400"
+        }
+      ]
+    }
+  ],
+  "env": {
+    "TURSO_DATABASE_URL": "@turso_database_url",
+    "TURSO_AUTH_TOKEN": "@turso_auth_token",
+    "OPENROUTER_API_KEY": "@openrouter_api_key",
+    "SWOOP_API_KEY": "@swoop_api_key",
+    "SWOOP_VERSION": "1.0.0",
+    "NODE_ENV": "production"
+  },
+  "build": {
+    "env": {
+      "ENABLE_EXPERIMENTAL_COREPACK": "1"
+    }
+  },
+  "regions": ["iad1", "sfo1", "fra1", "hnd1", "syd1"],
+  "github": {
+    "enabled": false
+  }
+} 
