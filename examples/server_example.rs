@@ -7,7 +7,7 @@
 
 use swoop::server::{CrawlServer, ServerConfig};
 use swoop::Result;
-use std::net::SocketAddr;
+
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -17,7 +17,7 @@ async fn main() -> Result<()> {
     
     // Configure the server
     let config = ServerConfig {
-        bind_addr: "0.0.0.0:8080".parse().unwrap(),
+        bind_addr: "0.0.0.0:3056".parse().unwrap(),
         static_dir: Some(PathBuf::from("static")),
         enable_compression: true,
         request_timeout: 30,
@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
     println!("📈 Stats: http://{}/api/v1/stats", config.bind_addr);
     
     // Create and start the server
-    let server = CrawlServer::new(config);
+    let server = CrawlServer::new(config)?;
     
     // This will run until Ctrl+C is pressed
     server.start().await?;

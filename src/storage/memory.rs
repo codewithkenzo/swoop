@@ -5,7 +5,8 @@
  * suitable for development, testing, and small-scale deployments.
  */
 
-use std::collections::HashMap;
+
+
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -24,6 +25,7 @@ pub struct MemoryStorage {
     /// Storage statistics
     stats: Arc<RwLock<StorageStats>>,
     /// Creation time for stats
+    #[allow(dead_code)]
     created_at: Instant,
 }
 

@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use governor::{
-    clock::{Clock, DefaultClock, Reference},
+    clock::{Clock, DefaultClock},
     state::{InMemoryState, NotKeyed},
     Quota, RateLimiter as GovRateLimiter
 };

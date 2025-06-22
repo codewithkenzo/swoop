@@ -49,7 +49,9 @@ struct DemoStats {
     total_requests: usize,
     successful_crawls: usize,
     rate_limited: usize,
+    #[allow(dead_code)]
     parsing_errors: usize,
+    #[allow(dead_code)]
     storage_errors: usize,
     total_processing_time: Duration,
     start_time: Instant,

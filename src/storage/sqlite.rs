@@ -8,6 +8,7 @@ use crate::models::{Document, DocumentBatch};
 use super::{Storage, StorageStats};
 
 pub struct SqliteStorage {
+    #[allow(dead_code)]
     connection_string: String,
 }
 

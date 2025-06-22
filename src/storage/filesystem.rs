@@ -5,7 +5,8 @@
  * suitable for small to medium-scale deployments.
  */
 
-use std::collections::HashMap;
+
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
@@ -87,6 +88,7 @@ impl FileSystemStorage {
     }
     
     /// Get the path for metadata file
+    #[allow(dead_code)]
     fn get_metadata_path(&self, id: &str) -> PathBuf {
         let subdir = if id.len() >= 2 {
             &id[0..2]

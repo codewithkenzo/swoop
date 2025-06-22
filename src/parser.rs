@@ -523,6 +523,7 @@ impl Parser {
     }
 
     /// Apply extraction rules to XML document
+    #[allow(dead_code)]
     fn apply_xml_extraction_rules_sync(&self, _xml_content: &str, _metadata: &Metadata, _rules: &[ExtractorRule]) -> Result<HashMap<String, ExtractedContent>> {
         // TODO: Implement XML extraction rules
         Ok(HashMap::new())
@@ -541,6 +542,7 @@ impl Parser {
     }
 
     /// Extract links from XML document synchronously
+    #[allow(dead_code)]
     fn extract_links_from_xml_sync(&self, _xml_content: &str, _base_url: &str) -> Option<Vec<Link>> {
         // TODO: Implement link extraction from XML
         Some(Vec::new())

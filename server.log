@@ -1,16 +1,14 @@
-🚀 Starting Crawl4AI Server...
+   Compiling swoop v0.1.0 (/home/kenzo/Documents/Projects/QuantumScribe/rust/swoop)
+    Finished `release` profile [optimized] target(s) in 37.81s
+     Running `target/release/examples/server_example`
+🚀 Starting swoop Server...
 📊 Dashboard: http://0.0.0.0:8080/
 🔌 WebSocket: ws://0.0.0.0:8080/ws
 📡 Events: http://0.0.0.0:8080/events
 🔍 Health: http://0.0.0.0:8080/api/v1/health
 📈 Stats: http://0.0.0.0:8080/api/v1/stats
-[2025-06-20T22:25:18Z INFO  crawl4ai_core::server] 🚀 Starting Crawl4AI server on 0.0.0.0:8080
-[2025-06-20T22:25:18Z INFO  crawl4ai_core::server] 📊 Dashboard: http://0.0.0.0:8080/dashboard
-[2025-06-20T22:25:18Z INFO  crawl4ai_core::server] 🔌 WebSocket: ws://0.0.0.0:8080/ws
-[2025-06-20T22:25:18Z INFO  crawl4ai_core::server] ✅ Server listening on 0.0.0.0:8080
-[2025-06-20T22:25:21Z INFO  crawl4ai_core::server] 📥 127.0.0.1:47500 GET /dashboard - 0ms - 200 OK
-[2025-06-20T22:25:21Z INFO  crawl4ai_core::server] 📥 127.0.0.1:47510 GET /api/v1/health - 0ms - 200 OK
-[2025-06-20T22:25:21Z INFO  crawl4ai_core::server] 📥 127.0.0.1:47520 GET /api/v1/stats - 0ms - 200 OK
-[2025-06-20T22:25:21Z INFO  crawl4ai_core::server] 📥 127.0.0.1:47526 GET /health - 0ms - 404 Not Found
-[2025-06-20T22:25:44Z INFO  crawl4ai_core::server] 📡 SSE connection established
-[2025-06-20T22:25:44Z INFO  crawl4ai_core::server] 📥 127.0.0.1:43894 GET /events - 0ms - 200 OK
+[2025-06-22T08:15:24Z INFO  swoop::monitoring] 🔧 Advanced monitoring system initialized
+[2025-06-22T08:15:24Z INFO  swoop::server] 🚀 Starting Crawl4AI server on 0.0.0.0:8080
+[2025-06-22T08:15:24Z INFO  swoop::server] 📊 Dashboard: http://0.0.0.0:8080/dashboard
+[2025-06-22T08:15:24Z INFO  swoop::server] 🔌 WebSocket: ws://0.0.0.0:8080/ws
+Error: Other("Failed to bind: Address already in use (os error 98)")

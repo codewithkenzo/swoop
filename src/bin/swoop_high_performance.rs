@@ -8,13 +8,14 @@ use std::{
 use clap::{Arg, Command};
 use reqwest::Client;
 use tokio::time::sleep;
-use tracing::{error, info, span, warn, Level};
+use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 use swoop::{
+    config::SelectorType,
     error::{Error, Result},
-    models::{Document, ExtractorRule, Metadata, SelectorType},
-    parser::Parser,
+    models::{Document, Metadata},
+    parser::{Parser, ExtractorRule},
     rate_limiter::{RateLimitConfig, RateLimiter},
     storage::{filesystem::FileSystemStorage, memory::MemoryStorage, Storage},
 };
@@ -33,7 +34,7 @@ struct HighPerformanceCrawler {
     stats: Arc<tokio::sync::RwLock<CrawlStats>>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct CrawlStats {
     total_requests: usize,
     successful_crawls: usize,
@@ -42,6 +43,20 @@ struct CrawlStats {
     total_processing_time: Duration,
     concurrent_requests: usize,
     start_time: Instant,
+}
+
+impl Default for CrawlStats {
+    fn default() -> Self {
+        Self {
+            total_requests: 0,
+            successful_crawls: 0,
+            failed_crawls: 0,
+            rate_limited: 0,
+            total_processing_time: Duration::from_secs(0),
+            concurrent_requests: 0,
+            start_time: Instant::now(),
+        }
+    }
 }
 
 impl HighPerformanceCrawler {
@@ -186,7 +201,7 @@ impl HighPerformanceCrawler {
         let parse_result = self.parser.parse(&body_bytes, &content_type, &metadata).await?;
 
         let document_id = format!("doc_{}_{}", 
-                                  chrono::Utc::now().timestamp_nanos(), 
+                                  chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0), 
                                   target.url.replace("https://", "").replace("/", "_"));
 
         let document = Document {
@@ -308,7 +323,7 @@ impl HighPerformanceCrawler {
 impl Clone for HighPerformanceCrawler {
     fn clone(&self) -> Self {
         Self {
-            parser: self.parser.clone(),
+            parser: Parser::new(), // Create new parser instance
             rate_limiter: self.rate_limiter.clone(),
             storage: self.storage.clone(),
             client: self.client.clone(),
