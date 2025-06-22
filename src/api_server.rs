@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use crate::error::{Error, Result};
 use crate::models::DocumentWorkspace;
+use crate::llm::{LLMService, LLMConfig, models::*};
 
 // API Response Types
 #[derive(Debug, Serialize)]
@@ -138,11 +139,16 @@ pub struct AppState {
     pub documents: Arc<RwLock<HashMap<String, DocumentProcessingStatus>>>,
     pub conversations: Arc<RwLock<HashMap<String, Vec<ChatMessage>>>>,
     pub system_stats: Arc<RwLock<SystemStats>>,
+    pub llm_service: Arc<LLMService>,
 }
 
 impl AppState {
-    pub fn new(workspace: DocumentWorkspace) -> Self {
-        Self {
+    pub async fn new(workspace: DocumentWorkspace) -> Result<Self, Error> {
+        let llm_config = LLMConfig::default();
+        let llm_service = LLMService::new(llm_config).await
+            .map_err(|e| Error::Initialization(format!("Failed to initialize LLM service: {}", e)))?;
+
+        Ok(Self {
             workspace: Arc::new(workspace),
             documents: Arc::new(RwLock::new(HashMap::new())),
             conversations: Arc::new(RwLock::new(HashMap::new())),
@@ -155,7 +161,8 @@ impl AppState {
                 uptime_seconds: 0,
                 memory_usage_mb: 0.0,
             })),
-        }
+            llm_service: Arc::new(llm_service),
+        })
     }
 }
 
@@ -379,6 +386,162 @@ async fn simulate_document_processing(state: AppState, document_id: String, _dat
     stats.average_quality_score = 0.92; // Mock value
 }
 
+// Enhanced LLM-powered chat endpoint
+pub async fn llm_chat(
+    State(state): State<AppState>,
+    Json(request): Json<ChatRequest>,
+) -> Result<ResponseJson<ApiResponse<ChatResponse>>, StatusCode> {
+    let start_time = std::time::Instant::now();
+    
+    // Create LLM completion request
+    let completion_request = CompletionRequest {
+        user_id: "default_user".to_string(), // In production, extract from auth
+        messages: vec![
+            Message {
+                role: "system".to_string(),
+                content: "You are a helpful document analysis assistant. Provide clear, accurate responses based on the available context.".to_string(),
+            },
+            Message {
+                role: "user".to_string(),
+                content: request.message.clone(),
+            },
+        ],
+        model_preference: None,
+        max_tokens: Some(1024),
+        temperature: Some(0.7),
+        top_p: None,
+        frequency_penalty: None,
+        presence_penalty: None,
+        stream: false,
+        document_context: request.document_context.clone(),
+        task_category: if request.message.to_lowercase().contains("summarize") {
+            TaskCategory::Summarization
+        } else if request.message.to_lowercase().contains("analyze") {
+            TaskCategory::DocumentAnalysis
+        } else {
+            TaskCategory::QuestionAnswering
+        },
+        priority: RequestPriority::Normal,
+    };
+
+    match state.llm_service.complete(completion_request).await {
+        Ok(completion_response) => {
+            let conversation_id = request.conversation_id.unwrap_or_else(|| Uuid::new_v4().to_string());
+            let processing_time = start_time.elapsed().as_millis() as u64;
+
+            let ai_message = ChatMessage {
+                id: Uuid::new_v4().to_string(),
+                content: completion_response.choices.first()
+                    .map(|choice| choice.message.content.clone())
+                    .unwrap_or_else(|| "I apologize, but I couldn't generate a response.".to_string()),
+                role: MessageRole::Assistant,
+                personality: request.personality.clone(),
+                document_references: request.document_context.clone(),
+                timestamp: chrono::Utc::now(),
+            };
+
+            // Store conversation
+            let mut conversations = state.conversations.write().await;
+            let conversation = conversations.entry(conversation_id.clone()).or_insert_with(Vec::new);
+            
+            // Add user message
+            conversation.push(ChatMessage {
+                id: Uuid::new_v4().to_string(),
+                content: request.message.clone(),
+                role: MessageRole::User,
+                personality: None,
+                document_references: vec![],
+                timestamp: chrono::Utc::now(),
+            });
+            
+            // Add AI response
+            conversation.push(ai_message.clone());
+
+            let response = ChatResponse {
+                message: ai_message,
+                conversation_id,
+                processing_time_ms: processing_time,
+            };
+
+            Ok(ResponseJson(ApiResponse::success(response)))
+        }
+        Err(e) => {
+            eprintln!("LLM completion error: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// Stream LLM chat responses
+pub async fn llm_chat_stream(
+    State(state): State<AppState>,
+    Json(request): Json<ChatRequest>,
+) -> Result<axum::response::Response, StatusCode> {
+    // Create LLM completion request for streaming
+    let completion_request = CompletionRequest {
+        user_id: "default_user".to_string(),
+        messages: vec![
+            Message {
+                role: "system".to_string(),
+                content: "You are a helpful document analysis assistant. Provide clear, accurate responses.".to_string(),
+            },
+            Message {
+                role: "user".to_string(),
+                content: request.message.clone(),
+            },
+        ],
+        model_preference: None,
+        max_tokens: Some(1024),
+        temperature: Some(0.7),
+        top_p: None,
+        frequency_penalty: None,
+        presence_penalty: None,
+        stream: true,
+        document_context: request.document_context.clone(),
+        task_category: TaskCategory::QuestionAnswering,
+        priority: RequestPriority::Normal,
+    };
+
+    match state.llm_service.stream_complete(completion_request).await {
+        Ok(stream) => {
+            use crate::llm::streaming::StreamingService;
+            Ok(StreamingService::create_sse_response(stream))
+        }
+        Err(e) => {
+            eprintln!("LLM streaming error: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// Get LLM analytics
+pub async fn get_llm_analytics(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<ApiResponse<serde_json::Value>>, StatusCode> {
+    match state.llm_service.analytics.get_global_stats().await {
+        Ok(stats) => {
+            let analytics_data = serde_json::json!({
+                "global_stats": stats,
+                "timestamp": chrono::Utc::now()
+            });
+            Ok(ResponseJson(ApiResponse::success(analytics_data)))
+        }
+        Err(e) => {
+            eprintln!("Failed to get LLM analytics: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// Get available models
+pub async fn get_available_models(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<ApiResponse<Vec<ModelInfo>>>, StatusCode> {
+    let registry = state.llm_service.model_registry.read().await;
+    let models: Vec<ModelInfo> = registry.models.values().cloned().collect();
+    Ok(ResponseJson(ApiResponse::success(models)))
+}
+
 fn extract_document_references(message: &str) -> Vec<String> {
     let mut references = Vec::new();
     let words: Vec<&str> = message.split_whitespace().collect();
@@ -463,9 +626,15 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/documents", get(list_documents))
         .route("/api/documents/:id", get(get_document_status))
         
-        // Chat endpoints
+        // Chat endpoints (legacy)
         .route("/api/chat/query", post(chat_query))
         .route("/api/chat/conversations/:id", get(get_conversation))
+        
+        // LLM-powered endpoints
+        .route("/api/llm/chat", post(llm_chat))
+        .route("/api/llm/chat/stream", post(llm_chat_stream))
+        .route("/api/llm/analytics", get(get_llm_analytics))
+        .route("/api/llm/models", get(get_available_models))
         
         // Analytics endpoints
         .route("/api/stats", get(get_system_stats))
@@ -479,23 +648,32 @@ pub fn create_router(state: AppState) -> Router {
 }
 
 pub async fn start_server(workspace: DocumentWorkspace, port: u16) -> Result<(), Error> {
-    let state = AppState::new(workspace);
+    let state = AppState::new(workspace).await?;
     let app = create_router(state);
     
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
         .await
         .map_err(|e| Error::NetworkError(e.to_string()))?;
     
-    println!("🚀 Swoop server running on http://0.0.0.0:{}", port);
+    println!("🚀 Swoop Advanced Document Processing & Analysis Platform");
+    println!("📡 Server running on http://0.0.0.0:{}", port);
+    println!("🤖 OpenRouter LLM integration enabled");
     println!("📊 API endpoints:");
-    println!("   POST /api/documents/upload");
-    println!("   GET  /api/documents");
-    println!("   GET  /api/documents/:id");
-    println!("   POST /api/chat/query");
-    println!("   GET  /api/chat/conversations/:id");
-    println!("   GET  /api/stats");
-    println!("   GET  /api/metrics");
-    println!("   GET  /health");
+    println!("   📄 Document Processing:");
+    println!("      POST /api/documents/upload");
+    println!("      GET  /api/documents");
+    println!("      GET  /api/documents/:id");
+    println!("   💬 Chat & LLM:");
+    println!("      POST /api/chat/query (legacy)");
+    println!("      POST /api/llm/chat (enhanced)");
+    println!("      POST /api/llm/chat/stream (real-time)");
+    println!("      GET  /api/llm/models");
+    println!("      GET  /api/llm/analytics");
+    println!("   📈 Analytics:");
+    println!("      GET  /api/stats");
+    println!("      GET  /api/metrics");
+    println!("   🔍 Health:");
+    println!("      GET  /health");
     
     axum::serve(listener, app)
         .await
