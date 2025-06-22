@@ -1,395 +1,283 @@
-use std::{
-    collections::HashMap,
-    net::{IpAddr, Ipv4Addr},
-    sync::Arc,
-    time::{Duration, Instant},
-};
-
-use clap::{Arg, Command};
-use reqwest::Client;
-use tokio::time::sleep;
-use tracing::{error, info};
-use tracing_subscriber::EnvFilter;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tracing::info;
 
 use swoop::{
-    config::SelectorType,
-    error::{Error, Result},
+    Result, 
+    storage::{memory::MemoryStorage, Storage},
+    rate_limiter::{RateLimiter, RateLimitConfig},
+    extractors::{DataExtractor, ExtractorConfig, ExtractionResult},
+    intelligence::{IntelligenceProcessor, IntelligenceConfig},
     models::{Document, Metadata},
-    parser::{Parser, ExtractorRule},
-    rate_limiter::{RateLimitConfig, RateLimiter},
-    storage::{filesystem::FileSystemStorage, memory::MemoryStorage, Storage},
 };
 
-#[derive(Debug, Clone)]
-struct CrawlTarget {
-    url: String,
-    name: String,
+/// Modern High-Performance Demo for Swoop
+/// 
+/// Demonstrates concurrent document processing with:
+/// - High-throughput extraction 
+/// - Intelligent rate limiting
+/// - Real-time performance metrics
+/// - Modern async architecture
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Initialize logging
+    tracing_subscriber::fmt()
+        .with_env_filter("swoop=info,swoop_high_performance=info")
+        .init();
+
+    info!("🚀 Swoop High-Performance Demo v2.0");
+    info!("⚡ Modern async Rust architecture");
+
+    let demo = HighPerformanceDemo::new().await?;
+    demo.run_performance_benchmarks().await?;
+    
+    info!("✅ High-performance demo completed successfully!");
+    Ok(())
 }
 
-struct HighPerformanceCrawler {
-    parser: Parser,
-    rate_limiter: Arc<RateLimiter>,
+/// High-performance demonstration system
+struct HighPerformanceDemo {
     storage: Arc<dyn Storage>,
-    client: Client,
-    stats: Arc<tokio::sync::RwLock<CrawlStats>>,
+    extractor: DataExtractor,
+    intelligence: IntelligenceProcessor,
+    rate_limiter: Arc<RateLimiter>,
 }
 
-#[derive(Debug)]
-struct CrawlStats {
-    total_requests: usize,
-    successful_crawls: usize,
-    failed_crawls: usize,
-    #[allow(dead_code)]
-    rate_limited: usize,
-    total_processing_time: Duration,
-    concurrent_requests: usize,
-    start_time: Instant,
-}
+impl HighPerformanceDemo {
+    async fn new() -> Result<Self> {
+        info!("🔧 Initializing high-performance components...");
 
-impl Default for CrawlStats {
-    fn default() -> Self {
-        Self {
-            total_requests: 0,
-            successful_crawls: 0,
-            failed_crawls: 0,
-            rate_limited: 0,
-            total_processing_time: Duration::from_secs(0),
-            concurrent_requests: 0,
-            start_time: Instant::now(),
-        }
-    }
-}
-
-impl HighPerformanceCrawler {
-    async fn new(use_filesystem: bool, storage_path: Option<String>, max_concurrent: usize) -> Result<Self> {
-        // High-performance rate limiting configuration
-        let rate_config = RateLimitConfig {
-            requests_per_second: 50,     // 50 requests per second
-            burst_capacity: 100,         // Allow bursts up to 100
-            default_delay_ms: 20,        // Minimal 20ms delay
-            ip_requests_per_minute: 1000, // High IP limit
-            global_requests_per_second: 100, // High global limit
+        // Memory storage for maximum speed
+        let storage: Arc<dyn Storage> = Arc::new(MemoryStorage::new());
+        
+        // High-performance extraction config
+        let extractor_config = ExtractorConfig {
+            extract_emails: true,
+            extract_phones: true,
+            detect_sensitive: true,
+            email_validation: true,
+            phone_formatting: true,
             ..Default::default()
         };
+        let extractor = DataExtractor::new(extractor_config);
 
-        let storage: Arc<dyn Storage> = if use_filesystem {
-            let path = storage_path.unwrap_or_else(|| "./swoop_data".to_string());
-            info!("🗄️  High-performance filesystem storage: {}", path);
-            Arc::new(FileSystemStorage::new((&path).into())?)
-        } else {
-            info!("🗄️  High-performance in-memory storage");
-            Arc::new(MemoryStorage::new())
+        // AI intelligence config
+        let intelligence_config = IntelligenceConfig {
+            extract_entities: true,
+            generate_summary: true,
+            enable_quality_analysis: true,
+            enable_classification: true,
+            min_quality_threshold: 0.7,
+            ..Default::default()
         };
+        let intelligence = IntelligenceProcessor::new(intelligence_config);
 
-        // High-performance HTTP client configuration
-        let client = Client::builder()
-            .timeout(Duration::from_secs(5))  // Faster timeout
-            .pool_max_idle_per_host(max_concurrent) // Connection pooling
-            .pool_idle_timeout(Duration::from_secs(30))
-            .user_agent("Swoop/2.0 (High-Performance Rust Crawler)")
-            .build()
-            .map_err(|e| Error::Http(e))?;
+        // High-throughput rate limiting
+        let rate_config = RateLimitConfig {
+            requests_per_second: 100,
+            burst_capacity: 200,
+            window_seconds: 60,
+            default_delay_ms: 10,
+            ip_requests_per_minute: 2000,
+            global_requests_per_second: 200,
+            max_requests: 1000,
+            enabled: true,
+        };
+        let rate_limiter = Arc::new(RateLimiter::new(rate_config));
+
+        info!("✅ High-performance components initialized");
 
         Ok(Self {
-            parser: Parser::new(),
-            rate_limiter: Arc::new(RateLimiter::new(rate_config)),
             storage,
-            client,
-            stats: Arc::new(tokio::sync::RwLock::new(CrawlStats {
-                start_time: Instant::now(),
-                concurrent_requests: max_concurrent,
-                ..Default::default()
-            })),
+            extractor,
+            intelligence,
+            rate_limiter,
         })
     }
 
-    async fn setup_extraction_rules(&self) {
-        info!("⚙️  Setting up high-performance extraction rules...");
+    async fn run_performance_benchmarks(&self) -> Result<()> {
+        info!("📊 Running performance benchmarks...");
 
-        let rules = vec![
-            ExtractorRule {
-                name: "title".to_string(),
-                selector: "title, h1, h2".to_string(),
-                content_type: "text".to_string(),
-                selector_type: SelectorType::CSS,
-                attribute: None,
-                multiple: false,
-                required: true,
-                default_value: Some("Untitled Page".to_string()),
+        // Benchmark 1: Single document extraction performance
+        self.benchmark_extraction_speed().await?;
+        
+        // Benchmark 2: Concurrent processing throughput
+        self.benchmark_concurrent_throughput().await?;
+        
+        // Benchmark 3: AI analysis performance
+        self.benchmark_ai_performance().await?;
+        
+        info!("📈 All benchmarks completed successfully");
+        Ok(())
+    }
+
+    async fn benchmark_extraction_speed(&self) -> Result<()> {
+        info!("🔍 Benchmark 1: Extraction Speed Test");
+        
+        let test_content = r#"
+        Contact us at support@company.com or call (555) 123-4567.
+        Our sales team can be reached at sales@company.com or (555) 987-6543.
+        Visit https://company.com for more information.
+        Emergency contact: emergency@company.com, Phone: +1-800-HELP-NOW
+        "#;
+
+        let start = Instant::now();
+        let result = self.extractor.extract_all(test_content, test_content)?;
+        let duration = start.elapsed();
+
+        info!("📊 Extraction Results:");
+        info!("   Processing time: {:?}", duration);
+        info!("   Emails found: {}", result.emails.len());
+        info!("   Phone numbers: {}", result.phones.len());
+        info!("   Links: {}", result.links.len());
+        info!("   Quality score: {:.2}", result.quality_score);
+        info!("   Throughput: {:.2} chars/ms", test_content.len() as f64 / duration.as_millis() as f64);
+
+        // Create and store a document
+        let document = Document {
+            id: "perf_test_1".to_string(),
+            title: "Extraction Speed Test".to_string(),
+            content: test_content.to_string(),
+            content_type: Some("text/plain".to_string()),
+            file_size: Some(test_content.len() as u64),
+            metadata: Metadata {
+                source_url: Some("internal://extraction-test".to_string()),
+                processed_at: chrono::Utc::now(),
+                processor: Some("high-performance-extractor".to_string()),
+                ..Default::default()
             },
-            ExtractorRule {
-                name: "description".to_string(),
-                selector: "meta[name='description'], meta[property='og:description']".to_string(),
-                content_type: "text".to_string(),
-                selector_type: SelectorType::CSS,
-                attribute: Some("content".to_string()),
-                multiple: false,
-                required: false,
-                default_value: Some("No description available".to_string()),
-            },
+            content_hash: Some("extraction_test_hash".to_string()),
+            summary: Some("Performance test document for extraction speed".to_string()),
+            extracted_at: chrono::Utc::now(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            quality_score: Some(result.quality_score),
+            source_url: Some("internal://extraction-test".to_string()),
+            document_type: Some("test".to_string()),
+            language: Some("en".to_string()),
+            word_count: Some(test_content.split_whitespace().count()),
+            size_bytes: Some(test_content.len() as u64),
+        };
+
+        self.storage.store_document(&document).await?;
+        info!("✅ Extraction speed benchmark completed");
+        Ok(())
+    }
+
+    async fn benchmark_concurrent_throughput(&self) -> Result<()> {
+        info!("⚡ Benchmark 2: Concurrent Throughput Test");
+        
+        let test_documents = vec![
+            "Document 1: Contact john@example.com or call (555) 111-1111",
+            "Document 2: Email support@company.org, Phone: 555-222-2222",
+            "Document 3: Reach us at info@business.net or dial 555-333-3333",
+            "Document 4: Sales at sales@store.com, Support: (555) 444-4444",
+            "Document 5: Help desk: help@service.io, Call 555-555-5555",
+            "Document 6: Contact admin@site.edu or phone 555-666-6666",
+            "Document 7: Email team@project.gov, Call line: 555-777-7777",
+            "Document 8: Support contact@platform.biz, Phone 555-888-8888",
         ];
 
-        for rule in rules {
-            self.parser.add_rule(rule.clone()).await;
-        }
-        info!("✅ High-performance extraction rules configured");
-    }
-
-    fn get_performance_test_targets() -> Vec<CrawlTarget> {
-        vec![
-            CrawlTarget {
-                url: "https://httpbin.org/html".to_string(),
-                name: "HTTPBin HTML Test".to_string(),
-            },
-            CrawlTarget {
-                url: "https://example.com".to_string(),
-                name: "Example.com".to_string(),
-            },
-            CrawlTarget {
-                url: "https://httpbin.org/json".to_string(),
-                name: "HTTPBin JSON Test".to_string(),
-            },
-            CrawlTarget {
-                url: "https://httpbin.org/xml".to_string(),
-                name: "HTTPBin XML Test".to_string(),
-            },
-            CrawlTarget {
-                url: "https://httpbin.org/robots.txt".to_string(),
-                name: "HTTPBin Robots.txt".to_string(),
-            },
-        ]
-    }
-
-    async fn crawl_url_concurrent(&self, target: &CrawlTarget) -> Result<Option<Document>> {
-        let start_time = Instant::now();
-
-        {
-            let mut stats = self.stats.write().await;
-            stats.total_requests += 1;
-        }
-
-        // Fast rate limit check
-        let client_ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 1));
-        if let Err(Error::RateLimit(_)) = self.rate_limiter.check_request(&target.url, Some(client_ip)).await {
-            // Minimal wait for rate limiting
-            sleep(Duration::from_millis(10)).await;
-            self.rate_limiter.check_request(&target.url, Some(client_ip)).await?;
-        }
-
-        // High-performance HTTP request
-        let response = self.client.get(&target.url).send().await
-            .map_err(|e| Error::Http(e))?;
-
-        let status_code = response.status().as_u16();
-        let headers: HashMap<String, String> = response.headers()
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
-            .collect();
-
-        let content_type = headers.get("content-type")
-            .cloned()
-            .unwrap_or_else(|| "text/html".to_string());
-
-        let body_bytes = response.bytes().await
-            .map_err(|e| Error::Http(e))?;
-
-        let metadata = Metadata {
-            url: target.url.clone(),
-            content_type: content_type.clone(),
-            fetch_time: chrono::Utc::now(),
-            status_code,
-            headers,
-        };
-
-        // Fast parsing
-        let parse_result = self.parser.parse(&body_bytes, &content_type, &metadata).await?;
-
-        let document_id = format!("doc_{}_{}", 
-                                  chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0), 
-                                  target.url.replace("https://", "").replace("/", "_"));
-
-        let document = Document {
-            id: document_id.clone(),
-            url: target.url.clone(),
-            title: parse_result.extracted.get("title")
-                .map(|c| c.content.clone())
-                .unwrap_or_else(|| target.name.clone()),
-            content: parse_result.extracted.get("description")
-                .map(|c| c.content.clone())
-                .unwrap_or_else(|| "No content extracted".to_string()),
-            html: String::from_utf8_lossy(&body_bytes).to_string(),
-            text: parse_result.extracted.values()
-                .map(|c| c.content.as_str())
-                .collect::<Vec<_>>()
-                .join(" "),
-            metadata,
-            links: parse_result.links,
-            extracted: parse_result.extracted,
-        };
-
-        // Concurrent storage
-        self.storage.store_document(&document).await?;
-        
-        {
-            let mut stats = self.stats.write().await;
-            stats.successful_crawls += 1;
-            stats.total_processing_time += start_time.elapsed();
-        }
-        
-        Ok(Some(document))
-    }
-
-    async fn run_concurrent_crawl(&self, targets: Vec<CrawlTarget>, max_concurrent: usize) -> Result<()> {
-        info!("🚀 Starting HIGH-PERFORMANCE concurrent crawl with {} workers", max_concurrent);
-        info!("🎯 Processing {} targets concurrently", targets.len());
-
-        let semaphore = Arc::new(tokio::sync::Semaphore::new(max_concurrent));
+        let start = Instant::now();
         let mut handles = Vec::new();
 
-        for (i, target) in targets.into_iter().enumerate() {
-            let crawler = self.clone();
-            let semaphore_clone = semaphore.clone();
+        for (idx, content) in test_documents.into_iter().enumerate() {
+            let extractor = self.extractor.clone();
+            let storage = self.storage.clone();
+            let content = content.to_string();
             
             let handle = tokio::spawn(async move {
-                let _permit = semaphore_clone.acquire().await.unwrap();
+                let result = extractor.extract_all(&content, &content)?;
                 
-                info!("🌐 [Worker {}] Starting: {} ({})", i + 1, target.name, target.url);
-                let start = Instant::now();
-                
-                match crawler.crawl_url_concurrent(&target).await {
-                    Ok(Some(doc)) => {
-                        let duration = start.elapsed();
-                        info!("✅ [Worker {}] Completed in {:?}: {}", i + 1, duration, doc.title);
-                        Ok(())
-                    }
-                    Err(e) => {
-                        let duration = start.elapsed();
-                        error!("❌ [Worker {}] Failed in {:?}: {} - {}", i + 1, duration, target.name, e);
-                        Err(e)
-                    }
-                    _ => Ok(())
-                }
+                let document = Document {
+                    id: format!("concurrent_test_{}", idx),
+                    title: format!("Concurrent Test Document {}", idx + 1),
+                    content: content.clone(),
+                    content_type: Some("text/plain".to_string()),
+                    file_size: Some(content.len() as u64),
+                    metadata: Metadata {
+                        source_url: Some(format!("internal://concurrent-test-{}", idx)),
+                        processed_at: chrono::Utc::now(),
+                                                 processor: Some("concurrent-extractor".to_string()),
+                        ..Default::default()
+                    },
+                    content_hash: Some(format!("concurrent_hash_{}", idx)),
+                    summary: Some(format!("Concurrent test document {}", idx + 1)),
+                    extracted_at: chrono::Utc::now(),
+                    created_at: chrono::Utc::now(),
+                    updated_at: chrono::Utc::now(),
+                    quality_score: Some(result.quality_score),
+                    source_url: Some(format!("internal://concurrent-test-{}", idx)),
+                    document_type: Some("test".to_string()),
+                    language: Some("en".to_string()),
+                    word_count: Some(content.split_whitespace().count()),
+                    size_bytes: Some(content.len() as u64),
+                };
+
+                storage.store_document(&document).await?;
+                Ok::<ExtractionResult, swoop::Error>(result)
             });
             
             handles.push(handle);
         }
 
-        // Wait for all concurrent tasks to complete
-        let results: Vec<_> = futures::future::join_all(handles).await;
-        
-        let mut successful = 0;
-        let mut failed = 0;
-        
-        for result in results {
-            match result {
-                Ok(Ok(_)) => successful += 1,
-                Ok(Err(_)) => failed += 1,
-                Err(_) => failed += 1,
-            }
-        }
+        let results = futures::future::try_join_all(handles).await
+            .map_err(|e| swoop::Error::Other(format!("Join error: {}", e)))?;
+            
+        let duration = start.elapsed();
+        let successful_extractions = results.into_iter().collect::<Result<Vec<_>>>()?;
 
-        {
-            let mut stats = self.stats.write().await;
-            stats.failed_crawls = failed;
-        }
+        info!("📊 Concurrent Processing Results:");
+        info!("   Total time: {:?}", duration);
+        info!("   Documents processed: {}", successful_extractions.len());
+        info!("   Average per document: {:?}", duration / successful_extractions.len() as u32);
+        info!("   Throughput: {:.2} docs/sec", successful_extractions.len() as f64 / duration.as_secs_f64());
+        info!("   Success rate: 100%");
 
-        info!("🎉 Concurrent crawl completed: {} successful, {} failed", successful, failed);
+        info!("✅ Concurrent throughput benchmark completed");
         Ok(())
     }
 
-    async fn print_performance_statistics(&self) {
-        info!("📈 === HIGH-PERFORMANCE STATISTICS ===");
-
-        let stats = self.stats.read().await;
-        let runtime = stats.start_time.elapsed();
+    async fn benchmark_ai_performance(&self) -> Result<()> {
+        info!("🧠 Benchmark 3: AI Analysis Performance");
         
-        info!("⚡ Runtime: {:?}", runtime);
-        info!("🚀 Concurrent workers: {}", stats.concurrent_requests);
-        info!("📊 Total requests: {}", stats.total_requests);
-        info!("✅ Successful crawls: {}", stats.successful_crawls);
-        info!("❌ Failed crawls: {}", stats.failed_crawls);
+        let complex_content = r#"
+        Artificial Intelligence and Machine Learning Technologies in 2024
         
-        if stats.successful_crawls > 0 {
-            let avg_time = stats.total_processing_time / stats.successful_crawls as u32;
-            info!("📊 Average processing time: {:?}", avg_time);
-            
-            let requests_per_second = stats.total_requests as f64 / runtime.as_secs_f64();
-            info!("🔥 Requests per second: {:.2}", requests_per_second);
-        }
+        The AI industry continues to experience rapid growth across multiple sectors.
+        Natural language processing has reached new milestones with advanced models
+        capable of understanding context and generating human-like responses.
+        
+        Key developments include:
+        - Advanced neural networks for document processing
+        - Real-time language translation and understanding
+        - Automated content analysis and categorization
+        - Intelligent data extraction from unstructured sources
+        
+        For business inquiries, contact our AI division at ai-business@techcorp.com
+        or call our dedicated AI hotline at 1-800-AI-FUTURE (1-800-243-8887).
+        
+        Research collaborations: research@ai-lab.edu
+        Technical support: support@ai-platform.com, Phone: +1-555-AI-HELP
+        "#;
 
-        let rate_stats = self.rate_limiter.get_stats().await;
-        info!("🚦 Rate limiter - Total: {}, Blocked: {}", 
-              rate_stats.total_requests, rate_stats.blocked_requests);
+        let start = Instant::now();
+        let analysis_result = self.intelligence
+            .process_content(complex_content, "ai_benchmark.txt", &["ai".to_string(), "benchmark".to_string()])
+            .await?;
+        let duration = start.elapsed();
+
+        info!("📊 AI Analysis Results:");
+        info!("   Analysis time: {:?}", duration);
+        info!("   Content length: {} chars", complex_content.len());
+        info!("   Processing speed: {:.2} chars/ms", complex_content.len() as f64 / duration.as_millis() as f64);
+        info!("   Emails detected: {}", analysis_result.emails.len());
+        info!("   Phone numbers: {}", analysis_result.phones.len());
+        info!("   Classification: {}", analysis_result.classification);
+        info!("   Quality score: {:.2}", analysis_result.quality_score);
+        info!("   Metadata entries: {}", analysis_result.metadata.len());
+
+        info!("✅ AI analysis benchmark completed");
+        Ok(())
     }
-}
-
-// Implement Clone for concurrent usage
-impl Clone for HighPerformanceCrawler {
-    fn clone(&self) -> Self {
-        Self {
-            parser: Parser::new(), // Create new parser instance
-            rate_limiter: self.rate_limiter.clone(),
-            storage: self.storage.clone(),
-            client: self.client.clone(),
-            stats: self.stats.clone(),
-        }
-    }
-}
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let filter = EnvFilter::from_default_env()
-        .add_directive("swoop_high_performance=info".parse().unwrap())
-        .add_directive("swoop=info".parse().unwrap());
-
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_target(false)
-        .with_thread_ids(true)
-        .with_file(false)
-        .with_line_number(false)
-        .init();
-
-    let matches = Command::new("Swoop High-Performance Demo")
-        .version("2.0.0")
-        .about("Demonstrates Swoop's high-performance concurrent crawling capabilities")
-        .arg(Arg::new("filesystem")
-            .long("filesystem")
-            .help("Use filesystem storage")
-            .action(clap::ArgAction::SetTrue))
-        .arg(Arg::new("concurrent")
-            .long("concurrent")
-            .short('c')
-            .help("Number of concurrent workers")
-            .value_name("NUM")
-            .default_value("10"))
-        .get_matches();
-
-    let use_filesystem = matches.get_flag("filesystem");
-    let max_concurrent: usize = matches.get_one::<String>("concurrent")
-        .unwrap()
-        .parse()
-        .unwrap_or(10);
-
-    info!("🚀 === SWOOP HIGH-PERFORMANCE DEMO ===");
-    info!("💾 Storage: {}", if use_filesystem { "Filesystem" } else { "Memory" });
-    info!("⚡ Concurrent workers: {}", max_concurrent);
-
-    let crawler = HighPerformanceCrawler::new(use_filesystem, None, max_concurrent).await?;
-    crawler.setup_extraction_rules().await;
-
-    let targets = HighPerformanceCrawler::get_performance_test_targets();
-    
-    info!("🎯 Selected targets:");
-    for target in &targets {
-        info!("  • {} ({})", target.name, target.url);
-    }
-
-    // Run high-performance concurrent crawl
-    crawler.run_concurrent_crawl(targets, max_concurrent).await?;
-
-    crawler.print_performance_statistics().await;
-    info!("🎉 High-performance demo completed successfully!");
-
-    Ok(())
 } 
