@@ -34,6 +34,8 @@
 pub mod config;
 pub mod crawler;
 pub mod error;
+pub mod extractors;
+pub mod loaders;
 pub mod models;
 pub mod parser;
 pub mod rate_limiter;
