@@ -166,18 +166,18 @@ lru = "0.12"
 
 # Additional dependencies
 # SECURITY FIX: Updated sqlx to 0.8.6 to fix Binary Protocol Misinterpretation vulnerability
-sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+# Disabled default features and macros to avoid rsa vulnerability (RUSTSEC-2023-0071)
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid", "migrate"] }
 # SECURITY FIX: Updated polars to latest version to fix fast-float vulnerability
 polars = { version = "0.49.1", features = ["lazy", "temporal", "strings"] } 
 async-trait = "0.1"
 async-stream = "0.3"
 
 # libSQL for serverless/edge deployments - SECURITY FIX: Updated to latest available versions
-# NOTE: libsql-client has transitive dependencies with known vulnerabilities (rustls 0.20.9, tungstenite 0.18.0, ring 0.16.20)
-# These are in the libsql ecosystem and will be fixed when upstream updates their dependencies
-# Users can disable libsql feature to avoid these vulnerabilities if not using edge/serverless deployment
+# NOTE: Configured to use reqwest_backend only to avoid vulnerable hrana-client dependencies
+# Users can disable libsql feature to avoid any remaining vulnerabilities if not using edge/serverless deployment
 libsql = { version = "0.9.11", optional = true }
-libsql-client = { version = "0.33.4", optional = true }
+libsql-client = { version = "0.33.4", optional = true, default-features = false, features = ["reqwest_backend", "local_backend"] }
 
 [features]
 default = ["ai", "enhanced-processing", "robust-parsing", "sqlite"]
