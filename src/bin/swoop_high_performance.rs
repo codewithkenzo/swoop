@@ -39,6 +39,7 @@ struct CrawlStats {
     total_requests: usize,
     successful_crawls: usize,
     failed_crawls: usize,
+    #[allow(dead_code)]
     rate_limited: usize,
     total_processing_time: Duration,
     concurrent_requests: usize,

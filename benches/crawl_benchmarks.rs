@@ -13,7 +13,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion, Benchmark
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use chrono::Utc;
+
 
 use swoop::{
     config::SelectorType,

@@ -20,7 +20,7 @@ use tokio::time::sleep;
 use swoop::{
     config::SelectorType,
     error::{Error, Result},
-    models::{Document, ExtractedContent, Link, Metadata},
+    models::{Document, Metadata},
     parser::{Parser, ExtractorRule},
     rate_limiter::{RateLimiter, RateLimitConfig},
     storage::{Storage, memory::MemoryStorage},

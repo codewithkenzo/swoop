@@ -18,11 +18,12 @@ use serial_test::serial;
 use swoop::{
     config::SelectorType,
     error::Result,
-    models::{Document, ExtractedContent, Link, Metadata},
+    models::{Document, Link, Metadata},
     parser::{Parser, ExtractorRule},
     storage::{Storage, memory::MemoryStorage, filesystem::FileSystemStorage},
 };
 
+#[allow(dead_code)]
 const TEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[tokio::test]

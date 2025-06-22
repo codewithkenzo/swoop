@@ -11,7 +11,7 @@
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{info, warn};
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::EnvFilter;
 
 use swoop::{
     error::Result,
