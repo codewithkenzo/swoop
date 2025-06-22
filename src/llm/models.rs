@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Duration;
 
 /// OpenRouter API request structure
 #[derive(Debug, Clone, Serialize, Deserialize)]

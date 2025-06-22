@@ -12,8 +12,9 @@ pub mod config;
 pub mod extractors;
 pub mod llm;
 pub mod document_processor;
+pub mod crawler;
+pub mod storage;
 // pub mod parser;    // Disabled for now
-// pub mod storage;   // Disabled for now
 // pub mod intelligence;  // Re-enable gradually
 // pub mod chat;          // Re-enable gradually
 // pub mod ai;            // Re-enable gradually
@@ -24,6 +25,10 @@ pub mod document_processor;
 // Re-export main types
 pub use error::{Result, Error};
 pub use models::{Document, DocumentWorkspace};
+pub use config::Config;
+pub use document_processor::DocumentProcessor;
+pub use crawler::WebCrawler;
+pub use storage::Storage;
 
 /// System information and version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

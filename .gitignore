@@ -61,4 +61,35 @@ Desktop.ini
 # Backup files
 README_bk.md
 *.bk
-*_backup.* 
+*_backup.*
+
+# Internal documentation (keep local only)
+MODULARIZATION_STRATEGY.md
+PROGRESS_PLAN.md
+IMPLEMENTATION_NOTES.md
+DEVELOPMENT_STRATEGY.md
+*_INTERNAL.md
+*_NOTES.md
+*.internal.md
+*.notes.md
+
+# Build/test scripts (keep local only)
+build_*.sh
+test_*.sh
+deploy_*.sh
+*_local.sh
+*.local.sh
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+local.db
+
+# Keep essential user-facing documentation
+!README.md
+!CHANGELOG.md
+!CONTRIBUTING.md
+!LICENSE*
+!docs/
+!api/ 

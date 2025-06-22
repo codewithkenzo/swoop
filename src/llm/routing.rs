@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use std::collections::HashMap;
 use tracing::{debug, info, warn};
 
 use super::models::*;
@@ -233,13 +232,13 @@ impl RoutingStrategy for CostOptimizationStrategy {
         
         // For free tier or low priority requests, prefer free models
         if cost_limit == 0.0 || request.priority <= RequestPriority::Low {
-            let free_models: Vec<&'a ModelInfo> = candidates.clone()
-                .into_iter()
+            let free_models: Vec<&'a ModelInfo> = candidates.iter()
                 .filter(|model| {
                     model.pricing.as_ref()
                         .map(|p| p.prompt == "0" && p.completion == "0")
                         .unwrap_or(true)
                 })
+                .copied()
                 .collect();
             
             if !free_models.is_empty() {
@@ -268,8 +267,12 @@ impl RoutingStrategy for CostOptimizationStrategy {
             })
             .collect();
 
-        // Sort by cost (ascending)
-        cost_efficient.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        // Sort by cost (ascending) - more stable sort
+        cost_efficient.sort_by(|a, b| {
+            a.1.partial_cmp(&b.1)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.0.id.cmp(&b.0.id)) // Secondary sort by ID for stability
+        });
         
         let filtered: Vec<&'a ModelInfo> = cost_efficient.into_iter().map(|(model, _)| model).collect();
         debug!("CostOptimizationStrategy filtered to {} cost-efficient models", filtered.len());
@@ -294,14 +297,44 @@ impl RoutingStrategy for PerformanceStrategy {
         _user_tier: &UserTier,
         _registry: &ModelRegistry,
     ) -> Result<Vec<&'a ModelInfo>> {
+        // Calculate estimated context requirement
+        let total_context_chars: usize = request.messages.iter()
+            .map(|m| m.content.len())
+            .sum::<usize>() + 
+            request.document_context.iter()
+            .map(|d| d.len())
+            .sum::<usize>();
+        
+        // Rough estimation: 4 chars per token
+        let estimated_tokens = total_context_chars / 4;
+        let required_context = if estimated_tokens > 16384 {
+            32768
+        } else if estimated_tokens > 8192 {
+            16384
+        } else {
+            8192
+        };
+
         // For high priority requests, filter by context length and capabilities
         if request.priority >= RequestPriority::High {
             let filtered: Vec<&'a ModelInfo> = candidates
                 .into_iter()
-                .filter(|model| model.context_length >= 8192) // High context for complex tasks
+                .filter(|model| model.context_length >= required_context)
                 .collect();
             
-            debug!("PerformanceStrategy: High priority filtered to {} high-context models", filtered.len());
+            debug!("PerformanceStrategy: High priority filtered to {} models with >={} context", 
+                   filtered.len(), required_context);
+            return Ok(filtered);
+        }
+
+        // For document-heavy tasks, ensure adequate context even for normal priority
+        if matches!(request.task_category, TaskCategory::DocumentAnalysis | TaskCategory::Summarization | TaskCategory::DataExtraction) {
+            let filtered: Vec<&'a ModelInfo> = candidates
+                .into_iter()
+                .filter(|model| model.context_length >= (required_context.max(8192)))
+                .collect();
+            
+            debug!("PerformanceStrategy: Document task filtered to {} models with adequate context", filtered.len());
             return Ok(filtered);
         }
 

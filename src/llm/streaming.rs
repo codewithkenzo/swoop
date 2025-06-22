@@ -3,11 +3,9 @@ use async_stream;
 use axum::{
     response::{IntoResponse, Response, Sse},
     response::sse::{Event, KeepAlive},
-    Json,
 };
 use futures_util::{Stream, StreamExt};
 use reqwest::Client;
-use serde_json::Value;
 use std::convert::Infallible;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -273,7 +271,7 @@ impl StreamingUtils {
     ) -> impl Stream<Item = Result<String, Infallible>> {
         stream.map(|event_result| {
             match event_result {
-                Ok(event) => {
+                Ok(_event) => {
                     // Event doesn't have a data() method without parameters
                     // We'll just return a simple JSON format
                     Ok(format!("{}\n", "{}"))

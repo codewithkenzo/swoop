@@ -1,16 +1,13 @@
 use anyhow::{anyhow, Result};
 use dashmap::DashMap;
-use futures_util::StreamExt;
-use lru::LruCache;
+
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, RwLock};
-use tokio_stream::wrappers::ReceiverStream;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 pub mod models;
 pub mod routing;
@@ -324,7 +321,7 @@ impl Default for UserTier {
 }
 
 /// Rate limiter implementation
-struct RateLimiter {
+pub struct RateLimiter {
     config: RateLimitConfig,
     request_times: Vec<Instant>,
 }

@@ -39,19 +39,28 @@ pub enum SelectorType {
 }
 
 /// Storage configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StorageConfig {
-    pub storage_type: StorageType,
+    /// Storage backend type
+    pub backend: String, // "memory", "sqlite", "libsql"
+    /// Connection string for the storage backend
     pub connection_string: Option<String>,
-    pub max_documents: usize,
+    /// Auth token for remote storage (e.g., Turso)
+    pub auth_token: Option<String>,
+    /// SQLite database file path
+    pub sqlite_path: Option<String>,
+    /// Enable WAL mode for SQLite
+    pub wal_mode: bool,
 }
 
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
-            storage_type: StorageType::Memory,
+            backend: "memory".to_string(),
             connection_string: None,
-            max_documents: 10_000,
+            auth_token: None,
+            sqlite_path: None,
+            wal_mode: false,
         }
     }
 }
@@ -62,4 +71,20 @@ pub enum StorageType {
     Memory,
     FileSystem,
     SQLite,
+}
+
+/// Main application configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    pub parser: ParserConfig,
+    pub storage: StorageConfig,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            parser: ParserConfig::default(),
+            storage: StorageConfig::default(),
+        }
+    }
 }

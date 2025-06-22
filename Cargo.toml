@@ -165,18 +165,25 @@ argon2 = "0.5"
 lru = "0.12"
 
 # Additional dependencies
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
 polars = { version = "0.42", features = ["lazy", "temporal", "strings"] }
 async-trait = "0.1"
 async-stream = "0.3"
 
+# libSQL for serverless/edge deployments
+libsql = { version = "0.4", optional = true }
+libsql-client = { version = "0.33", optional = true }
+
 [features]
-default = ["ai", "enhanced-processing", "robust-parsing"]
+default = ["ai", "enhanced-processing", "robust-parsing", "sqlite"]
 python = ["pyo3"]
 gpu = []
 ai = ["linfa", "tokenizers", "whatlang"]
 enhanced-processing = ["fuzzy-matcher", "strsim", "unicode-normalization", "unicode-segmentation"]
 robust-parsing = ["encoding_rs", "chardet"]
+sqlite = []
+libsql = ["dep:libsql", "dep:libsql-client"]
+edge = ["libsql"]
 
 # Development features
 dev = ["tokio/test-util"]
