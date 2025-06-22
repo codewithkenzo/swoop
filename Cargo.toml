@@ -135,8 +135,8 @@ whatlang = { version = "0.16", optional = true }
 
 # CSV processing
 csv = "1.3"
-# SECURITY FIX: Updated validator to fix idna vulnerability
-validator = { version = "0.18", features = ["derive"] }
+# SECURITY FIX: Updated validator to 0.19+ to fix idna vulnerability (RUSTSEC-2024-0421)
+validator = { version = "0.19", features = ["derive"] }
 
 # Intelligence and chat dependencies
 fuzzy-matcher = { version = "0.3", optional = true }
@@ -165,14 +165,19 @@ argon2 = "0.5"
 lru = "0.12"
 
 # Additional dependencies
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
-polars = { version = "0.42", features = ["lazy", "temporal", "strings"] }
+# SECURITY FIX: Updated sqlx to 0.8.6 to fix Binary Protocol Misinterpretation vulnerability
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+# SECURITY FIX: Updated polars to latest version to fix fast-float vulnerability
+polars = { version = "0.49.1", features = ["lazy", "temporal", "strings"] } 
 async-trait = "0.1"
 async-stream = "0.3"
 
-# libSQL for serverless/edge deployments
-libsql = { version = "0.4", optional = true }
-libsql-client = { version = "0.33", optional = true }
+# libSQL for serverless/edge deployments - SECURITY FIX: Updated to latest available versions
+# NOTE: libsql-client has transitive dependencies with known vulnerabilities (rustls 0.20.9, tungstenite 0.18.0, ring 0.16.20)
+# These are in the libsql ecosystem and will be fixed when upstream updates their dependencies
+# Users can disable libsql feature to avoid these vulnerabilities if not using edge/serverless deployment
+libsql = { version = "0.9.11", optional = true }
+libsql-client = { version = "0.33.4", optional = true }
 
 [features]
 default = ["ai", "enhanced-processing", "robust-parsing", "sqlite"]
@@ -216,3 +221,5 @@ debug = true
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+
