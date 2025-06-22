@@ -42,6 +42,7 @@ async fn test_csv_loading() -> Result<()> {
         validate_urls: true,
         deduplicate: true,
         skip_invalid: true,
+        ..Default::default()
     };
     
     let mut loader = BulkLoader::new(config);
@@ -90,6 +91,7 @@ async fn test_data_extraction() -> Result<()> {
         redact_sensitive: true,
         email_validation: true,
         phone_formatting: true,
+        ..Default::default()
     };
     
     let extractor = DataExtractor::new(config);

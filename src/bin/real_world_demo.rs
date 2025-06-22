@@ -46,6 +46,7 @@ async fn load_real_urls() -> Result<Vec<String>> {
         validate_urls: true,
         deduplicate: true,
         skip_invalid: true,
+        ..Default::default()
     };
     
     let mut loader = BulkLoader::new(config);

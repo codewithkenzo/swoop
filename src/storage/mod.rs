@@ -4,6 +4,7 @@ use crate::models::{Document, DocumentBatch};
 
 pub mod memory;
 pub mod sqlite;
+pub mod filesystem;
 
 #[cfg(feature = "libsql")]
 pub mod libsql;
@@ -13,6 +14,7 @@ pub mod libsql;
 pub enum StorageBackend {
     Memory,
     Sqlite(String),
+    FileSystem(String),
     #[cfg(feature = "libsql")]
     LibSql(String),
 }
@@ -23,6 +25,24 @@ pub struct StorageStats {
     pub total_documents: usize,
     pub total_batches: usize,
     pub storage_backend: String,
+    pub total_size_bytes: u64,
+    pub successful_operations: u64,
+    pub failed_operations: u64,
+    pub avg_operation_time_ms: f64,
+}
+
+impl Default for StorageStats {
+    fn default() -> Self {
+        Self {
+            total_documents: 0,
+            total_batches: 0,
+            storage_backend: "unknown".to_string(),
+            total_size_bytes: 0,
+            successful_operations: 0,
+            failed_operations: 0,
+            avg_operation_time_ms: 0.0,
+        }
+    }
 }
 
 /// Storage trait for document persistence
@@ -31,11 +51,11 @@ pub trait Storage: Send + Sync {
     /// Store a document
     async fn store_document(&self, document: &Document) -> Result<()>;
     
-    /// Retrieve a document by ID
-    async fn retrieve_document(&self, id: &str) -> Result<Document>;
+    /// Retrieve a document by ID (returns Option)
+    async fn retrieve_document(&self, id: &str) -> Result<Option<Document>>;
     
-    /// List documents with optional limit
-    async fn list_documents(&self, limit: Option<usize>) -> Result<Vec<Document>>;
+    /// List document IDs
+    async fn list_documents(&self) -> Result<Vec<String>>;
     
     /// Delete a document by ID
     async fn delete_document(&self, id: &str) -> Result<()>;
@@ -43,9 +63,9 @@ pub trait Storage: Send + Sync {
     /// Store a document batch
     async fn store_batch(&self, batch: &DocumentBatch) -> Result<()>;
     
-    /// Retrieve a document batch by ID
-    async fn retrieve_batch(&self, id: &str) -> Result<DocumentBatch>;
+    /// Retrieve a document batch by ID (returns Option)
+    async fn retrieve_batch(&self, id: &str) -> Result<Option<DocumentBatch>>;
     
-    /// Get storage statistics
-    async fn get_stats(&self) -> Result<StorageStats>;
+    /// Health check for storage backend
+    async fn health_check(&self) -> Result<bool>;
 } 

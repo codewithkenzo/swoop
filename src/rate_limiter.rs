@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use serde::{Serialize, Deserialize};
 
 use governor::{
     clock::{Clock, DefaultClock},
@@ -20,29 +21,38 @@ use url::Url;
 
 use crate::error::{Error, Result};
 
-/// Rate limiting configuration
-#[derive(Debug, Clone)]
+/// Configuration for rate limiting
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RateLimitConfig {
-    /// Requests per second for a single domain
+    /// Requests per second limit
     pub requests_per_second: u32,
-    /// Burst capacity (max tokens in bucket)
+    /// Burst capacity
     pub burst_capacity: u32,
+    /// Window size in seconds
+    pub window_seconds: u64,
     /// Default delay between requests (milliseconds)
     pub default_delay_ms: u64,
     /// IP-based rate limiting (requests per minute)
     pub ip_requests_per_minute: u32,
     /// Global rate limit (requests per second across all domains)
     pub global_requests_per_second: u32,
+    /// Maximum requests per time window
+    pub max_requests: u32,
+    /// Enable rate limiting
+    pub enabled: bool,
 }
 
 impl Default for RateLimitConfig {
     fn default() -> Self {
         Self {
-            requests_per_second: 2,      // Conservative default
-            burst_capacity: 5,           // Allow some burst
-            default_delay_ms: 500,       // 500ms between requests
-            ip_requests_per_minute: 60,  // 1 request per second per IP
-            global_requests_per_second: 10, // Global limit
+            requests_per_second: 10,
+            burst_capacity: 20,
+            window_seconds: 60,
+            default_delay_ms: 500,
+            ip_requests_per_minute: 60,
+            global_requests_per_second: 10,
+            max_requests: 100,
+            enabled: true,
         }
     }
 }

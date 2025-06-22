@@ -26,18 +26,22 @@ pub enum Error {
     UrlParse(#[from] url::ParseError),
     
     /// I/O error
-    #[error("I/O error: {0}")]
+    #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     
     /// JSON error
-    #[error("JSON error: {0}")]
-    Json(#[from] serde_json::Error),
+    #[error("Serde JSON error: {0}")]
+    SerdeJson(#[from] serde_json::Error),
     
     /// Database error
     #[error("Database error: {0}")]
-    Database(String),
+    Database(#[from] sqlx::Error),
     
-    /// Parser error
+    /// Parser error  
+    #[error("Parsing error: {0}")]
+    Parsing(String),
+    
+    /// Parser error (alternative name)
     #[error("Parser error: {0}")]
     Parser(String),
     
@@ -74,7 +78,7 @@ pub enum Error {
     Concurrency(String),
     
     /// Rate limit error
-    #[error("Rate limit error: {0}")]
+    #[error("Rate limit exceeded: {0}")]
     RateLimit(String),
     
     /// Authentication error
@@ -138,8 +142,9 @@ impl Error {
             Error::Http(_) => "HTTP_ERROR".to_string(),
             Error::UrlParse(_) => "URL_PARSE_ERROR".to_string(),
             Error::Io(_) => "IO_ERROR".to_string(),
-            Error::Json(_) => "JSON_ERROR".to_string(),
+            Error::SerdeJson(_) => "JSON_ERROR".to_string(),
             Error::Database(_) => "DATABASE_ERROR".to_string(),
+            Error::Parsing(_) => "PARSER_ERROR".to_string(),
             Error::Parser(_) => "PARSER_ERROR".to_string(),
             Error::Storage(_) => "STORAGE_ERROR".to_string(),
             Error::VectorStorage(_) => "VECTOR_STORAGE_ERROR".to_string(),
@@ -188,24 +193,17 @@ impl fmt::Display for ErrorResponse {
     }
 }
 
-/// Convert anyhow::Error to Error
-impl From<anyhow::Error> for Error {
-    fn from(err: anyhow::Error) -> Self {
-        Error::Other(err.to_string())
-    }
-}
-
 /// Convert String to Error
 impl From<String> for Error {
-    fn from(err: String) -> Self {
-        Error::Other(err)
+    fn from(s: String) -> Self {
+        Error::Other(s)
     }
 }
 
 /// Convert &str to Error
 impl From<&str> for Error {
-    fn from(err: &str) -> Self {
-        Error::Other(err.to_string())
+    fn from(s: &str) -> Self {
+        Error::Other(s.to_string())
     }
 }
 
@@ -229,3 +227,17 @@ impl From<redis::RedisError> for Error {
         Error::ExternalService(format!("Redis error: {}", err))
     }
 }
+
+/// Convert sqlx::migrate::MigrateError to Error
+impl From<sqlx::migrate::MigrateError> for Error {
+    fn from(e: sqlx::migrate::MigrateError) -> Self {
+        Error::Storage(format!("Migration error: {}", e))
+    }
+}
+
+// Pool timeout and closed errors are handled through the main sqlx::Error enum
+
+// These From implementations are handled by the #[from] derive macro above
+
+// Legacy alias for backward compatibility
+pub type SwoopError = Error;

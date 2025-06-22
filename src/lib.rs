@@ -1,8 +1,7 @@
 /*!
- * Swoop - Advanced Document Processing & Analysis Platform
+ * Swoop - Advanced Document Processing & AI Intelligence Platform
  * 
- * A production-ready document processing and AI chat system with
- * intelligent content analysis, fuzzy search, and custom personalities.
+ * A production-ready document processing and AI analysis system with multi-model LLM integration.
  */
 
 // Core modules
@@ -12,11 +11,13 @@ pub mod config;
 pub mod extractors;
 pub mod llm;
 pub mod document_processor;
-pub mod crawler;
 pub mod storage;
-// pub mod parser;    // Disabled for now
-// pub mod intelligence;  // Re-enable gradually
-// pub mod chat;          // Re-enable gradually
+pub mod parser;
+pub mod intelligence;
+pub mod chat;
+pub mod loaders;
+pub mod rate_limiter;
+// pub mod crawler;   // Disabled for now - has legacy dependencies
 // pub mod ai;            // Re-enable gradually
 // pub mod monitoring;    // Re-enable gradually
 // pub mod server;        // Keep disabled for now
@@ -24,11 +25,11 @@ pub mod storage;
 
 // Re-export main types
 pub use error::{Result, Error};
-pub use models::{Document, DocumentWorkspace};
+pub use models::*;
 pub use config::Config;
 pub use document_processor::DocumentProcessor;
-pub use crawler::WebCrawler;
 pub use storage::Storage;
+pub use parser::{Parser, ExtractorRule, ParseResult};
 
 /// System information and version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

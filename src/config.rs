@@ -27,7 +27,17 @@ impl Default for ParserConfig {
 pub struct ExtractionRule {
     pub name: String,
     pub selector: String,
+    /// Type of content to extract
+    pub content_type: String,
     pub selector_type: SelectorType,
+    /// Whether to extract multiple values
+    pub multiple: bool,
+    /// HTML attribute to extract (for CSS selectors)
+    pub attribute: Option<String>,
+    /// Default value if extraction fails
+    pub default_value: Option<String>,
+    /// Whether this field is required
+    pub required: bool,
 }
 
 /// Type of selector used in extraction rules
@@ -36,6 +46,7 @@ pub enum SelectorType {
     CSS,
     XPath,
     Regex,
+    JSONPath,
 }
 
 /// Storage configuration

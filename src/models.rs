@@ -9,28 +9,38 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 
-/// A document represents a crawled web page or resource
+/// A document represents a processed document with extracted content and metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
     /// Unique identifier for the document
     pub id: String,
-    /// URL of the document
-    pub url: String,
-    /// Title of the document (if available)
+    /// Title of the document
     pub title: String,
-    /// Content of the document (may be HTML, JSON, etc.)
+    /// Main content of the document
     pub content: String,
-    /// HTML content of the document (if applicable)
-    pub html: String,
-    /// Plain text content of the document
-    pub text: String,
-    /// Metadata about the document
+    /// Optional summary of the document
+    pub summary: Option<String>,
+    /// Document metadata
     pub metadata: Metadata,
-    /// Links found in the document
-    pub links: Vec<Link>,
-    /// Extracted structured content
-    pub extracted: HashMap<String, ExtractedContent>,
-    /// Content type (MIME type)
+    /// Quality score of the document (0.0 to 1.0)
+    pub quality_score: Option<f64>,
+    /// Hash of the content for deduplication
+    pub content_hash: Option<String>,
+    /// When the document was created
+    pub created_at: DateTime<Utc>,
+    /// When the document was last updated
+    pub updated_at: DateTime<Utc>,
+    /// Source URL if available
+    pub source_url: Option<String>,
+    /// Type of document (pdf, markdown, html, etc.)
+    pub document_type: Option<String>,
+    /// Language of the document
+    pub language: Option<String>,
+    /// Word count
+    pub word_count: Option<usize>,
+    /// Size in bytes
+    pub size_bytes: Option<u64>,
+    /// Content type detected
     pub content_type: Option<String>,
     /// File size in bytes
     pub file_size: Option<u64>,
@@ -40,30 +50,24 @@ pub struct Document {
 
 impl Document {
     /// Create a new document
-    pub fn new(url: &str, content: &str) -> Self {
+    pub fn new(title: &str, content: &str) -> Self {
         let id = format!("doc_{}", uuid::Uuid::new_v4().to_string().replace('-', "")[..8].to_string());
-        let title = if url.contains('/') {
-            url.split('/').last().unwrap_or(url).to_string()
-        } else {
-            url.to_string()
-        };
         
         Self {
             id,
-            url: url.to_string(),
-            title,
+            title: title.to_string(),
             content: content.to_string(),
-            html: String::new(),
-            text: content.to_string(),
-            metadata: Metadata {
-                url: url.to_string(),
-                content_type: "text/plain".to_string(),
-                fetch_time: Utc::now(),
-                status_code: 200,
-                headers: HashMap::new(),
-            },
-            links: Vec::new(),
-            extracted: HashMap::new(),
+            summary: None,
+            metadata: Metadata::default(),
+            quality_score: None,
+            content_hash: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            source_url: None,
+            document_type: None,
+            language: None,
+            word_count: Some(content.split_whitespace().count()),
+            size_bytes: Some(content.len() as u64),
             content_type: None,
             file_size: None,
             extracted_at: Utc::now(),
@@ -74,16 +78,34 @@ impl Document {
 /// Metadata about a document
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metadata {
-    /// URL of the document
-    pub url: String,
-    /// Content type of the document
-    pub content_type: String,
-    /// Time when the document was fetched
-    pub fetch_time: DateTime<Utc>,
-    /// HTTP status code
-    pub status_code: u16,
-    /// HTTP headers
-    pub headers: HashMap<String, String>,
+    /// Original source URL
+    pub source_url: Option<String>,
+    /// Content type detected
+    pub content_type: Option<String>,
+    /// Processing timestamp
+    pub processed_at: DateTime<Utc>,
+    /// Processing model or method used
+    pub processor: Option<String>,
+    /// Additional custom metadata
+    pub custom: HashMap<String, String>,
+    /// File extension if applicable
+    pub file_extension: Option<String>,
+    /// Original filename if available
+    pub original_filename: Option<String>,
+}
+
+impl Default for Metadata {
+    fn default() -> Self {
+        Self {
+            source_url: None,
+            content_type: None,
+            processed_at: Utc::now(),
+            processor: None,
+            custom: HashMap::new(),
+            file_extension: None,
+            original_filename: None,
+        }
+    }
 }
 
 /// A link found in a document
@@ -147,10 +169,30 @@ pub struct DocumentVector {
 pub struct DocumentBatch {
     /// Unique identifier for the batch
     pub id: String,
-    /// Documents in the batch
-    pub documents: Vec<Document>,
+    /// Document IDs in the batch
+    pub document_ids: Vec<String>,
+    /// Total number of documents in the batch
+    pub total_documents: usize,
+    /// Processing status
+    pub status: String,
     /// Time when the batch was created
     pub created_at: DateTime<Utc>,
+}
+
+impl DocumentBatch {
+    /// Create a new document batch
+    pub fn new(document_ids: Vec<String>) -> Self {
+        let total_documents = document_ids.len();
+        let id = format!("batch_{}", uuid::Uuid::new_v4().to_string().replace('-', "")[..8].to_string());
+        
+        Self {
+            id,
+            document_ids,
+            total_documents,
+            status: "pending".to_string(),
+            created_at: Utc::now(),
+        }
+    }
 }
 
 /// A summary of a document

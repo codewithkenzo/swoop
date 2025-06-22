@@ -69,12 +69,13 @@ impl HighPerformanceCrawler {
             default_delay_ms: 20,        // Minimal 20ms delay
             ip_requests_per_minute: 1000, // High IP limit
             global_requests_per_second: 100, // High global limit
+            ..Default::default()
         };
 
         let storage: Arc<dyn Storage> = if use_filesystem {
             let path = storage_path.unwrap_or_else(|| "./swoop_data".to_string());
             info!("🗄️  High-performance filesystem storage: {}", path);
-            Arc::new(FileSystemStorage::new(&path).await?)
+            Arc::new(FileSystemStorage::new((&path).into())?)
         } else {
             info!("🗄️  High-performance in-memory storage");
             Arc::new(MemoryStorage::new())
@@ -108,8 +109,9 @@ impl HighPerformanceCrawler {
         let rules = vec![
             ExtractorRule {
                 name: "title".to_string(),
-                selector_type: SelectorType::CSS,
                 selector: "title, h1, h2".to_string(),
+                content_type: "text".to_string(),
+                selector_type: SelectorType::CSS,
                 attribute: None,
                 multiple: false,
                 required: true,
@@ -117,8 +119,9 @@ impl HighPerformanceCrawler {
             },
             ExtractorRule {
                 name: "description".to_string(),
-                selector_type: SelectorType::CSS,
                 selector: "meta[name='description'], meta[property='og:description']".to_string(),
+                content_type: "text".to_string(),
+                selector_type: SelectorType::CSS,
                 attribute: Some("content".to_string()),
                 multiple: false,
                 required: false,

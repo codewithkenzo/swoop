@@ -13,6 +13,7 @@ use scraper::{Html, Selector};
 use serde_json::Value;
 use tokio::sync::RwLock;
 use url::Url;
+use serde::{Serialize, Deserialize};
 
 use crate::config::{ParserConfig, ExtractionRule, SelectorType};
 use crate::error::{Error, Result};
@@ -54,52 +55,59 @@ impl From<&str> for ContentType {
     }
 }
 
-/// Result of parsing a document
-#[derive(Debug, Clone)]
-pub struct ParseResult {
-    /// Title of the document
-    pub title: String,
-    /// HTML content of the document
-    pub html: String,
-    /// Plain text content of the document
-    pub text: String,
-    /// Raw content of the document
-    pub content: String,
-    /// Links found in the document
-    pub links: Vec<Link>,
-    /// Extracted structured content
-    pub extracted: HashMap<String, ExtractedContent>,
-}
-
-/// Extractor rule for parsing content
-#[derive(Debug, Clone)]
+/// Extractor rule for parsing
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtractorRule {
     /// Name of the rule
     pub name: String,
-    /// Selector type
+    /// CSS selector or pattern
+    pub selector: String, 
+    /// Type of content to extract
+    pub content_type: String,
+    /// Type of selector
     pub selector_type: SelectorType,
-    /// Selector
-    pub selector: String,
-    /// Attribute to extract (if applicable)
-    pub attribute: Option<String>,
-    /// Whether to extract multiple matches
+    /// Whether to extract multiple values
     pub multiple: bool,
-    /// Whether the rule is required
-    pub required: bool,
-    /// Default value if not found
+    /// HTML attribute to extract (for CSS selectors)
+    pub attribute: Option<String>,
+    /// Default value if extraction fails
     pub default_value: Option<String>,
+    /// Whether this field is required
+    pub required: bool,
 }
 
-impl From<ExtractionRule> for ExtractorRule {
-    fn from(rule: ExtractionRule) -> Self {
+/// Result of parsing operation
+#[derive(Debug, Clone)]
+pub struct ParseResult {
+    /// Document title
+    pub title: String,
+    /// Raw HTML content
+    pub html: String,
+    /// Extracted text content
+    pub text: String,
+    /// Processed content
+    pub content: String,
+    /// Extracted structured content
+    pub extracted: HashMap<String, ExtractedContent>,
+    /// Links found in the document
+    pub links: Vec<Link>,
+    /// Success status
+    pub success: bool,
+    /// Error message if any
+    pub error: Option<String>,
+}
+
+impl Default for ParseResult {
+    fn default() -> Self {
         Self {
-            name: rule.name,
-            selector_type: rule.selector_type,
-            selector: rule.selector,
-            attribute: rule.attribute,
-            multiple: rule.multiple,
-            required: rule.required,
-            default_value: rule.default_value,
+            title: String::new(),
+            html: String::new(),
+            text: String::new(),
+            content: String::new(),
+            extracted: HashMap::new(),
+            links: Vec::new(),
+            success: true,
+            error: None,
         }
     }
 }
@@ -142,18 +150,9 @@ impl ParserBuilder {
     
     /// Build the Parser
     pub fn build(self) -> Parser {
-        // Convert config rules to ExtractorRule
-        let mut rules = self.rules;
-        rules.extend(
-            self.config
-                .extraction_rules
-                .iter()
-                .map(|r| ExtractorRule::from(r.clone()))
-        );
-        
         Parser {
             config: self.config,
-            rules: Arc::new(RwLock::new(rules)),
+            rules: Arc::new(RwLock::new(self.rules)),
         }
     }
 }
@@ -182,11 +181,11 @@ impl Parser {
         let content_type = ContentType::from(content_type_str);
         
         // Check content size
-        if self.config.max_content_size > 0 && content.len() > self.config.max_content_size {
+        if self.config.max_content_length > 0 && content.len() > self.config.max_content_length {
             return Err(Error::Parser(format!(
                 "Content size ({} bytes) exceeds maximum allowed size ({} bytes)",
                 content.len(),
-                self.config.max_content_size
+                self.config.max_content_length
             )));
         }
 
@@ -222,16 +221,42 @@ impl Parser {
         // Extract content synchronously
         let title = self.extract_title_sync(&document).unwrap_or_default();
         let text = self.extract_text_sync(&document).unwrap_or_default();
-        let links = self.extract_links_sync(&document, &metadata.url).unwrap_or_default();
-        let extracted = self.apply_extraction_rules_sync(&document, rules)?;
+        let links = self.extract_links_sync(&document, &metadata.source_url.as_deref().unwrap_or("")).unwrap_or_default();
+        let mut extracted = self.apply_extraction_rules_sync(&document, rules)?;
+        
+        // Add basic content extraction
+        if !title.is_empty() {
+            extracted.insert("title".to_string(), ExtractedContent {
+                content_type: "text".to_string(),
+                name: "title".to_string(),
+                content: title.clone(),
+                attributes: HashMap::new(),
+            });
+        }
+        if !text.is_empty() {
+            extracted.insert("text".to_string(), ExtractedContent {
+                content_type: "text".to_string(),
+                name: "text".to_string(),
+                content: text.clone(),
+                attributes: HashMap::new(),
+            });
+        }
+        extracted.insert("html".to_string(), ExtractedContent {
+            content_type: "html".to_string(),
+            name: "html".to_string(),
+            content: html_str.to_string(),
+            attributes: HashMap::new(),
+        });
 
         Ok(ParseResult {
             title,
             html: html_str.to_string(),
             text,
             content: html_str.to_string(),
-            links,
             extracted,
+            links,
+            success: true,
+            error: None,
         })
     }
 
@@ -255,7 +280,7 @@ impl Parser {
                 &json_str
             })
             .to_string();
-        let links = self.extract_links_from_json_sync(&json, &metadata.url).unwrap_or_default();
+        let links = self.extract_links_from_json_sync(&json, metadata.source_url.as_deref().unwrap_or("")).unwrap_or_default();
         let extracted = self.apply_json_extraction_rules_sync(&json, metadata, rules)?;
 
         Ok(ParseResult {
@@ -263,8 +288,10 @@ impl Parser {
             html: String::new(),
             text,
             content: json_str.to_string(),
-            links,
             extracted,
+            links,
+            success: true,
+            error: None,
         })
     }
 
@@ -290,22 +317,26 @@ impl Parser {
             content: xml_str.to_string(),
             links: Vec::new(),
             extracted: HashMap::new(),
+            success: true,
+            error: None,
         })
     }
 
     /// Parse text content synchronously
     fn parse_text_sync(&self, content: &[u8], metadata: &Metadata, rules: &[ExtractorRule]) -> Result<ParseResult> {
         let text = String::from_utf8_lossy(content);
-        let links = self.extract_links_from_text_sync(&text, &metadata.url).unwrap_or_default();
+        let links = self.extract_links_from_text_sync(&text, metadata.source_url.as_deref().unwrap_or("")).unwrap_or_default();
         let extracted = self.apply_text_extraction_rules_sync(&text, metadata, rules)?;
 
         Ok(ParseResult {
-            title: metadata.url.clone(),
+            title: metadata.source_url.clone().unwrap_or_default(),
             html: String::new(),
             text: text.to_string(),
             content: text.to_string(),
             links,
             extracted,
+            success: true,
+            error: None,
         })
     }
 
@@ -314,12 +345,14 @@ impl Parser {
         // TODO: Implement PDF parsing
         // For now, return a placeholder result
         let result = ParseResult {
-            title: metadata.url.clone(),
+            title: metadata.source_url.clone().unwrap_or_default(),
             html: String::new(),
             text: "PDF content not yet supported".to_string(),
             content: String::new(),
             links: Vec::new(),
             extracted: HashMap::new(),
+            success: true,
+            error: None,
         };
         
         Ok(result)

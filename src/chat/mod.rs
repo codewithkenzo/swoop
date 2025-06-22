@@ -11,17 +11,54 @@ use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Chat system configuration
+/// Configuration for chat system
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatConfig {
-    /// LLM provider settings
-    pub llm_provider: LLMProviderConfig,
-    /// Document indexing settings
-    pub document_index: DocumentIndexConfig,
-    /// Search configuration
-    pub search_config: SearchConfig,
-    /// Conversation settings
-    pub conversation_config: ConversationConfig,
+    /// Model to use for chat
+    pub model: String,
+    /// Maximum tokens per response
+    pub max_tokens: usize,
+    /// Temperature for generation
+    pub temperature: f32,
+    /// System prompt
+    pub system_prompt: String,
+}
+
+impl Default for ChatConfig {
+    fn default() -> Self {
+        Self {
+            model: "gpt-3.5-turbo".to_string(),
+            max_tokens: 1000,
+            temperature: 0.7,
+            system_prompt: "You are a helpful assistant.".to_string(),
+        }
+    }
+}
+
+/// Chat system for interactive document analysis
+#[derive(Debug, Clone)]
+pub struct ChatSystem {
+    config: ChatConfig,
+    personality: personality_system::PersonalitySystem,
+}
+
+impl ChatSystem {
+    /// Create a new chat system
+    pub fn new(config: ChatConfig) -> Self {
+        Self {
+            config,
+            personality: personality_system::PersonalitySystem::new().unwrap(),
+        }
+    }
+    
+    /// Process a chat message
+    pub async fn process_message(&self, message: &str) -> Result<String> {
+        // Apply personality to the message
+        let personalized_message = self.personality.apply_personality(message);
+        
+        // Basic response generation
+        Ok(format!("Response to: {}", personalized_message))
+    }
 }
 
 /// LLM provider configuration
@@ -256,214 +293,5 @@ pub struct ConversationMetadata {
     pub estimated_cost: f64,
 }
 
-/// Main chat system
-pub struct ChatSystem {
-    config: ChatConfig,
-    personality_system: personality_system::PersonalitySystem,
-    conversations: HashMap<String, ConversationContext>,
-}
-
-impl ChatSystem {
-    /// Create new chat system
-    pub fn new(config: ChatConfig) -> Result<Self> {
-        let personality_system = personality_system::PersonalitySystem::new();
-        
-        Ok(Self {
-            config,
-            personality_system,
-            conversations: HashMap::new(),
-        })
-    }
-
-    /// Process a chat message
-    pub async fn process_message(
-        &self,
-        conversation_id: &str,
-        message: &str,
-        personality_id: Option<&str>,
-    ) -> Result<ChatResponse> {
-        let start_time = std::time::Instant::now();
-        
-        // Parse message for mentions
-        let parsed_message = self.parse_mentions(message).await?;
-        
-        // Search for relevant documents based on mentions
-        let relevant_docs = self.search_relevant_documents(&parsed_message).await?;
-        
-        // Get personality if specified
-        let personality = if let Some(pid) = personality_id {
-            self.personality_system.get_personality(pid)
-        } else {
-            None
-        };
-        
-        // Generate response (mock implementation)
-        let response_content = self.generate_mock_response(message, &personality).await?;
-        
-        // Create response message
-        let response_message = ChatMessage {
-            id: uuid::Uuid::new_v4().to_string(),
-            role: MessageRole::Assistant,
-            content: response_content,
-            timestamp: chrono::Utc::now(),
-            document_refs: relevant_docs.clone(),
-            mentions: vec![],
-            metadata: MessageMetadata {
-                language: "en".to_string(),
-                processing_time_ms: start_time.elapsed().as_millis() as u64,
-                token_count: Some(message.split_whitespace().count()),
-                estimated_cost: Some(0.001),
-                quality_score: 0.9,
-            },
-        };
-        
-        // Generate suggestions
-        let suggestions = self.generate_suggestions_mock().await?;
-        
-        Ok(ChatResponse {
-            message: response_message,
-            context_used: relevant_docs.len(),
-            processing_time_ms: start_time.elapsed().as_millis() as u64,
-            suggestions,
-        })
-    }
-
-    /// Search documents
-    pub async fn search_documents(
-        &self,
-        query: &str,
-        _filters: Option<SearchFilters>,
-    ) -> Result<Vec<DocumentSearchResult>> {
-        // Mock document search
-        let results = vec![
-            DocumentSearchResult {
-                document_id: "doc1".to_string(),
-                title: format!("Document about {}", query),
-                chunk_id: Some("chunk1".to_string()),
-                score: 0.9,
-                excerpt: format!("This document contains information about {}...", query),
-                metadata: HashMap::new(),
-            }
-        ];
-        
-        Ok(results)
-    }
-
-    /// Resolve a mention to a document reference
-    pub async fn resolve_mention(
-        &self,
-        mention: &Mention,
-    ) -> Result<Option<DocumentReference>> {
-        match mention.mention_type {
-            MentionType::Document => {
-                Ok(Some(DocumentReference {
-                    document_id: mention.target_id.clone(),
-                    title: mention.display_name.clone(),
-                    relevance_score: 0.9,
-                    excerpt: "Document excerpt...".to_string(),
-                }))
-            }
-            _ => Ok(None),
-        }
-    }
-
-    // Private helper methods
-    async fn parse_mentions(&self, message: &str) -> Result<ParsedMessage> {
-        let mut mentions = Vec::new();
-        
-        // Simple @ mention parsing
-        let words: Vec<&str> = message.split_whitespace().collect();
-        for (i, word) in words.iter().enumerate() {
-            if word.starts_with('@') && word.len() > 1 {
-                let target = &word[1..];
-                mentions.push(Mention {
-                    mention_type: MentionType::Document,
-                    target_id: target.to_string(),
-                    display_name: target.to_string(),
-                    position: (i, i + 1),
-                });
-            }
-        }
-        
-        Ok(ParsedMessage {
-            content: message.to_string(),
-            mentions,
-            language: "en".to_string(),
-        })
-    }
-
-    async fn search_relevant_documents(
-        &self,
-        parsed_message: &ParsedMessage,
-    ) -> Result<Vec<DocumentReference>> {
-        let mut relevant_docs = Vec::new();
-        
-        // For each mention, create a document reference
-        for mention in &parsed_message.mentions {
-            if let Some(doc_ref) = self.resolve_mention(mention).await? {
-                relevant_docs.push(doc_ref);
-            }
-        }
-        
-        Ok(relevant_docs)
-    }
-
-    async fn generate_mock_response(
-        &self,
-        message: &str,
-        personality: &Option<personality_system::Personality>,
-    ) -> Result<String> {
-        let base_response = format!("I understand you're asking about: {}", message);
-        
-        if let Some(p) = personality {
-            Ok(format!("{} [Response styled with {} personality]", base_response, p.name))
-        } else {
-            Ok(base_response)
-        }
-    }
-
-    async fn generate_suggestions_mock(&self) -> Result<Vec<String>> {
-        Ok(vec![
-            "Would you like to search for related documents?".to_string(),
-            "I can help you analyze this topic further.".to_string(),
-            "Consider exploring the document references I mentioned.".to_string(),
-        ])
-    }
-}
-
-// Helper structs
-struct ParsedMessage {
-    content: String,
-    mentions: Vec<Mention>,
-    language: String,
-}
-
-/// Chat response
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatResponse {
-    pub message: ChatMessage,
-    pub context_used: usize,
-    pub processing_time_ms: u64,
-    pub suggestions: Vec<String>,
-}
-
-/// Search filters
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SearchFilters {
-    pub document_types: Option<Vec<String>>,
-    pub date_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>,
-    pub tags: Option<Vec<String>>,
-    pub folders: Option<Vec<String>>,
-    pub min_quality_score: Option<f64>,
-}
-
-/// Document search result
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DocumentSearchResult {
-    pub document_id: String,
-    pub title: String,
-    pub chunk_id: Option<String>,
-    pub score: f64,
-    pub excerpt: String,
-    pub metadata: HashMap<String, serde_json::Value>,
-} 
+// Re-export from personality_system
+pub use personality_system::PersonalitySystem; 

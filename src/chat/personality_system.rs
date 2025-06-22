@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Personality system manager
+#[derive(Debug, Clone)]
 pub struct PersonalitySystem {
     personalities: HashMap<String, Personality>,
     default_personalities: Vec<Personality>,
@@ -180,6 +181,13 @@ impl PersonalitySystem {
             p.language == language && 
             std::mem::discriminant(&p.personality_type) == std::mem::discriminant(&personality_type)
         })
+    }
+    
+    /// Apply personality to a message
+    pub fn apply_personality(&self, message: &str) -> String {
+        // For now, just return the message as-is
+        // In a full implementation, this would apply personality-specific transformations
+        message.to_string()
     }
     
     // Default personality creators

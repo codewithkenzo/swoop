@@ -79,12 +79,13 @@ impl CrawlDemo {
             default_delay_ms: 1000,
             ip_requests_per_minute: 30,
             global_requests_per_second: 2,
+            ..Default::default()
         };
 
         let storage: Arc<dyn Storage> = if use_filesystem {
             let path = storage_path.unwrap_or_else(|| "./swoop_data".to_string());
             info!("🗄️  Initializing filesystem storage at: {}", path);
-            Arc::new(FileSystemStorage::new(&path).await?)
+            Arc::new(FileSystemStorage::new((&path).into())?)
         } else {
             info!("🗄️  Using in-memory storage");
             Arc::new(MemoryStorage::new())
@@ -114,8 +115,9 @@ impl CrawlDemo {
         let rules = vec![
             ExtractorRule {
                 name: "title".to_string(),
-                selector_type: SelectorType::CSS,
                 selector: "title, h1".to_string(),
+                content_type: "text".to_string(),
+                selector_type: SelectorType::CSS,
                 attribute: None,
                 multiple: false,
                 required: true,
@@ -123,8 +125,9 @@ impl CrawlDemo {
             },
             ExtractorRule {
                 name: "description".to_string(),
-                selector_type: SelectorType::CSS,
                 selector: "meta[name='description']".to_string(),
+                content_type: "text".to_string(),
+                selector_type: SelectorType::CSS,
                 attribute: Some("content".to_string()),
                 multiple: false,
                 required: false,

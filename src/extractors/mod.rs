@@ -5,9 +5,55 @@
  */
 
 use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
+use crate::{Error, Result};
+
+/// Result of data extraction with structured fields
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtractionResult {
+    /// Extracted email addresses
+    pub emails: Vec<String>,
+    /// Extracted phone numbers  
+    pub phones: Vec<String>,
+    /// Extracted links
+    pub links: Vec<String>,
+    /// Additional metadata
+    pub metadata: HashMap<String, String>,
+    /// Sensitive data found
+    pub sensitive_data: Vec<SensitiveData>,
+    /// Quality score for extracted data
+    pub quality_score: f64,
+    /// Classification of content
+    pub classification: String,
+    /// Validation issues found
+    pub validation_issues: Vec<String>,
+}
+
+/// Sensitive data item
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SensitiveData {
+    pub data_type: String,
+    pub original_text: String,
+    pub redacted_text: String,
+}
+
+impl Default for ExtractionResult {
+    fn default() -> Self {
+        Self {
+            emails: Vec::new(),
+            phones: Vec::new(),
+            links: Vec::new(),
+            metadata: HashMap::new(),
+            sensitive_data: Vec::new(),
+            quality_score: 0.0,
+            classification: "unknown".to_string(),
+            validation_issues: Vec::new(),
+        }
+    }
+}
 
 /// Extract text content from various document formats
-pub fn extract_text(content: &[u8], content_type: &str, filename: &str) -> Result<ExtractedContent, ExtractionError> {
+pub fn extract_text(content: &[u8], content_type: &str, filename: &str) -> Result<ExtractedContent> {
     let detected_format = detect_format(content, content_type, filename);
     
     match detected_format {
@@ -91,15 +137,15 @@ fn detect_format(content: &[u8], content_type: &str, filename: &str) -> Document
 }
 
 /// Enhanced HTML content extraction
-fn extract_html_content(content: &[u8]) -> Result<ExtractedContent, ExtractionError> {
+fn extract_html_content(content: &[u8]) -> Result<ExtractedContent> {
     let html_text = std::str::from_utf8(content)
-        .map_err(|e| ExtractionError::EncodingError(e.to_string()))?;
+        .map_err(|e| Error::Parsing(format!("Encoding error: {}", e)))?;
     
     // Use regex for robust HTML parsing
     let script_style_regex = regex::Regex::new(r"(?is)<(script|style)[^>]*>.*?</\1>")
-        .map_err(|e| ExtractionError::ParseError(e.to_string()))?;
+        .map_err(|e| Error::Parsing(format!("Regex error: {}", e)))?;
     let tag_regex = regex::Regex::new(r"<[^>]*>")
-        .map_err(|e| ExtractionError::ParseError(e.to_string()))?;
+        .map_err(|e| Error::Parsing(format!("Regex error: {}", e)))?;
     
     // Remove scripts and styles
     let cleaned = script_style_regex.replace_all(html_text, " ");
@@ -110,7 +156,7 @@ fn extract_html_content(content: &[u8]) -> Result<ExtractedContent, ExtractionEr
     
     // Extract title
     let title_regex = regex::Regex::new(r"(?i)<title[^>]*>(.*?)</title>")
-        .map_err(|e| ExtractionError::ParseError(e.to_string()))?;
+        .map_err(|e| Error::Parsing(format!("Regex error: {}", e)))?;
     let title = title_regex.captures(html_text)
         .and_then(|caps| caps.get(1))
         .map(|m| m.as_str().trim().to_string());
@@ -132,7 +178,7 @@ fn extract_html_content(content: &[u8]) -> Result<ExtractedContent, ExtractionEr
 }
 
 /// PDF content extraction
-fn extract_pdf_content(content: &[u8]) -> Result<ExtractedContent, ExtractionError> {
+fn extract_pdf_content(content: &[u8]) -> Result<ExtractedContent> {
     // Create a temporary file for PDF processing
     use std::io::Write;
     
@@ -143,10 +189,10 @@ fn extract_pdf_content(content: &[u8]) -> Result<ExtractedContent, ExtractionErr
     match std::fs::File::create(&temp_file) {
         Ok(mut file) => {
             if let Err(e) = file.write_all(content) {
-                return Err(ExtractionError::IoError(e.to_string()));
+                return Err(Error::Io(e));
             }
         }
-        Err(e) => return Err(ExtractionError::IoError(e.to_string())),
+        Err(e) => return Err(Error::Io(e)),
     }
     
     // Extract text from the temp file
@@ -188,7 +234,7 @@ fn extract_pdf_content(content: &[u8]) -> Result<ExtractedContent, ExtractionErr
                         extraction_method: "fallback_extraction".to_string(),
                     })
                 }
-                Err(_) => Err(ExtractionError::ParseError(format!("PDF extraction failed: {}", e)))
+                Err(_) => Err(Error::Parsing(format!("PDF extraction failed: {}", e)))
             }
         }
     };
@@ -200,9 +246,9 @@ fn extract_pdf_content(content: &[u8]) -> Result<ExtractedContent, ExtractionErr
 }
 
 /// Markdown content extraction with structure preservation
-fn extract_markdown_content(content: &[u8]) -> Result<ExtractedContent, ExtractionError> {
+fn extract_markdown_content(content: &[u8]) -> Result<ExtractedContent> {
     let markdown_text = std::str::from_utf8(content)
-        .map_err(|e| ExtractionError::EncodingError(e.to_string()))?;
+        .map_err(|e| Error::Parsing(format!("Encoding error: {}", e)))?;
     
     // Parse markdown and extract plain text
     let parser = pulldown_cmark::Parser::new(markdown_text);
@@ -241,8 +287,8 @@ fn extract_markdown_content(content: &[u8]) -> Result<ExtractedContent, Extracti
     
     // Extract title from first H1 if not already captured
     if title.is_none() {
-        let h1_regex = regex::Regex::new(r"(?m)^# (.+)$")
-            .map_err(|e| ExtractionError::ParseError(e.to_string()))?;
+            let h1_regex = regex::Regex::new(r"(?m)^# (.+)$")
+        .map_err(|e| Error::Parsing(format!("Regex error: {}", e)))?;
         title = h1_regex.captures(markdown_text)
             .and_then(|caps| caps.get(1))
             .map(|m| m.as_str().trim().to_string());
@@ -269,9 +315,9 @@ fn extract_markdown_content(content: &[u8]) -> Result<ExtractedContent, Extracti
 }
 
 /// Plain text extraction
-fn extract_plain_text(content: &[u8]) -> Result<ExtractedContent, ExtractionError> {
+fn extract_plain_text(content: &[u8]) -> Result<ExtractedContent> {
     let text = std::str::from_utf8(content)
-        .map_err(|e| ExtractionError::EncodingError(e.to_string()))?;
+        .map_err(|e| Error::Parsing(format!("Encoding error: {}", e)))?;
     
     let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let mut metadata = HashMap::new();
@@ -289,7 +335,7 @@ fn extract_plain_text(content: &[u8]) -> Result<ExtractedContent, ExtractionErro
 }
 
 /// Fallback extraction for unknown formats
-fn extract_fallback_content(content: &[u8]) -> Result<ExtractedContent, ExtractionError> {
+fn extract_fallback_content(content: &[u8]) -> Result<ExtractedContent> {
     // Try UTF-8 first
     match std::str::from_utf8(content) {
         Ok(text) => {
@@ -319,7 +365,7 @@ fn extract_fallback_content(content: &[u8]) -> Result<ExtractedContent, Extracti
                 .collect();
             
             if ascii_text.trim().is_empty() {
-                return Err(ExtractionError::ParseError("No extractable text content found".to_string()));
+                return Err(Error::Parsing("No extractable text content found".to_string()));
             }
             
             let normalized = ascii_text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -366,5 +412,188 @@ mod tests {
         assert_eq!(detect_format(b"<html>", "text/html", "test.html"), DocumentFormat::Html);
         assert_eq!(detect_format(b"# Header", "", "test.md"), DocumentFormat::Markdown);
         assert_eq!(detect_format(b"%PDF-1.4", "", "test.pdf"), DocumentFormat::Pdf);
+    }
+}
+
+/// Configuration for content extraction
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtractorConfig {
+    /// Rules for extraction
+    pub rules: Vec<ExtractorRule>,
+    /// Maximum text length to process
+    pub max_text_length: usize,
+    /// Whether to extract structured data
+    pub extract_structured: bool,
+    /// Whether to extract email addresses
+    pub extract_emails: bool,
+    /// Whether to extract phone numbers
+    pub extract_phones: bool,
+    /// Whether to detect sensitive content
+    pub detect_sensitive: bool,
+    /// Whether to redact sensitive content
+    pub redact_sensitive: bool,
+    /// Whether to validate email addresses
+    pub email_validation: bool,
+    /// Whether to format phone numbers
+    pub phone_formatting: bool,
+}
+
+impl Default for ExtractorConfig {
+    fn default() -> Self {
+        Self {
+            rules: Vec::new(),
+            max_text_length: 1_000_000,
+            extract_structured: true,
+            extract_emails: false,
+            extract_phones: false,
+            detect_sensitive: false,
+            redact_sensitive: false,
+            email_validation: false,
+            phone_formatting: false,
+        }
+    }
+}
+
+/// Rule for data extraction
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtractorRule {
+    /// Name of the rule
+    pub name: String,
+    /// Pattern to match
+    pub pattern: String,
+    /// Type of extraction
+    pub extraction_type: String,
+}
+
+/// Basic data extractor
+#[derive(Debug, Clone)]
+pub struct DataExtractor {
+    config: ExtractorConfig,
+}
+
+impl DataExtractor {
+    /// Create a new data extractor
+    pub fn new(config: ExtractorConfig) -> Self {
+        Self { config }
+    }
+    
+    /// Extract data from text content
+    pub async fn extract(&self, text: &str) -> Result<ExtractionResult> {
+        let mut results = ExtractionResult::default();
+        
+        // Basic extraction - would be enhanced with actual rule processing
+        results.metadata.insert("word_count".to_string(), text.split_whitespace().count().to_string());
+        results.metadata.insert("char_count".to_string(), text.len().to_string());
+        
+        // Extract emails if enabled
+        if self.config.extract_emails {
+            let email_regex = regex::Regex::new(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b").unwrap();
+            let emails: Vec<&str> = email_regex.find_iter(text).map(|m| m.as_str()).collect();
+            results.emails = emails.into_iter().map(|s| s.to_string()).collect();
+        }
+        
+        // Extract phones if enabled
+        if self.config.extract_phones {
+            let phone_regex = regex::Regex::new(r"\b\d{3}-?\d{3}-?\d{4}\b").unwrap();
+            let phones: Vec<&str> = phone_regex.find_iter(text).map(|m| m.as_str()).collect();
+            results.phones = phones.into_iter().map(|s| s.to_string()).collect();
+        }
+        
+        // Set quality score
+        results.quality_score = 0.75; // Placeholder
+        results.classification = "text_document".to_string();
+        
+        Ok(results)
+    }
+    
+    /// Extract data from both text and HTML content  
+    pub fn extract_all(&self, text_content: &str, html_content: &str) -> Result<ExtractionResult> {
+        let mut results = ExtractionResult::default();
+        
+        // Basic extraction from text
+        results.metadata.insert("text_word_count".to_string(), text_content.split_whitespace().count().to_string());
+        results.metadata.insert("text_char_count".to_string(), text_content.len().to_string());
+        
+        // Basic extraction from HTML
+        results.metadata.insert("html_char_count".to_string(), html_content.len().to_string());
+        results.metadata.insert("has_html_tags".to_string(), html_content.contains('<').to_string());
+        
+        // Extract emails if enabled
+        if self.config.extract_emails {
+            let email_regex = regex::Regex::new(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b").unwrap();
+            let emails: Vec<&str> = email_regex.find_iter(text_content).map(|m| m.as_str()).collect();
+            results.emails = emails.into_iter().map(|s| s.to_string()).collect();
+            results.metadata.insert("emails".to_string(), results.emails.join(","));
+        }
+        
+        // Extract phones if enabled
+        if self.config.extract_phones {
+            let phone_regex = regex::Regex::new(r"\b\d{3}-?\d{3}-?\d{4}\b").unwrap();
+            let phones: Vec<&str> = phone_regex.find_iter(text_content).map(|m| m.as_str()).collect();
+            results.phones = phones.into_iter().map(|s| s.to_string()).collect();
+            results.metadata.insert("phones".to_string(), results.phones.join(","));
+        }
+        
+        Ok(results)
+    }
+    
+    /// Sanitize text content by removing sensitive information
+    pub fn sanitize_text(&self, text: &str) -> String {
+        if !self.config.redact_sensitive {
+            return text.to_string();
+        }
+        
+        let mut sanitized = text.to_string();
+        
+        // Redact emails
+        if self.config.detect_sensitive {
+            let email_regex = regex::Regex::new(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b").unwrap();
+            sanitized = email_regex.replace_all(&sanitized, "[EMAIL_REDACTED]").to_string();
+            
+            // Redact phone numbers
+            let phone_regex = regex::Regex::new(r"\b\d{3}-?\d{3}-?\d{4}\b").unwrap();
+            sanitized = phone_regex.replace_all(&sanitized, "[PHONE_REDACTED]").to_string();
+        }
+        
+        sanitized
+    }
+}
+
+/// Enhanced data extractor with validation
+#[derive(Debug, Clone)]
+pub struct EnhancedDataExtractor {
+    config: ExtractorConfig,
+    validation_config: ValidationConfig,
+}
+
+impl EnhancedDataExtractor {
+    /// Create a new enhanced data extractor
+    pub fn new(config: ExtractorConfig, validation_config: ValidationConfig) -> Self {
+        Self { config, validation_config }
+    }
+    
+    /// Extract and validate data
+    pub async fn extract_and_validate(&self, text: &str) -> Result<HashMap<String, String>> {
+        let mut results = HashMap::new();
+        results.insert("validated_text".to_string(), text.to_string());
+        Ok(results)
+    }
+}
+
+/// Configuration for validation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidationConfig {
+    /// Whether to validate extracted data
+    pub enable_validation: bool,
+    /// Minimum confidence threshold
+    pub min_confidence: f64,
+}
+
+impl Default for ValidationConfig {
+    fn default() -> Self {
+        Self {
+            enable_validation: true,
+            min_confidence: 0.8,
+        }
     }
 }
