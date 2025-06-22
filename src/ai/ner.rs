@@ -26,7 +26,7 @@
 //! let (entities, confidence) = extractor.extract_entities(text).await?;
 //! ```
 
-use crate::SwoopError;
+use crate::error::Error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -122,7 +122,7 @@ pub struct EntityExtractor {
 
 impl EntityExtractor {
     /// Create a new entity extractor
-    pub async fn new() -> Result<Self, SwoopError> {
+    pub async fn new() -> Result<Self, crate::error::Error> {
         let mut extractor = Self {
             tokenizer: None,
             ner_model: None,
@@ -137,7 +137,7 @@ impl EntityExtractor {
     }
 
     /// Initialize NER models (placeholder for actual implementation)
-    async fn initialize_models(&mut self) -> Result<(), SwoopError> {
+    async fn initialize_models(&mut self) -> Result<(), crate::error::Error> {
         // TODO: Implement actual model loading using Candle
         // This would involve:
         // 1. Loading pre-trained BERT-NER model
@@ -153,7 +153,7 @@ impl EntityExtractor {
     pub async fn extract_entities(
         &self,
         text: &str,
-    ) -> Result<(Vec<ExtractedEntity>, f32), SwoopError> {
+    ) -> Result<(Vec<ExtractedEntity>, f32), crate::error::Error> {
         // First, try rule-based extraction
         let rule_based_entities = self.extract_with_patterns(text);
 
@@ -212,7 +212,7 @@ impl EntityExtractor {
     }
 
     /// Build regex patterns for entity extraction
-    fn build_regex_patterns() -> Result<HashMap<EntityType, Vec<regex::Regex>>, SwoopError> {
+    fn build_regex_patterns() -> Result<HashMap<EntityType, Vec<regex::Regex>>, crate::error::Error> {
         let mut patterns = HashMap::new();
 
         // Person names (simple patterns)
@@ -220,9 +220,9 @@ impl EntityExtractor {
             EntityType::Person,
             vec![
                 regex::Regex::new(r"\b[A-Z][a-z]+ [A-Z][a-z]+\b")
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
                 regex::Regex::new(r"\b(Mr|Mrs|Ms|Dr|Prof)\. [A-Z][a-z]+ [A-Z][a-z]+\b")
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
             ],
         );
 
@@ -231,9 +231,9 @@ impl EntityExtractor {
             EntityType::Organization,
             vec![
                 regex::Regex::new(r"\b[A-Z][a-z]+ (Inc|LLC|Corp|Ltd|Company|Corporation)\b")
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
                 regex::Regex::new(r"\b(University of|College of) [A-Z][a-z]+\b")
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
             ],
         );
 
@@ -242,9 +242,9 @@ impl EntityExtractor {
             EntityType::Location,
             vec![
                 regex::Regex::new(r"\b[A-Z][a-z]+, [A-Z]{2}\b") // City, State
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
                 regex::Regex::new(r"\b(New York|Los Angeles|Chicago|Houston|Phoenix|Philadelphia|San Antonio|San Diego|Dallas|San Jose)\b")
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
             ],
         );
 
@@ -253,11 +253,11 @@ impl EntityExtractor {
             EntityType::Date,
             vec![
                 regex::Regex::new(r"\b\d{1,2}/\d{1,2}/\d{4}\b") // MM/DD/YYYY
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
                 regex::Regex::new(r"\b\d{4}-\d{2}-\d{2}\b") // YYYY-MM-DD
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
                 regex::Regex::new(r"\b(January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}\b")
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
             ],
         );
 
@@ -266,11 +266,11 @@ impl EntityExtractor {
             EntityType::Money,
             vec![
                 regex::Regex::new(r"\$\d{1,3}(,\d{3})*(\.\d{2})?") // $1,000.00
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
                 regex::Regex::new(r"€\d{1,3}(,\d{3})*(\.\d{2})?") // €1,000.00
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
                 regex::Regex::new(r"£\d{1,3}(,\d{3})*(\.\d{2})?") // £1,000.00
-                    .map_err(|e| SwoopError::Configuration(format!("Regex error: {}", e)))?,
+                    .map_err(|e| crate::error::Error::Configuration(format!("Regex error: {}", e)))?,
             ],
         );
 

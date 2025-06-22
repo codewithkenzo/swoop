@@ -31,7 +31,7 @@
 //! let similarity = embedder.compute_similarity(&emb1, &emb2)?;
 //! ```
 
-use crate::SwoopError;
+use crate::error::Error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -144,7 +144,7 @@ impl DocumentEmbedding {
         vector: Vec<f32>,
         model: EmbeddingModel,
         confidence: f32,
-    ) -> Result<Self, SwoopError> {
+    ) -> Result<Self, crate::error::Error> {
         let dimension = vector.len();
         let vector_bytes = vector
             .iter()
@@ -162,9 +162,9 @@ impl DocumentEmbedding {
     }
 
     /// Decode the embedding vector from base64
-    pub fn decode_vector(&self) -> Result<Vec<f32>, SwoopError> {
+    pub fn decode_vector(&self) -> Result<Vec<f32>, crate::error::Error> {
         let bytes = base64::decode(&self.vector)
-            .map_err(|e| SwoopError::Parser(format!("Failed to decode embedding: {}", e)))?;
+            .map_err(|e| crate::error::Error::Parser(format!("Failed to decode embedding: {}", e)))?;
         
         let floats = bytes
             .chunks_exact(4)
@@ -198,12 +198,12 @@ pub struct DocumentEmbedder {
 
 impl DocumentEmbedder {
     /// Create a new document embedder with default configuration
-    pub async fn new() -> Result<Self, SwoopError> {
+    pub async fn new() -> Result<Self, crate::error::Error> {
         Self::with_config(EmbeddingConfig::default()).await
     }
 
     /// Create a new document embedder with custom configuration
-    pub async fn with_config(config: EmbeddingConfig) -> Result<Self, SwoopError> {
+    pub async fn with_config(config: EmbeddingConfig) -> Result<Self, crate::error::Error> {
         let mut embedder = Self {
             config,
             tokenizer: None,
@@ -219,7 +219,7 @@ impl DocumentEmbedder {
     }
 
     /// Initialize the embedding model (placeholder for actual implementation)
-    async fn initialize_model(&mut self) -> Result<(), SwoopError> {
+    async fn initialize_model(&mut self) -> Result<(), crate::error::Error> {
         // TODO: Implement actual model loading using Candle
         // This would involve:
         // 1. Loading pre-trained transformer model
@@ -238,7 +238,7 @@ impl DocumentEmbedder {
     pub async fn generate_embeddings(
         &self,
         text: &str,
-    ) -> Result<(String, f32), SwoopError> {
+    ) -> Result<(String, f32), crate::error::Error> {
         // Check cache first
         let cache_key = format!("{}:{}", self.config.model.model_id(), text);
         if let Some(cached) = self.cache.get(&cache_key) {
@@ -256,7 +256,7 @@ impl DocumentEmbedder {
     pub async fn generate_batch_embeddings(
         &self,
         texts: &[&str],
-    ) -> Result<Vec<(String, f32)>, SwoopError> {
+    ) -> Result<Vec<(String, f32)>, crate::error::Error> {
         let mut results = Vec::new();
         
         // Process in batches
@@ -275,12 +275,12 @@ impl DocumentEmbedder {
         &self,
         embedding1: &str,
         embedding2: &str,
-    ) -> Result<f32, SwoopError> {
+    ) -> Result<f32, crate::error::Error> {
         let vec1 = self.decode_embedding_vector(embedding1)?;
         let vec2 = self.decode_embedding_vector(embedding2)?;
 
         if vec1.len() != vec2.len() {
-            return Err(SwoopError::Configuration(
+            return Err(crate::error::Error::Configuration(
                 "Embedding dimensions don't match".to_string(),
             ));
         }
@@ -302,7 +302,7 @@ impl DocumentEmbedder {
         query_embedding: &str,
         candidate_embeddings: &[(String, String)], // (id, embedding)
         top_k: usize,
-    ) -> Result<Vec<(String, f32)>, SwoopError> {
+    ) -> Result<Vec<(String, f32)>, crate::error::Error> {
         let mut similarities = Vec::new();
 
         for (id, embedding) in candidate_embeddings {
@@ -321,7 +321,7 @@ impl DocumentEmbedder {
     async fn generate_placeholder_embedding(
         &self,
         text: &str,
-    ) -> Result<DocumentEmbedding, SwoopError> {
+    ) -> Result<DocumentEmbedding, crate::error::Error> {
         // Simple hash-based placeholder embedding
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -355,9 +355,9 @@ impl DocumentEmbedder {
     }
 
     /// Decode embedding vector from base64 string
-    fn decode_embedding_vector(&self, embedding: &str) -> Result<Vec<f32>, SwoopError> {
+    fn decode_embedding_vector(&self, embedding: &str) -> Result<Vec<f32>, crate::error::Error> {
         let bytes = base64::decode(embedding)
-            .map_err(|e| SwoopError::Parser(format!("Failed to decode embedding: {}", e)))?;
+            .map_err(|e| crate::error::Error::Parser(format!("Failed to decode embedding: {}", e)))?;
         
         let floats = bytes
             .chunks_exact(4)

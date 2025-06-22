@@ -24,12 +24,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use axum::{
-    extract::{ws::WebSocket, ConnectInfo, Path as AxumPath, Query, State, WebSocketUpgrade},
+    extract::{ws::WebSocket, ConnectInfo, Path, Path as AxumPath, Query, State, WebSocketUpgrade, Multipart},
     http::StatusCode, // HeaderMap may be needed for future header handling
     middleware::{self, Next},
-    response::{Html, Response, Sse},
+    response::{Html, Response, Sse, Json as ResponseJson},
     routing::{get, post, delete},
-    Json, Router,
+    Json,
+    Router,
 };
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use serde::{Deserialize, Serialize};
@@ -44,9 +45,10 @@ use tower_http::{
     services::ServeDir,
     trace::TraceLayer,
 };
+use uuid::Uuid;
 
 use crate::error::{Error, Result};
-use crate::models::Document;
+use crate::models::{Document, DocumentWorkspace};
 use crate::monitoring::MonitoringSystem;
 
 /// Server configuration with rich customization
@@ -198,9 +200,10 @@ pub struct AppState {
     pub config: ServerConfig,
     pub stats: Arc<StatsTracker>,
     pub event_sender: broadcast::Sender<LiveEvent>,
-    pub documents: Arc<RwLock<HashMap<String, Document>>>,
-    pub monitoring: MonitoringSystem,
-    pub active_jobs: Arc<RwLock<HashMap<String, String>>>,
+    pub documents: Arc<RwLock<HashMap<String, DocumentProcessingStatus>>>,
+    pub conversations: Arc<RwLock<HashMap<String, Vec<ChatMessage>>>>,
+    pub system_stats: Arc<RwLock<SystemStats>>,
+    pub workspace: Arc<DocumentWorkspace>,
 }
 
 /// API request/response types
@@ -225,6 +228,129 @@ pub struct SearchQuery {
     pub limit: Option<usize>,
 }
 
+/// API Response Types
+#[derive(Debug, Serialize)]
+pub struct ApiResponse<T> {
+    pub success: bool,
+    pub data: Option<T>,
+    pub message: Option<String>,
+    pub error: Option<String>,
+}
+
+impl<T> ApiResponse<T> {
+    pub fn success(data: T) -> Self {
+        Self {
+            success: true,
+            data: Some(data),
+            message: None,
+            error: None,
+        }
+    }
+
+    pub fn error(message: String) -> Self {
+        Self {
+            success: false,
+            data: None,
+            message: None,
+            error: Some(message),
+        }
+    }
+}
+
+// Document Processing Types
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DocumentUploadRequest {
+    pub filename: String,
+    pub content_type: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DocumentProcessingStatus {
+    pub id: String,
+    pub filename: String,
+    pub status: ProcessingStatus,
+    pub progress: f32,
+    pub quality_score: Option<f32>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub processing_time_ms: Option<u64>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ProcessingStatus {
+    Pending,
+    Processing,
+    Completed,
+    Failed,
+}
+
+// Chat System Types
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatMessage {
+    pub id: String,
+    pub content: String,
+    pub role: MessageRole,
+    pub personality: Option<String>,
+    pub document_references: Vec<String>,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum MessageRole {
+    User,
+    Assistant,
+    System,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatRequest {
+    pub message: String,
+    pub personality: Option<String>,
+    pub conversation_id: Option<String>,
+    pub document_context: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatResponse {
+    pub message: ChatMessage,
+    pub conversation_id: String,
+    pub processing_time_ms: u64,
+}
+
+// Analytics Types
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SystemStats {
+    pub documents_processed: u64,
+    pub documents_pending: u64,
+    pub average_quality_score: f32,
+    pub processing_rate_per_hour: f32,
+    pub error_rate: f32,
+    pub uptime_seconds: u64,
+    pub memory_usage_mb: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProcessingMetrics {
+    pub total_documents: u64,
+    pub documents_by_status: HashMap<String, u64>,
+    pub documents_by_type: HashMap<String, u64>,
+    pub quality_score_distribution: Vec<(f32, u64)>,
+    pub processing_times: Vec<u64>,
+    pub recent_activity: Vec<ActivityEvent>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ActivityEvent {
+    pub id: String,
+    pub event_type: String,
+    pub description: String,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub document_id: Option<String>,
+    pub status: Option<String>,
+}
+
 /// High-performance HTTP server with modern features
 pub struct CrawlServer {
     config: ServerConfig,
@@ -243,8 +369,17 @@ impl CrawlServer {
             stats,
             event_sender,
             documents: Arc::new(RwLock::new(HashMap::new())),
-            active_jobs: Arc::new(RwLock::new(HashMap::new())),
-            monitoring,
+            conversations: Arc::new(RwLock::new(HashMap::new())),
+            system_stats: Arc::new(RwLock::new(SystemStats {
+                documents_processed: 0,
+                documents_pending: 0,
+                average_quality_score: 0.0,
+                processing_rate_per_hour: 0.0,
+                error_rate: 0.0,
+                uptime_seconds: 0,
+                memory_usage_mb: 0.0,
+            })),
+            workspace: Arc::new(DocumentWorkspace::new()),
         };
 
         Ok(Self {
@@ -280,6 +415,20 @@ impl CrawlServer {
             // Dashboard
             .route("/", get(serve_dashboard))
             .route("/dashboard", get(serve_dashboard))
+            
+            // Document endpoints
+            .route("/api/documents/upload", post(upload_document))
+            .route("/api/documents", get(list_documents))
+            .route("/api/documents/:id", get(get_document_status))
+            
+            // Chat endpoints
+            .route("/api/chat/query", post(chat_query))
+            .route("/api/chat/conversations/:id", get(get_conversation))
+            
+            // Analytics endpoints
+            .route("/api/stats", get(get_system_stats))
+            .route("/api/metrics", get(get_processing_metrics))
+            
             .with_state(state.clone());
 
         // Add static file serving
@@ -719,6 +868,299 @@ async fn sse_handler(
             .interval(Duration::from_secs(15))
             .text("keep-alive")
     )
+}
+
+// API Handlers
+
+pub async fn upload_document(
+    State(state): State<AppState>,
+    mut multipart: Multipart,
+) -> Result<ResponseJson<ApiResponse<DocumentProcessingStatus>>, StatusCode> {
+    while let Some(field) = multipart.next_field().await.map_err(|_| StatusCode::BAD_REQUEST)? {
+        let name = field.name().unwrap_or("").to_string();
+        
+        if name == "file" {
+            let filename = field.file_name().unwrap_or("unknown").to_string();
+            let data = field.bytes().await.map_err(|_| StatusCode::BAD_REQUEST)?;
+            
+            let document_id = Uuid::new_v4().to_string();
+            let document_status = DocumentProcessingStatus {
+                id: document_id.clone(),
+                filename: filename.clone(),
+                status: ProcessingStatus::Pending,
+                progress: 0.0,
+                quality_score: None,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                processing_time_ms: None,
+                error_message: None,
+            };
+            
+            // Store document status
+            state.documents.write().await.insert(document_id.clone(), document_status.clone());
+            
+            // Start background processing (simulate for now)
+            let state_clone = state.clone();
+            let doc_id = document_id.clone();
+            tokio::spawn(async move {
+                simulate_document_processing(state_clone, doc_id, data.to_vec()).await;
+            });
+            
+            return Ok(ResponseJson(ApiResponse::success(document_status)));
+        }
+    }
+    
+    Err(StatusCode::BAD_REQUEST)
+}
+
+pub async fn get_document_status(
+    State(state): State<AppState>,
+    Path(document_id): Path<String>,
+) -> Result<ResponseJson<ApiResponse<DocumentProcessingStatus>>, StatusCode> {
+    let documents = state.documents.read().await;
+    
+    if let Some(document) = documents.get(&document_id) {
+        Ok(ResponseJson(ApiResponse::success(document.clone())))
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
+}
+
+pub async fn list_documents(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<ApiResponse<Vec<DocumentProcessingStatus>>>, StatusCode> {
+    let documents = state.documents.read().await;
+    let document_list: Vec<DocumentProcessingStatus> = documents.values().cloned().collect();
+    
+    Ok(ResponseJson(ApiResponse::success(document_list)))
+}
+
+pub async fn chat_query(
+    State(state): State<AppState>,
+    Json(request): Json<ChatRequest>,
+) -> Result<ResponseJson<ApiResponse<ChatResponse>>, StatusCode> {
+    let start_time = std::time::Instant::now();
+    
+    // Generate conversation ID if not provided
+    let conversation_id = request.conversation_id.unwrap_or_else(|| Uuid::new_v4().to_string());
+    
+    // Parse document references from message
+    let document_references = extract_document_references(&request.message);
+    
+    // Create user message
+    let user_message = ChatMessage {
+        id: Uuid::new_v4().to_string(),
+        content: request.message.clone(),
+        role: MessageRole::User,
+        personality: request.personality.clone(),
+        document_references: document_references.clone(),
+        timestamp: chrono::Utc::now(),
+    };
+    
+    // Generate AI response (mock for now)
+    let ai_response = generate_ai_response(&request, &document_references).await;
+    
+    let ai_message = ChatMessage {
+        id: Uuid::new_v4().to_string(),
+        content: ai_response,
+        role: MessageRole::Assistant,
+        personality: request.personality.clone(),
+        document_references: document_references.clone(),
+        timestamp: chrono::Utc::now(),
+    };
+    
+    // Store conversation
+    let mut conversations = state.conversations.write().await;
+    let conversation = conversations.entry(conversation_id.clone()).or_insert_with(Vec::new);
+    conversation.push(user_message);
+    conversation.push(ai_message.clone());
+    
+    let processing_time = start_time.elapsed().as_millis() as u64;
+    
+    let response = ChatResponse {
+        message: ai_message,
+        conversation_id,
+        processing_time_ms: processing_time,
+    };
+    
+    Ok(ResponseJson(ApiResponse::success(response)))
+}
+
+pub async fn get_conversation(
+    State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
+) -> Result<ResponseJson<ApiResponse<Vec<ChatMessage>>>, StatusCode> {
+    let conversations = state.conversations.read().await;
+    
+    if let Some(messages) = conversations.get(&conversation_id) {
+        Ok(ResponseJson(ApiResponse::success(messages.clone())))
+    } else {
+        Ok(ResponseJson(ApiResponse::success(Vec::new())))
+    }
+}
+
+pub async fn get_system_stats(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<ApiResponse<SystemStats>>, StatusCode> {
+    let stats = state.system_stats.read().await;
+    Ok(ResponseJson(ApiResponse::success(stats.clone())))
+}
+
+pub async fn get_processing_metrics(
+    State(state): State<AppState>,
+) -> Result<ResponseJson<ApiResponse<ProcessingMetrics>>, StatusCode> {
+    let documents = state.documents.read().await;
+    
+    let total_documents = documents.len() as u64;
+    let mut documents_by_status = HashMap::new();
+    let mut documents_by_type = HashMap::new();
+    let mut quality_scores = Vec::new();
+    let mut processing_times = Vec::new();
+    
+    for doc in documents.values() {
+        // Count by status
+        let status_key = format!("{:?}", doc.status);
+        *documents_by_status.entry(status_key).or_insert(0) += 1;
+        
+        // Count by type (extract from filename)
+        let file_type = doc.filename.split('.').last().unwrap_or("unknown").to_string();
+        *documents_by_type.entry(file_type).or_insert(0) += 1;
+        
+        // Collect quality scores
+        if let Some(score) = doc.quality_score {
+            quality_scores.push(score);
+        }
+        
+        // Collect processing times
+        if let Some(time) = doc.processing_time_ms {
+            processing_times.push(time);
+        }
+    }
+    
+    // Generate quality score distribution
+    let quality_score_distribution = generate_quality_distribution(&quality_scores);
+    
+    // Generate recent activity
+    let recent_activity = generate_recent_activity(&documents);
+    
+    let metrics = ProcessingMetrics {
+        total_documents,
+        documents_by_status,
+        documents_by_type,
+        quality_score_distribution,
+        processing_times,
+        recent_activity,
+    };
+    
+    Ok(ResponseJson(ApiResponse::success(metrics)))
+}
+
+// Helper Functions
+async fn simulate_document_processing(state: AppState, document_id: String, _data: Vec<u8>) {
+    // Simulate processing stages
+    let stages = vec![
+        (ProcessingStatus::Processing, 0.2, "Starting analysis..."),
+        (ProcessingStatus::Processing, 0.5, "Extracting content..."),
+        (ProcessingStatus::Processing, 0.8, "Analyzing quality..."),
+        (ProcessingStatus::Completed, 1.0, "Processing complete"),
+    ];
+    
+    for (status, progress, _message) in stages {
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        
+        let mut documents = state.documents.write().await;
+        if let Some(doc) = documents.get_mut(&document_id) {
+            doc.status = status;
+            doc.progress = progress;
+            doc.updated_at = chrono::Utc::now();
+            
+            if progress >= 1.0 {
+                doc.quality_score = Some(0.85 + (rand::random::<f32>() * 0.15)); // 0.85-1.0
+                doc.processing_time_ms = Some(1500 + (rand::random::<u64>() % 2000)); // 1.5-3.5s
+            }
+        }
+    }
+    
+    // Update system stats
+    let mut stats = state.system_stats.write().await;
+    stats.documents_processed += 1;
+    stats.average_quality_score = 0.92; // Mock value
+}
+
+fn extract_document_references(message: &str) -> Vec<String> {
+    let mut references = Vec::new();
+    let words: Vec<&str> = message.split_whitespace().collect();
+    
+    for word in words {
+        if word.starts_with('@') && word.len() > 1 {
+            references.push(word[1..].to_string());
+        }
+    }
+    
+    references
+}
+
+async fn generate_ai_response(request: &ChatRequest, document_refs: &[String]) -> String {
+    // Mock AI response based on personality and document references
+    let personality = request.personality.as_deref().unwrap_or("professional");
+    
+    if !document_refs.is_empty() {
+        let docs_str = document_refs.join(", ");
+        match personality {
+            "technical" => format!(
+                "Based on my analysis of {}, I can provide detailed technical insights. The documents contain structured data with high confidence scores. Would you like me to elaborate on specific technical aspects?",
+                docs_str
+            ),
+            "casual" => format!(
+                "Hey! I took a look at {} and found some interesting stuff. The content looks solid and I can break it down for you in simple terms. What specific part are you curious about?",
+                docs_str
+            ),
+            _ => format!(
+                "I have analyzed the referenced documents: {}. The content has been processed with quality validation and I can provide comprehensive insights. Please let me know what specific information you're looking for.",
+                docs_str
+            ),
+        }
+    } else {
+        match personality {
+            "technical" => "I'm ready to provide technical analysis and detailed documentation insights. Please specify which documents you'd like me to examine or upload new files for processing.".to_string(),
+            "casual" => "Hi there! I'm here to help you understand your documents in a friendly way. Just upload some files or reference existing ones with @ and I'll break things down for you!".to_string(),
+            _ => "Hello! I'm your document intelligence assistant. I can help analyze documents, extract insights, and answer questions about your processed files. How can I assist you today?".to_string(),
+        }
+    }
+}
+
+fn generate_quality_distribution(scores: &[f32]) -> Vec<(f32, u64)> {
+    let mut distribution = vec![
+        (0.7, 0), (0.75, 0), (0.8, 0), (0.85, 0), (0.9, 0), (0.95, 0), (1.0, 0)
+    ];
+    
+    for &score in scores {
+        for (threshold, count) in distribution.iter_mut() {
+            if score >= *threshold {
+                *count += 1;
+            }
+        }
+    }
+    
+    distribution
+}
+
+fn generate_recent_activity(documents: &HashMap<String, DocumentProcessingStatus>) -> Vec<ActivityEvent> {
+    let mut activities = Vec::new();
+    
+    for doc in documents.values().take(10) {
+        activities.push(ActivityEvent {
+            id: Uuid::new_v4().to_string(),
+            event_type: "document_processed".to_string(),
+            description: format!("Processed document: {}", doc.filename),
+            timestamp: doc.updated_at,
+            document_id: Some(doc.id.clone()),
+            status: Some(format!("{:?}", doc.status)),
+        });
+    }
+    
+    activities.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    activities
 }
 
 #[cfg(test)]

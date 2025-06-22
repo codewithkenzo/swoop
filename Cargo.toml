@@ -23,6 +23,18 @@ path = "src/bin/swoop_demo.rs"
 name = "swoop_high_performance"
 path = "src/bin/swoop_high_performance.rs"
 
+[[bin]]
+name = "consumer_demo"
+path = "src/bin/consumer_demo.rs"
+
+[[bin]]
+name = "real_world_demo"
+path = "src/bin/real_world_demo.rs"
+
+[[bin]]
+name = "real_async_demo"
+path = "src/bin/real_async_demo.rs"
+
 [dependencies]
 # Async runtime
 tokio = { version = "1.28", features = ["full"] }
@@ -56,6 +68,7 @@ lazy_static = "1.4.0"
 rayon = "1.7.0"
 parking_lot = "0.12.1"
 rand = "0.8"
+fastrand = "2.0"
 
 # Storage
 qdrant-client = "1.4.0"
@@ -80,7 +93,7 @@ dashmap = "5.5.3"
 flate2 = "1.0.27"
 
 # HTTP server dependencies
-axum = { version = "0.7.2", features = ["ws", "tokio"] }
+axum = { version = "0.7.2", features = ["ws", "tokio", "multipart"] }
 axum-extra = { version = "0.9.0", features = ["cookie"] }
 tower = { version = "0.4.13", features = ["timeout"] }
 tower-http = { version = "0.5.0", features = ["compression-gzip", "cors", "trace", "fs"] }
@@ -111,7 +124,7 @@ metrics-exporter-prometheus = "0.16.0"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 opentelemetry = "0.20.0"
-axum-prometheus = "0.8.0"
+# axum-prometheus = "0.8.0"  # Temporarily disabled due to version conflicts
 backoff = "0.4.0"
 
 # AI/NLP dependencies (enabled with the 'ai' feature flag)
@@ -134,14 +147,24 @@ whatlang = { version = "0.16", optional = true }
 csv = "1.3"
 validator = { version = "0.18", features = ["derive"] }
 
+# Intelligence and chat dependencies
+fuzzy-matcher = { version = "0.3", optional = true }
+strsim = { version = "0.11", optional = true }
+unicode-normalization = { version = "0.1", optional = true }
+unicode-segmentation = { version = "1.10", optional = true }
+
 [features]
-default = []
+default = ["ai", "enhanced-processing"]
 python = ["pyo3"]
 gpu = []
 # GPU feature is now a compile-time flag only
 # Implementation will need to check for this feature at runtime
 # and provide a CPU fallback when CUDA is not available
 ai = ["linfa", "tokenizers", "whatlang"]
+enhanced-processing = ["fuzzy-matcher", "strsim", "unicode-normalization", "unicode-segmentation"]
+
+# Development features
+dev = ["tokio/test-util"]
 
 [dev-dependencies]
 criterion = "0.5.1"

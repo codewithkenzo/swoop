@@ -187,6 +187,28 @@ pub struct QuestionAnswer {
     pub context: String,
 }
 
+/// Document workspace for managing documents
+#[derive(Debug, Clone)]
+pub struct DocumentWorkspace {
+    /// Documents stored in the workspace
+    pub documents: HashMap<String, Document>,
+}
+
+impl DocumentWorkspace {
+    /// Create a new document workspace
+    pub fn new() -> Self {
+        Self {
+            documents: HashMap::new(),
+        }
+    }
+}
+
+impl Default for DocumentWorkspace {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// LLM-enhanced content analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmAnalysis {

@@ -51,7 +51,7 @@ pub use ner::{EntityExtractor, ExtractedEntity};
 #[cfg(feature = "ai")]
 pub use tagging::{AutoTagger, TaggingConfig};
 
-use crate::SwoopError;
+use crate::error::Error;
 use serde::{Deserialize, Serialize};
 
 /// Configuration for document analysis
@@ -120,7 +120,7 @@ pub struct DocumentAnalyzer {
 #[cfg(feature = "ai")]
 impl DocumentAnalyzer {
     /// Create a new document analyzer with default models
-    pub async fn new() -> Result<Self, SwoopError> {
+    pub async fn new() -> Result<Self, crate::error::Error> {
         Ok(Self {
             categorizer: DocumentCategorizer::new().await?,
             entity_extractor: EntityExtractor::new().await?,
@@ -134,7 +134,7 @@ impl DocumentAnalyzer {
         &self,
         content: &str,
         config: AnalysisConfig,
-    ) -> Result<AnalysisResults, SwoopError> {
+    ) -> Result<AnalysisResults, crate::error::Error> {
         let mut results = AnalysisResults {
             category: None,
             entities: Vec::new(),

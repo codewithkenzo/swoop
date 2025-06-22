@@ -26,7 +26,7 @@
 //! let (category, confidence) = categorizer.categorize(content).await?;
 //! ```
 
-use crate::SwoopError;
+use crate::error::Error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -81,7 +81,7 @@ pub struct DocumentCategorizer {
 
 impl DocumentCategorizer {
     /// Create a new document categorizer
-    pub async fn new() -> Result<Self, SwoopError> {
+    pub async fn new() -> Result<Self, crate::error::Error> {
         let mut categorizer = Self {
             tfidf_model: None,
             classifier: None,
@@ -96,7 +96,7 @@ impl DocumentCategorizer {
     }
 
     /// Initialize ML models (placeholder for actual implementation)
-    async fn initialize_models(&mut self) -> Result<(), SwoopError> {
+    async fn initialize_models(&mut self) -> Result<(), crate::error::Error> {
         // TODO: Implement actual model loading/training using linfa
         // This would involve:
         // 1. Loading training data
@@ -109,7 +109,7 @@ impl DocumentCategorizer {
     }
 
     /// Categorize a document and return category with confidence score
-    pub async fn categorize(&self, content: &str) -> Result<(DocumentCategory, f32), SwoopError> {
+    pub async fn categorize(&self, content: &str) -> Result<(DocumentCategory, f32), crate::error::Error> {
         // First, try rule-based classification for high-confidence cases
         if let Some((category, confidence)) = self.classify_by_keywords(content) {
             return Ok((category, confidence));

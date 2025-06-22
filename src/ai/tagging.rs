@@ -37,7 +37,7 @@
 
 use crate::ai::{AnalysisResults, DocumentCategory};
 use crate::ai::ner::{EntityType, ExtractedEntity};
-use crate::SwoopError;
+use crate::error::Error;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
@@ -165,7 +165,7 @@ impl AutoTagger {
         &self,
         content: &str,
         analysis_results: &AnalysisResults,
-    ) -> Result<(Vec<String>, f32), SwoopError> {
+    ) -> Result<(Vec<String>, f32), crate::error::Error> {
         let mut all_tags = Vec::new();
 
         // Rule-based tagging
@@ -234,7 +234,7 @@ impl AutoTagger {
     }
 
     /// Generate rule-based tags using pattern matching
-    fn generate_rule_based_tags(&self, content: &str) -> Result<Vec<GeneratedTag>, SwoopError> {
+    fn generate_rule_based_tags(&self, content: &str) -> Result<Vec<GeneratedTag>, crate::error::Error> {
         let mut tags = Vec::new();
         let content_lower = content.to_lowercase();
 
@@ -259,7 +259,7 @@ impl AutoTagger {
     fn generate_entity_based_tags(
         &self,
         entities: &[ExtractedEntity],
-    ) -> Result<Vec<GeneratedTag>, SwoopError> {
+    ) -> Result<Vec<GeneratedTag>, crate::error::Error> {
         let mut tags = Vec::new();
         let mut entity_counts: HashMap<EntityType, usize> = HashMap::new();
 
@@ -297,7 +297,7 @@ impl AutoTagger {
     fn generate_category_based_tags(
         &self,
         category: &DocumentCategory,
-    ) -> Result<Vec<GeneratedTag>, SwoopError> {
+    ) -> Result<Vec<GeneratedTag>, crate::error::Error> {
         let mut tags = Vec::new();
 
         // Primary category tag
@@ -344,7 +344,7 @@ impl AutoTagger {
     }
 
     /// Generate metadata tags based on content characteristics
-    fn generate_metadata_tags(&self, content: &str) -> Result<Vec<GeneratedTag>, SwoopError> {
+    fn generate_metadata_tags(&self, content: &str) -> Result<Vec<GeneratedTag>, crate::error::Error> {
         let mut tags = Vec::new();
         let word_count = content.split_whitespace().count();
         let char_count = content.chars().count();
@@ -388,7 +388,7 @@ impl AutoTagger {
     }
 
     /// Generate ML-based tags (placeholder implementation)
-    async fn generate_ml_based_tags(&self, content: &str) -> Result<Vec<GeneratedTag>, SwoopError> {
+    async fn generate_ml_based_tags(&self, content: &str) -> Result<Vec<GeneratedTag>, crate::error::Error> {
         // TODO: Implement actual ML-based tagging
         // This would involve:
         // 1. Topic modeling (LDA, BERT-based)
@@ -427,7 +427,7 @@ impl AutoTagger {
     fn filter_and_deduplicate_tags(
         &self,
         mut tags: Vec<GeneratedTag>,
-    ) -> Result<Vec<GeneratedTag>, SwoopError> {
+    ) -> Result<Vec<GeneratedTag>, crate::error::Error> {
         // Filter by minimum confidence
         tags.retain(|tag| tag.confidence >= self.config.min_confidence);
 

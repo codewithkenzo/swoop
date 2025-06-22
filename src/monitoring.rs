@@ -18,7 +18,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use axum_prometheus::{PrometheusMetricLayer, Handle};
+// use axum_prometheus::{PrometheusMetricLayer, Handle}; // Temporarily disabled
 use metrics::{counter, gauge, histogram, describe_counter, describe_gauge, describe_histogram};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
