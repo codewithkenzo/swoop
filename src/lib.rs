@@ -18,7 +18,7 @@ pub mod chat;
 pub mod loaders;
 pub mod rate_limiter;
 pub mod crawler;
-// pub mod ai;            // Re-enable gradually
+pub mod ai;            // Re-enabled for Phase 2 pipeline
 // pub mod monitoring;    // Re-enable gradually
 // pub mod server;        // Keep disabled for now
 // pub mod api_server;    // Keep disabled for now

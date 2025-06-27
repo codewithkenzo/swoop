@@ -68,6 +68,29 @@ impl LibSqlStorage {
             )
         "#;
         
+        // Document vectors table
+        let vectors_sql = r#"
+            CREATE TABLE IF NOT EXISTS document_vectors (
+                id TEXT PRIMARY KEY,
+                document_id TEXT NOT NULL,
+                vector BLOB NOT NULL,
+                model TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        "#;
+        
+        // Crawl pages table
+        let crawl_pages_sql = r#"
+            CREATE TABLE IF NOT EXISTS crawl_pages (
+                id TEXT PRIMARY KEY,
+                job_id TEXT NOT NULL,
+                url TEXT NOT NULL,
+                status_code INTEGER NOT NULL,
+                text_length INTEGER NOT NULL,
+                fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        "#;
+        
         // Analytics/stats table
         let analytics_sql = r#"
             CREATE TABLE IF NOT EXISTS analytics (
@@ -93,6 +116,12 @@ impl LibSqlStorage {
         
         self.client.execute(batches_sql).await
             .map_err(|e| Error::Storage(format!("Failed to create batches table: {}", e)))?;
+        
+        self.client.execute(vectors_sql).await
+            .map_err(|e| Error::Storage(format!("Failed to create vectors table: {}", e)))?;
+        
+        self.client.execute(crawl_pages_sql).await
+            .map_err(|e| Error::Storage(format!("Failed to create crawl_pages table: {}", e)))?;
         
         self.client.execute(analytics_sql).await
             .map_err(|e| Error::Storage(format!("Failed to create analytics table: {}", e)))?;
@@ -301,5 +330,77 @@ impl Storage for LibSqlStorage {
             total_batches: batch_count,
             storage_backend: "libSQL".to_string(),
         })
+    }
+
+    /// Store a document vector embedding (helper – not part of Storage trait yet)
+    #[allow(dead_code)]
+    pub async fn store_document_vector(&self, vector: &crate::models::DocumentVector) -> Result<()> {
+        // Encode f32 Vec into bytes for BLOB column
+        let bytes: Vec<u8> = vector.vector.iter().flat_map(|f| f.to_le_bytes()).collect();
+
+        let stmt = Statement::with_args(
+            "INSERT OR REPLACE INTO document_vectors (id, document_id, vector, model) VALUES (?, ?, ?, ?)",
+            libsql_client::args![
+                vector.id.clone(),
+                vector.url.clone(), // Using url field as document_id for now
+                bytes,
+                "sentence-bert"
+            ]
+        );
+
+        self.client.execute(stmt).await
+            .map_err(|e| Error::Storage(format!("Failed to store document vector: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Store a crawl page record
+    pub async fn insert_crawl_page(&self, page: &crate::models::CrawlPage) -> Result<()> {
+        let stmt = Statement::with_args(
+            "INSERT OR REPLACE INTO crawl_pages (id, job_id, url, status_code, text_length, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
+            libsql_client::args![
+                page.id.clone(),
+                page.job_id.clone(),
+                page.url.clone(),
+                page.status_code as i64,
+                page.text_length as i64,
+                page.fetched_at.to_rfc3339(),
+            ]
+        );
+
+        self.client.execute(stmt).await
+            .map_err(|e| Error::Storage(format!("Failed to store crawl page: {}", e)))?;
+        Ok(())
+    }
+
+    /// List pages for a job (paginated)
+    pub async fn list_crawl_pages(&self, job_id: &str, offset: i64, limit: i64) -> Result<Vec<crate::models::CrawlPage>> {
+        let stmt = Statement::with_args(
+            "SELECT id, url, status_code, text_length, fetched_at FROM crawl_pages WHERE job_id = ? ORDER BY fetched_at LIMIT ? OFFSET ?",
+            libsql_client::args![job_id, limit, offset]
+        );
+
+        let mut rows = self.client.execute(stmt).await
+            .map_err(|e| Error::Storage(format!("Failed to query crawl pages: {}", e)))?;
+
+        let mut pages = Vec::new();
+        while let Some(row) = rows.next().await
+            .map_err(|e| Error::Storage(format!("Row error: {}", e)))? {
+            let fetched_at_str: String = row.get(4)
+                .map_err(|e| Error::Storage(format!("Failed fetched_at: {}", e)))?;
+            pages.push(crate::models::CrawlPage {
+                id: row.get(0).unwrap_or_default(),
+                job_id: job_id.to_string(),
+                url: row.get(1).unwrap_or_default(),
+                status_code: row.get::<i64, _>(2).unwrap_or(0) as u16,
+                text_length: row.get::<i64, _>(3).unwrap_or(0) as usize,
+                fetched_at: chrono::DateTime::parse_from_rfc3339(&fetched_at_str).unwrap().with_timezone(&chrono::Utc),
+            });
+        }
+        Ok(pages)
+    }
+
+    async fn store_crawl_page(&self, page: &crate::models::CrawlPage) -> Result<()> {
+        self.insert_crawl_page(page).await
     }
 } 

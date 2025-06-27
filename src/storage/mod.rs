@@ -68,4 +68,9 @@ pub trait Storage: Send + Sync {
     
     /// Health check for storage backend
     async fn health_check(&self) -> Result<bool>;
+
+    /// Optional: store a crawl page record. Backends that don't care can keep default no-op.
+    async fn store_crawl_page(&self, _page: &crate::models::CrawlPage) -> Result<()> {
+        Ok(())
+    }
 } 

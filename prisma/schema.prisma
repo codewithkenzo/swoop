@@ -1,0 +1,66 @@
+datasource db {
+  provider = "mysql" // or "libsql"; cannot use env() here per Prisma docs
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["dataProxy"] // Enables Prisma Data Proxy for Edge
+}
+
+/// Role-based access control for users
+enum Role {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+model User {
+  id            String   @id @default(cuid()) @db.VarChar(191)
+  email         String   @unique @db.VarChar(191)
+  emailVerified DateTime?
+  name          String?  @db.VarChar(191)
+  image         String?  @db.VarChar(191)
+  role          Role     @default(USER)
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Account {
+  id                 String   @id @default(cuid()) @db.VarChar(191)
+  userId             String   @db.VarChar(191)
+  type               String   @db.VarChar(191)
+  provider           String   @db.VarChar(191)
+  providerAccountId  String   @db.VarChar(191)
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?  @db.VarChar(191)
+  scope              String?  @db.VarChar(191)
+  id_token           String?  @db.Text
+  session_state      String?  @db.VarChar(191)
+  oauth_token_secret String?  @db.Text
+  oauth_token        String?  @db.Text
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid()) @db.VarChar(191)
+  sessionToken String   @unique @db.VarChar(191)
+  userId       String   @db.VarChar(191)
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String   @db.VarChar(191)
+  token      String   @unique @db.VarChar(191)
+  expires    DateTime
+
+  @@unique([identifier, token])
+} 

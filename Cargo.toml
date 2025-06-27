@@ -183,6 +183,9 @@ async-stream = "0.3"
 libsql = { version = "0.9.11", optional = true }
 libsql-client = { version = "0.33.4", optional = true, default-features = false, features = ["reqwest_backend", "local_backend"] }
 
+# Base64 dependency
+base64 = "0.21"
+
 [features]
 default = ["ai", "enhanced-processing", "robust-parsing", "sqlite"]
 python = ["pyo3"]

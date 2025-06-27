@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,6 +114,7 @@ const useAutoScroll = (content: any) => {
 
 export default function WebCrawler() {
   const [isRunning, setIsRunning] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(null);
   const [settings, setSettings] = useState<CrawlSettings>({
     startUrl: "https://example.com",
     maxPages: 100,
@@ -157,60 +160,73 @@ export default function WebCrawler() {
     setLogs((prev) => [...prev, newLog]);
   }, []);
 
+  // Start crawl mutation
+  const startCrawlMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.startCrawl(settings.startUrl);
+      return res.data?.job_id as string;
+    },
+    onSuccess: (id) => {
+      setJobId(id);
+      setIsRunning(true);
+      setStats((prev) => ({ ...prev, startTime: new Date(), endTime: null }));
+      setProgress(0);
+      setResults([]);
+      addLog('info', 'Crawler job started: ' + id);
+    },
+    onError: (e: any) => {
+      addLog('error', 'Failed to start crawl: ' + e.message);
+    }
+  });
+
+  // Stop crawl mutation
+  const stopCrawlMutation = useMutation({
+    mutationFn: async () => {
+      if (!jobId) return; await apiClient.stopCrawl(jobId);
+    },
+    onSuccess: () => {
+      addLog('warning', 'Crawl stopped');
+      setIsRunning(false);
+    }
+  });
+
+  // Poll status
+  const { data: crawlStatus } = useQuery({
+    queryKey: ['crawl-status', jobId],
+    queryFn: async () => {
+      if (!jobId) return null;
+      const res = await apiClient.getCrawlJob(jobId);
+      return res.data as any;
+    },
+    enabled: !!jobId && isRunning,
+    refetchInterval: 2000,
+  });
+
+  // React to crawl status changes
+  useEffect(() => {
+    if (!crawlStatus) return;
+    setProgress(Math.min(100, (crawlStatus.urls_processed / (settings.maxPages || 100)) * 100));
+    setStats(prev => ({
+      ...prev,
+      totalPages: crawlStatus.urls_processed,
+      successfulPages: crawlStatus.successful_fetches,
+      failedPages: crawlStatus.failed_fetches,
+      avgResponseTime: crawlStatus.avg_fetch_time_ms,
+      endTime: crawlStatus.status === 'completed' ? new Date() : null,
+    }));
+    if (crawlStatus.status === 'completed') {
+      setIsRunning(false);
+      addLog('success', 'Crawl completed');
+    }
+  }, [crawlStatus, settings.maxPages, addLog]);
+
   const startCrawl = useCallback(() => {
-    setIsRunning(true);
-    setStats((prev) => ({ ...prev, startTime: new Date(), endTime: null }));
-    setProgress(0);
-    setResults([]);
-    addLog("info", `Starting crawl of ${settings.startUrl}`);
-    addLog("info", `Configuration: Max pages: ${settings.maxPages}, Depth: ${settings.crawlDepth}`);
-
-    // Simulate crawling (replace with real API integration)
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += Math.random() * 10;
-      if (currentProgress >= 100) {
-        currentProgress = 100;
-        clearInterval(interval);
-        setIsRunning(false);
-        setStats((prev) => ({ ...prev, endTime: new Date() }));
-        addLog("success", "Crawl completed successfully");
-      }
-
-      setProgress(currentProgress);
-
-      // Simulate discovering pages
-      if (Math.random() > 0.7) {
-        const newResult: CrawlResult = {
-          id: Date.now().toString(),
-          url: `${settings.startUrl}/page-${Math.floor(Math.random() * 1000)}`,
-          title: `Sample Page ${Math.floor(Math.random() * 1000)}`,
-          status: Math.random() > 0.1 ? "success" : "error",
-          timestamp: new Date(),
-          size: Math.floor(Math.random() * 50000) + 1000,
-          contentType: "text/html",
-        };
-
-        setResults((prev) => [...prev, newResult]);
-        setStats((prev) => ({
-          ...prev,
-          totalPages: prev.totalPages + 1,
-          successfulPages: newResult.status === "success" ? prev.successfulPages + 1 : prev.successfulPages,
-          failedPages: newResult.status === "error" ? prev.failedPages + 1 : prev.failedPages,
-          totalSize: prev.totalSize + newResult.size,
-          avgResponseTime: Math.floor(Math.random() * 500) + 100,
-        }));
-
-        addLog(newResult.status === "success" ? "info" : "error", `${newResult.status === "success" ? "Successfully crawled" : "Failed to crawl"}: ${newResult.url}`);
-      }
-    }, 500);
-  }, [settings, addLog]);
+    startCrawlMutation.mutate();
+  }, [startCrawlMutation]);
 
   const stopCrawl = useCallback(() => {
-    setIsRunning(false);
-    setStats((prev) => ({ ...prev, endTime: new Date() }));
-    addLog("warning", "Crawl stopped by user");
-  }, [addLog]);
+    stopCrawlMutation.mutate();
+  }, [stopCrawlMutation]);
 
   const clearLogs = useCallback(() => {
     setLogs([]);

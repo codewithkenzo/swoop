@@ -5,6 +5,9 @@ use std::path::Path;
 
 use crate::extractors;
 use crate::llm::{LLMService, models::*};
+use crate::ai::categorization::{DocumentCategorizer, DocumentCategory};
+use crate::ai::embeddings::DocumentEmbedder;
+use base64;
 
 /// Advanced document processor with LLM integration
 pub struct DocumentProcessor {
@@ -30,6 +33,38 @@ impl DocumentProcessor {
             None
         };
         
+        // ---- Additional AI modules (categorisation & embeddings) ----
+        // Categorise document type (rule-based for now)
+        let category: Option<DocumentCategory> = {
+            match DocumentCategorizer::new().await {
+                Ok(categorizer) => match categorizer.categorize(&extracted_content.text).await {
+                    Ok((cat, _)) => Some(cat),
+                    Err(_) => None,
+                },
+                Err(_) => None,
+            }
+        };
+
+        // Generate sentence embedding (Sentence-BERT placeholder)
+        let embedding: Option<Vec<f32>> = {
+            match DocumentEmbedder::new().await {
+                Ok(embedder) => match embedder.generate_embeddings(&extracted_content.text).await {
+                    Ok((vector_b64, _)) => match base64::decode(&vector_b64) {
+                        Ok(bytes) => {
+                            let vec = bytes
+                                .chunks_exact(4)
+                                .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                                .collect::<Vec<f32>>();
+                            Some(vec)
+                        }
+                        Err(_) => None,
+                    },
+                    Err(_) => None,
+                },
+                Err(_) => None,
+            }
+        };
+
         let processing_time = start_time.elapsed();
         
         Ok(ProcessedDocument {
@@ -40,6 +75,8 @@ impl DocumentProcessor {
                 .to_string(),
             content: extracted_content,
             analysis,
+            category,
+            embedding,
             metadata: DocumentMetadata {
                 file_size: content.len(),
                 processing_time_ms: processing_time.as_millis() as u64,
@@ -480,6 +517,10 @@ pub struct ProcessedDocument {
     pub filename: String,
     pub content: ExtractedContent,
     pub analysis: Option<DocumentAnalysis>,
+    /// High-level document category (technical, legal, etc.)
+    pub category: Option<DocumentCategory>,
+    /// Dense vector embedding (e.g., 384-dim Sentence-BERT). Optional to avoid heavy compute on small files.
+    pub embedding: Option<Vec<f32>>,
     pub metadata: DocumentMetadata,
 }
 

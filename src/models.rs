@@ -397,3 +397,20 @@ impl Default for CrawlJobConfig {
         }
     }
 }
+
+/// A single fetched page record for crawl results
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrawlPage {
+    /// Unique id for the record
+    pub id: String,
+    /// Associated crawl job id
+    pub job_id: String,
+    /// URL fetched
+    pub url: String,
+    /// HTTP status code
+    pub status_code: u16,
+    /// Length of response text (bytes)
+    pub text_length: usize,
+    /// Timestamp when fetched
+    pub fetched_at: DateTime<Utc>,
+}

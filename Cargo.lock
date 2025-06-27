@@ -7417,6 +7417,7 @@ dependencies = [
  "axum 0.7.9",
  "axum-extra",
  "axum-test",
+ "base64 0.21.7",
  "chardet",
  "chrono",
  "clap",

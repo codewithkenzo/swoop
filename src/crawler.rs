@@ -23,7 +23,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::error::{Error, Result};
-use crate::models::{Document, Link, Metadata, CrawlJobConfig as CrawlConfig};
+use crate::models::{Document, Link, Metadata, CrawlJobConfig as CrawlConfig, CrawlPage};
 use crate::storage::Storage;
 
 /// Advanced link extraction and normalization
@@ -458,9 +458,11 @@ impl CrawlJob {
                     let stats = self.stats.clone();
                     let config = self.config.clone();
                     
+                    let job_id_clone = self.id.clone();
                     // Spawn task to process URL
                     tasks.push(tokio::spawn(async move {
                         let result = Self::process_url(
+                            &job_id_clone,
                             &url,
                             client,
                             robots,
@@ -519,6 +521,7 @@ impl CrawlJob {
     
     /// Process a single URL
     async fn process_url(
+        job_id: &str,
         url: &str,
         client: Client,
         robots: Arc<RobotsCache>,
@@ -615,7 +618,7 @@ impl CrawlJob {
         let metadata = Metadata {
             source_url: Some(url.to_string()),
             content_type: Some(content_type.clone()),
-            processed_at: Utc::now(),
+            processed_at: chrono::Utc::now(),
             processor: Some("CrawlJob".to_string()),
             custom: {
                 let mut custom = HashMap::new();
@@ -698,6 +701,17 @@ impl CrawlJob {
             let mut stats = stats.write();
             stats.update_extraction_stats(1, links.len());
         }
+        
+        // Persist crawl page stats
+        let page_rec = CrawlPage {
+            id: uuid::Uuid::new_v4().to_string(),
+            job_id: job_id.to_string(),
+            url: url.to_string(),
+            status_code,
+            text_length: content_length as usize,
+            fetched_at: chrono::Utc::now(),
+        };
+        let _ = storage.store_crawl_page(&page_rec).await;
         
         // Respect politeness delay
         if config.politeness_delay > 0 {

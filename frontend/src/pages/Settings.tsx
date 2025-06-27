@@ -8,12 +8,16 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useTheme } from '@/components/theme-provider';
 
 export function Settings() {
   const [enableEmbeddings, setEnableEmbeddings] = useState(true);
   const [enableAutoCategorize, setEnableAutoCategorize] = useState(true);
-  const [theme, setTheme] = useState("system");
+  const { theme, setTheme } = useTheme();
+  const [localTheme, setLocalTheme] = useState(theme);
+
+  useEffect(() => setLocalTheme(theme), [theme]);
 
   return (
     <div className="space-y-6">
@@ -47,7 +51,7 @@ export function Settings() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Theme</label>
-            <Select defaultValue={theme} onValueChange={setTheme}>
+            <Select value={localTheme} onValueChange={(val) => setLocalTheme(val as any)}>
               <SelectTrigger className="w-48">
                 <SelectValue />
               </SelectTrigger>
@@ -63,7 +67,7 @@ export function Settings() {
 
       <div className="flex gap-2 justify-end">
         <Button variant="outline">Cancel</Button>
-        <Button>Save Changes</Button>
+        <Button onClick={() => setTheme(localTheme as any)}>Save Changes</Button>
       </div>
     </div>
   );

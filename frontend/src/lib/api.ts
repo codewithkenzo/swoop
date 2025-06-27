@@ -8,7 +8,7 @@ import {
   DocumentFilter 
 } from '@/types'
 
-const API_BASE_URL = '/api'
+import { API_BASE_URL } from './env'
 
 class ApiClient {
   private async request<T>(
@@ -58,6 +58,16 @@ class ApiClient {
 
   async getDocument(id: string): Promise<ApiResponse<Document>> {
     return this.request<ApiResponse<Document>>(`/documents/${id}`)
+  }
+
+  async getDocumentPreview(id: string): Promise<ApiResponse<{ preview: string }>> {
+    return this.request<ApiResponse<{ preview: string }>>(`/documents/${id}/preview`)
+  }
+
+  async reprocessDocument(id: string): Promise<ApiResponse<string>> {
+    return this.request<ApiResponse<string>>(`/documents/${id}/reprocess`, {
+      method: 'POST',
+    })
   }
 
   async deleteDocument(id: string): Promise<ApiResponse<null>> {
@@ -133,8 +143,8 @@ class ApiClient {
   }
 
   // Web Crawling
-  async startCrawl(url: string): Promise<ApiResponse<CrawlJob>> {
-    return this.request<ApiResponse<CrawlJob>>('/crawl', {
+  async startCrawl(url: string): Promise<ApiResponse<{ job_id: string }>> {
+    return this.request<ApiResponse<{ job_id: string }>>('/crawl', {
       method: 'POST',
       body: JSON.stringify({ url }),
     })
@@ -152,6 +162,10 @@ class ApiClient {
     return this.request<ApiResponse<null>>(`/crawl/${jobId}/stop`, {
       method: 'POST',
     })
+  }
+
+  async getCrawlResults(jobId: string): Promise<ApiResponse<any>> {
+    return this.request<ApiResponse<any>>(`/crawl/${jobId}/results`)
   }
 
   // Search

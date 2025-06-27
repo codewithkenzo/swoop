@@ -22,7 +22,7 @@ import {
   Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,12 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog as Dialog,
+  AlertDialogContent as DialogContent,
+  AlertDialogHeader as DialogHeader,
+  AlertDialogTitle as DialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Types
 export type Document = {
@@ -58,120 +64,6 @@ export type Document = {
   size: string;
   type: string;
 };
-
-// Table columns definition
-const columns: ColumnDef<Document>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "title",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="h-auto p-0 hover:bg-transparent"
-      >
-        Title
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <FileText className="h-4 w-4 text-muted-foreground" />
-        <div>
-          <div className="font-medium">{row.getValue("title")}</div>
-          <div className="text-sm text-muted-foreground">
-            {row.original.type} • {row.original.size}
-          </div>
-        </div>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
-  },
-  {
-    accessorKey: "author",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="h-auto p-0 hover:bg-transparent"
-      >
-        Author
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => <div>{row.getValue("author")}</div>,
-  },
-  {
-    accessorKey: "createdAt",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="h-auto p-0 hover:bg-transparent"
-      >
-        Created
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("createdAt"));
-      return <div>{date.toLocaleDateString()}</div>;
-    },
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      const document = row.original;
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(document.id)}>
-              Copy document ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>View document</DropdownMenuItem>
-            <DropdownMenuItem>Edit document</DropdownMenuItem>
-            <DropdownMenuItem>Download</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    },
-  },
-];
 
 interface DocumentsPageProps {
   documents?: Document[];
@@ -198,11 +90,158 @@ function DocumentsPage({
   const [rowSelection, setRowSelection] = React.useState({});
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
 
+  const queryClient = useQueryClient();
+
+  // Preview modal state
+  const [previewDoc, setPreviewDoc] = React.useState<Document | null>(null);
+  const [previewContent, setPreviewContent] = React.useState<string>("");
+
+  const previewMutation = useMutation({
+    mutationFn: async (doc: Document) => {
+      const res = await apiClient.getDocumentPreview(doc.id);
+      return res.data?.preview || "";
+    },
+    onSuccess: (data) => {
+      setPreviewContent(data);
+    },
+  });
+
+  const reprocessMutation = useMutation({
+    mutationFn: async (doc: Document) => {
+      return apiClient.reprocessDocument(doc.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+    },
+  });
+
   // Filter documents based on status
   const filteredDocuments = React.useMemo(() => {
     if (statusFilter === "all") return documents;
     return documents.filter((doc) => doc.status === statusFilter);
   }, [documents, statusFilter]);
+
+  // Build columns with access to mutations
+  const columns = React.useMemo<ColumnDef<Document>[]>(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "title",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="h-auto p-0 hover:bg-transparent"
+        >
+          Title
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <div className="font-medium">{row.getValue("title")}</div>
+            <div className="text-sm text-muted-foreground">
+              {row.original.type} • {row.original.size}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
+    },
+    {
+      accessorKey: "author",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="h-auto p-0 hover:bg-transparent"
+        >
+          Author
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => <div>{row.getValue("author")}</div>,
+    },
+    {
+      accessorKey: "createdAt",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="h-auto p-0 hover:bg-transparent"
+        >
+          Created
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => {
+        const date = new Date(row.getValue("createdAt"));
+        return <div>{date.toLocaleDateString()}</div>;
+      },
+    },
+    {
+      id: "actions",
+      enableHiding: false,
+      cell: ({ row }) => {
+        const document = row.original;
+
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(document.id)}>
+                Copy document ID
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setPreviewDoc(document);
+                  previewMutation.mutate(document);
+                }}
+              >
+                Preview
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => reprocessMutation.mutate(document)}>
+                Reprocess
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ], [previewMutation, reprocessMutation]);
 
   const table = useReactTable({
     data: filteredDocuments,
@@ -433,6 +472,18 @@ function DocumentsPage({
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewDoc} onOpenChange={() => { setPreviewDoc(null); setPreviewContent(""); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{previewDoc?.title}</DialogTitle>
+          </DialogHeader>
+          <pre className="whitespace-pre-wrap text-sm max-h-[70vh] overflow-auto">
+            {previewMutation.isPending ? "Loading..." : previewContent}
+          </pre>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
