@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { apiClient } from "@/lib/api";
 
 type DocMeta = {
   id: string;
@@ -22,16 +23,17 @@ type DocMeta = {
 };
 
 async function fetchDoc(id: string): Promise<DocMeta> {
-  await new Promise((r) => setTimeout(r, 400));
+  const res: any = await apiClient.getDocument(id);
+  const doc = res.data;
   return {
-    id,
-    title: "Project Requirements Document",
-    createdAt: "2024-01-15",
-    size: "2.4 MB",
-    type: "PDF",
-    status: "published",
-    tags: ["requirements", "project", "spec"],
-    content: "# Requirements\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque...",
+    id: doc.id,
+    title: doc.filename || doc.id,
+    createdAt: doc.created_at,
+    size: `${doc.size_bytes || 0} bytes`,
+    type: doc.document_type || "unknown",
+    status: doc.status || "unknown",
+    tags: [],
+    content: doc.content || "",
   };
 }
 

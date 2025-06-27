@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatFileSize, formatDate } from '@/lib/utils'
+import { apiClient } from '@/lib/api'
 
 interface DashboardStats {
   totalDocuments: number
@@ -30,45 +31,20 @@ interface DashboardStats {
 
 export function Dashboard() {
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
+    queryKey: ["dashboard-stats"],
     queryFn: async (): Promise<DashboardStats> => {
-      // Mock data for now - will be replaced with actual API calls
+      const metrics: any = await apiClient.getMetrics();
       return {
-        totalDocuments: 1247,
-        totalSize: 2.4 * 1024 * 1024 * 1024, // 2.4 GB
-        recentUploads: 23,
-        activeJobs: 3,
-        categorizedDocuments: 1180,
-        topCategories: [
-          { category: 'Technical', count: 412 },
-          { category: 'Business', count: 298 },
-          { category: 'Academic', count: 187 },
-          { category: 'Legal', count: 156 },
-          { category: 'News', count: 127 },
-        ],
-        recentActivity: [
-          {
-            id: '1',
-            type: 'upload',
-            description: 'Uploaded "Q4 Financial Report.pdf"',
-            timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-          },
-          {
-            id: '2',
-            type: 'analysis',
-            description: 'AI analysis completed for "Technical Specification.docx"',
-            timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-          },
-          {
-            id: '3',
-            type: 'crawl',
-            description: 'Web crawl started for "https://docs.example.com"',
-            timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-          },
-        ]
-      }
+        totalDocuments: metrics.data.total_documents || 0,
+        totalSize: 0,
+        recentUploads: 0,
+        activeJobs: 0,
+        categorizedDocuments: metrics.data.total_documents || 0,
+        topCategories: [],
+        recentActivity: metrics.data.recent_activity || [],
+      } as DashboardStats;
     },
-  })
+  });
 
   if (isLoading) {
     return (

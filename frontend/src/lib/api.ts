@@ -175,6 +175,15 @@ class ApiClient {
   async healthCheck(): Promise<ApiResponse<{ status: string; version: string }>> {
     return this.request<ApiResponse<{ status: string; version: string }>>('/health')
   }
+
+  // Stats & Metrics
+  async getStats() {
+    return this.request<ApiResponse<any>>('/stats')
+  }
+
+  async getMetrics() {
+    return this.request<ApiResponse<any>>('/metrics')
+  }
 }
 
 export const apiClient = new ApiClient()

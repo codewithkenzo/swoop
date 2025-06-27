@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { apiClient } from "@/lib/api";
 
 type SearchResult = {
   id: string;
@@ -28,24 +29,10 @@ type SearchResult = {
   score: number;
 };
 
-// Mock query fn — replace with real API call later
 async function searchDocuments(query: string): Promise<SearchResult[]> {
   if (!query) return [];
-  await new Promise((r) => setTimeout(r, 500));
-  return [
-    {
-      id: "doc-001",
-      title: "Project Requirements Document",
-      snippet: "This document outlines the requirements...",
-      score: 0.92,
-    },
-    {
-      id: "doc-004",
-      title: "Technical Specifications",
-      snippet: "Technical specification for the new feature...",
-      score: 0.87,
-    },
-  ];
+  const res: any = await apiClient.searchDocuments(query, { semantic: true, limit: 20 });
+  return res.data || [];
 }
 
 const columns: ColumnDef<SearchResult>[] = [

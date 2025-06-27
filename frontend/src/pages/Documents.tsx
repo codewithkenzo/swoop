@@ -22,6 +22,8 @@ import {
   Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -55,98 +57,6 @@ export type Document = {
   createdAt: string;
   size: string;
   type: string;
-};
-
-// Sample data (placeholder until backend integration)
-const sampleDocuments: Document[] = [
-  {
-    id: "doc-001",
-    title: "Project Requirements Document",
-    status: "published",
-    author: "John Doe",
-    createdAt: "2024-01-15",
-    size: "2.4 MB",
-    type: "PDF",
-  },
-  {
-    id: "doc-002",
-    title: "API Documentation",
-    status: "draft",
-    author: "Jane Smith",
-    createdAt: "2024-01-14",
-    size: "1.8 MB",
-    type: "DOCX",
-  },
-  {
-    id: "doc-003",
-    title: "User Manual",
-    status: "pending",
-    author: "Bob Johnson",
-    createdAt: "2024-01-13",
-    size: "3.2 MB",
-    type: "PDF",
-  },
-  {
-    id: "doc-004",
-    title: "Technical Specifications",
-    status: "published",
-    author: "Alice Brown",
-    createdAt: "2024-01-12",
-    size: "1.5 MB",
-    type: "DOCX",
-  },
-  {
-    id: "doc-005",
-    title: "Meeting Notes",
-    status: "archived",
-    author: "Charlie Wilson",
-    createdAt: "2024-01-11",
-    size: "0.8 MB",
-    type: "TXT",
-  },
-  {
-    id: "doc-006",
-    title: "Design Guidelines",
-    status: "draft",
-    author: "Diana Davis",
-    createdAt: "2024-01-10",
-    size: "4.1 MB",
-    type: "PDF",
-  },
-  {
-    id: "doc-007",
-    title: "Budget Report",
-    status: "published",
-    author: "Eva Martinez",
-    createdAt: "2024-01-09",
-    size: "2.7 MB",
-    type: "XLSX",
-  },
-  {
-    id: "doc-008",
-    title: "Security Policy",
-    status: "pending",
-    author: "Frank Garcia",
-    createdAt: "2024-01-08",
-    size: "1.2 MB",
-    type: "PDF",
-  },
-];
-
-// Status badge component
-const StatusBadge = ({ status }: { status: Document["status"] }) => {
-  const variants = {
-    draft: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    published: "bg-green-100 text-green-800 border-green-200",
-    archived: "bg-gray-100 text-gray-800 border-gray-200",
-    pending: "bg-blue-100 text-blue-800 border-blue-200",
-  } as const;
-
-  return (
-    <Badge variant="outline" className={cn("capitalize", variants[status])}>
-      {status}
-    </Badge>
-  );
 };
 
 // Table columns definition
@@ -269,9 +179,19 @@ interface DocumentsPageProps {
 }
 
 function DocumentsPage({
-  documents = sampleDocuments,
+  documents: initial,
   onRowClick = (doc) => console.log("Clicked document:", doc),
 }: DocumentsPageProps) {
+  const { data: docs = [] } = useQuery<Document[]>({
+    queryKey: ["documents"],
+    queryFn: async () => {
+      const res: any = await apiClient.getDocuments(1, 100);
+      return res.data || [];
+    },
+  });
+
+  const documents: Document[] = docs.length ? docs : initial ?? [];
+
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
@@ -304,7 +224,7 @@ function DocumentsPage({
   });
 
   const statusCounts: Record<string, number> = React.useMemo(() => {
-    const counts: Record<string, number> = documents.reduce((acc, doc) => {
+    const counts: Record<string, number> = documents.reduce((acc: Record<string, number>, doc: Document) => {
       acc[doc.status] = (acc[doc.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -520,4 +440,20 @@ function DocumentsPage({
 // Page export used by router
 export function Documents() {
   return <DocumentsPage />;
-} 
+}
+
+// Status badge component
+const StatusBadge = ({ status }: { status: Document["status"] }) => {
+  const variants = {
+    draft: "bg-yellow-100 text-yellow-800 border-yellow-200",
+    published: "bg-green-100 text-green-800 border-green-200",
+    archived: "bg-gray-100 text-gray-800 border-gray-200",
+    pending: "bg-blue-100 text-blue-800 border-blue-200",
+  } as const;
+
+  return (
+    <Badge variant="outline" className={cn("capitalize", variants[status])}>
+      {status}
+    </Badge>
+  );
+}; 
