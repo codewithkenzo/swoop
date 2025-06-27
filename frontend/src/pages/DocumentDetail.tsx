@@ -1,18 +1,112 @@
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
+type DocMeta = {
+  id: string;
+  title: string;
+  createdAt: string;
+  size: string;
+  type: string;
+  status: string;
+  tags: string[];
+  content: string;
+};
+
+async function fetchDoc(id: string): Promise<DocMeta> {
+  await new Promise((r) => setTimeout(r, 400));
+  return {
+    id,
+    title: "Project Requirements Document",
+    createdAt: "2024-01-15",
+    size: "2.4 MB",
+    type: "PDF",
+    status: "published",
+    tags: ["requirements", "project", "spec"],
+    content: "# Requirements\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque...",
+  };
+}
 
 export function DocumentDetail() {
+  const { id } = useParams<{ id: string }>();
+  const { data, isLoading } = useQuery({
+    queryKey: ["document", id],
+    queryFn: () => fetchDoc(id || ""),
+    enabled: !!id,
+  });
+
+  if (isLoading || !data) {
+    return <p className="p-6">Loading...</p>;
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Document Details</h1>
-        <p className="text-muted-foreground">
-          View detailed document analysis and metadata
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight">{data.title}</h1>
+        <p className="text-muted-foreground">Detailed analysis and metadata</p>
       </div>
-      
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Document detail page coming soon...</p>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Metadata */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Metadata</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span>ID</span>
+              <span>{data.id}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Created</span>
+              <span>{data.createdAt}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Type</span>
+              <span>{data.type}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Size</span>
+              <span>{data.size}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Status</span>
+              <Badge variant="secondary">{data.status}</Badge>
+            </div>
+            <div>
+              <span className="font-medium">Tags</span>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {data.tags.map((tag) => (
+                  <Badge key={tag}>{tag}</Badge>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Content Preview */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Content Preview</CardTitle>
+            <CardDescription className="truncate">First 10,000 characters</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[500px] pr-4">
+              <pre className="whitespace-pre-wrap text-sm leading-relaxed">
+                {data.content}
+              </pre>
+            </ScrollArea>
+          </CardContent>
+        </Card>
       </div>
     </div>
-  )
+  );
 } 
