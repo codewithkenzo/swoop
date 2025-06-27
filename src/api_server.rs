@@ -24,6 +24,11 @@ use crate::document_processor::DocumentProcessor;
 use crate::storage::libsql::LibSqlStorage;
 use crate::models::CrawlPage;
 use crate::storage::Storage;
+use axum::response::sse::{Sse,Event,KeepAlive};
+use futures_util::Stream;
+use std::convert::Infallible;
+use async_stream::stream;
+use std::time::Duration;
 
 // API Response Types
 #[derive(Debug, Serialize)]
@@ -721,6 +726,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/crawl/:id/stop", post(stop_crawl_job))
         .route("/api/crawl/:id/results", get(get_crawl_results))
         
+        // Streaming endpoints (Server-Sent Events)
+        .route("/api/documents/:id/stream", get(stream_document_status))
+        .route("/api/crawl/:id/stream", get(stream_crawl_progress))
+        
         // Health check
         .route("/health", get(health_check))
         
@@ -898,4 +907,77 @@ pub async fn reprocess_document(
     });
 
     Ok(ResponseJson(ApiResponse::success("reprocessing_started".to_string())))
+}
+
+// Streaming endpoints (Server-Sent Events)
+pub async fn stream_document_status(
+    State(state): State<AppState>,
+    Path(document_id): Path<String>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let documents = state.documents.clone();
+
+    let doc_id = document_id.clone();
+
+    // Stream updates every second until document reaches terminal state or disappears
+    let event_stream = stream! {
+        let mut interval = tokio::time::interval(Duration::from_secs(1));
+        loop {
+            interval.tick().await;
+            let status_opt = {
+                let docs = documents.read().await;
+                docs.get(&doc_id).cloned()
+            };
+
+            match status_opt {
+                Some(status) => {
+                    let data = serde_json::to_string(&status).unwrap_or_default();
+                    yield Ok(Event::default().event("update").data(data));
+
+                    // Stop streaming if processing finished
+                    if matches!(status.status, ProcessingStatus::Completed | ProcessingStatus::Failed) {
+                        break;
+                    }
+                },
+                None => {
+                    yield Ok(Event::default().event("error").data("not_found"));
+                    break;
+                }
+            }
+        }
+    };
+
+    Sse::new(event_stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)).text("keep-alive"))
+}
+
+pub async fn stream_crawl_progress(
+    State(state): State<AppState>,
+    Path(job_id): Path<String>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let crawler = state.crawler.clone();
+    let job_id_clone = job_id.clone();
+
+    let event_stream = stream! {
+        let mut interval = tokio::time::interval(Duration::from_secs(1));
+        loop {
+            interval.tick().await;
+            let stats_opt = crawler.get_job_status(&job_id_clone);
+
+            match stats_opt {
+                Some(stats) => {
+                    let data = serde_json::to_string(&stats).unwrap_or_default();
+                    yield Ok(Event::default().event("update").data(data));
+
+                    if stats.completed_pages >= stats.total_pages {
+                        break;
+                    }
+                },
+                None => {
+                    yield Ok(Event::default().event("error").data("not_found"));
+                    break;
+                }
+            }
+        }
+    };
+
+    Sse::new(event_stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)).text("keep-alive"))
 } 
