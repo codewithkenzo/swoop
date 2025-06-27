@@ -92,4 +92,8 @@ local.db
 !CONTRIBUTING.md
 !LICENSE*
 !docs/
-!api/ 
+!api/
+
+# Node
+node_modules/
+**/node_modules/ 
