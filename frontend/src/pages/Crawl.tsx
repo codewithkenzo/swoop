@@ -1,9 +1,5 @@
-import CrawlerConfigurationComponent from '@/components/crawler-configuration'
+import WebCrawler from "@/pages/WebCrawler";
 
 export function Crawl() {
-  return (
-    <div className="space-y-6">
-      <CrawlerConfigurationComponent />
-    </div>
-  )
+  return <WebCrawler />;
 } 
