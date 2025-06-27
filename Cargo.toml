@@ -41,6 +41,10 @@ path = "src/bin/real_world_demo.rs"
 name = "real_async_demo"
 path = "src/bin/real_async_demo.rs"
 
+[[bin]]
+name = "advanced_crawler_demo"
+path = "src/bin/advanced_crawler_demo.rs"
+
 [dependencies]
 # Async runtime
 tokio = { version = "1.40", features = ["full"] }

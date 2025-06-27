@@ -17,7 +17,7 @@ pub mod intelligence;
 pub mod chat;
 pub mod loaders;
 pub mod rate_limiter;
-// pub mod crawler;   // Disabled for now - has legacy dependencies
+pub mod crawler;
 // pub mod ai;            // Re-enable gradually
 // pub mod monitoring;    // Re-enable gradually
 // pub mod server;        // Keep disabled for now

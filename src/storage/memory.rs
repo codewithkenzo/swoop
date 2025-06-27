@@ -18,6 +18,7 @@ use crate::models::{Document, DocumentBatch};
 use super::{Storage, StorageStats};
 
 /// In-memory storage implementation
+#[derive(Debug)]
 pub struct MemoryStorage {
     /// Document storage
     documents: Arc<DashMap<String, Document>>,

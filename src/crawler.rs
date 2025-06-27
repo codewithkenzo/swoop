@@ -1,21 +1,22 @@
 /*!
- * Crawler module for Crawl4AI
+ * Crawler module for Swoop - Advanced Document Intelligence Platform
  * 
- * This module provides the core crawling functionality with multi-threaded processing,
- * rate limiting, robots.txt compliance, and configurable crawl strategies.
+ * This module provides advanced crawling functionality with recursive sublink extraction,
+ * multi-threaded processing, rate limiting, robots.txt compliance, and intelligent
+ * link discovery for comprehensive site mapping.
  */
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use anyhow::Context;
 use chrono::{DateTime, Utc};
 use futures::stream::{FuturesUnordered, StreamExt};
 use log::{debug, error, info, warn};
 use parking_lot::{Mutex, RwLock};
 use regex::Regex;
-use reqwest::{Client, ClientBuilder, Proxy};
+use reqwest::{Client, ClientBuilder};
+use scraper::{Html, Selector};
 use tokio::sync::Semaphore;
 use tokio::time::sleep;
 use url::Url;
@@ -24,6 +25,172 @@ use uuid::Uuid;
 use crate::error::{Error, Result};
 use crate::models::{Document, Link, Metadata, CrawlJobConfig as CrawlConfig};
 use crate::storage::Storage;
+
+/// Advanced link extraction and normalization
+#[derive(Debug, Clone)]
+pub struct ExtractedLink {
+    pub url: String,
+    pub text: String,
+    pub link_type: LinkType,
+    pub depth: usize,
+    pub parent_url: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LinkType {
+    Internal,
+    External,
+    Subdomain,
+    SameDomain,
+}
+
+/// Enhanced link extractor for recursive crawling
+#[derive(Debug)]
+pub struct LinkExtractor {
+    base_domain: String,
+    allowed_domains: HashSet<String>,
+    link_selector: Selector,
+    exclude_patterns: Vec<Regex>,
+}
+
+impl LinkExtractor {
+    pub fn new(base_url: &str, allowed_domains: Vec<String>) -> Result<Self> {
+        let base_domain = Url::parse(base_url)?
+            .host_str()
+            .unwrap_or("")
+            .to_string();
+            
+        let link_selector = Selector::parse("a[href]")
+            .map_err(|e| Error::Parser(format!("Invalid CSS selector: {:?}", e)))?;
+            
+        // Common patterns to exclude (images, documents, etc.)
+        let exclude_patterns = vec![
+            Regex::new(r"\.(?i)(jpg|jpeg|png|gif|svg|pdf|doc|docx|zip|tar|gz)$").unwrap(),
+            Regex::new(r"^mailto:").unwrap(),
+            Regex::new(r"^tel:").unwrap(),
+            Regex::new(r"^javascript:").unwrap(),
+            Regex::new(r"^#").unwrap(), // Fragment-only links
+        ];
+        
+        Ok(Self {
+            base_domain,
+            allowed_domains: allowed_domains.into_iter().collect(),
+            link_selector,
+            exclude_patterns,
+        })
+    }
+    
+    /// Extract all links from HTML content
+    pub fn extract_links(&self, html: &str, current_url: &str, depth: usize) -> Vec<ExtractedLink> {
+        let document = Html::parse_document(html);
+        let current_url_parsed = match Url::parse(current_url) {
+            Ok(url) => url,
+            Err(_) => return vec![],
+        };
+        
+        let mut links = Vec::new();
+        
+        for element in document.select(&self.link_selector) {
+            if let Some(href) = element.value().attr("href") {
+                if self.should_exclude_link(href) {
+                    continue;
+                }
+                
+                // Normalize and resolve relative URLs
+                if let Ok(absolute_url) = current_url_parsed.join(href) {
+                    let url_str = absolute_url.to_string();
+                    let link_text = element.text().collect::<Vec<_>>().join(" ").trim().to_string();
+                    
+                    let link_type = self.classify_link(&url_str);
+                    
+                    // Only include links we want to follow
+                    if self.should_follow_link(&url_str, &link_type) {
+                        links.push(ExtractedLink {
+                            url: url_str,
+                            text: if link_text.is_empty() { href.to_string() } else { link_text },
+                            link_type,
+                            depth: depth + 1,
+                            parent_url: current_url.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+        
+        info!("🔗 Extracted {} links from {}", links.len(), current_url);
+        links
+    }
+    
+    fn should_exclude_link(&self, href: &str) -> bool {
+        self.exclude_patterns.iter().any(|pattern| pattern.is_match(href))
+    }
+    
+    fn classify_link(&self, url: &str) -> LinkType {
+        if let Ok(parsed_url) = Url::parse(url) {
+            if let Some(host) = parsed_url.host_str() {
+                if host == self.base_domain {
+                    return LinkType::SameDomain;
+                }
+                
+                if host.ends_with(&format!(".{}", self.base_domain)) {
+                    return LinkType::Subdomain;
+                }
+                
+                if self.allowed_domains.contains(host) {
+                    return LinkType::Internal;
+                }
+            }
+        }
+        LinkType::External
+    }
+    
+    fn should_follow_link(&self, _url: &str, link_type: &LinkType) -> bool {
+        match link_type {
+            LinkType::SameDomain | LinkType::Internal => true,
+            LinkType::Subdomain => true, // Follow subdomains by default
+            LinkType::External => false, // Don't follow external links by default
+        }
+    }
+}
+
+/// Enhanced crawl queue with priority and deduplication
+#[derive(Debug)]
+pub struct CrawlQueue {
+    queue: VecDeque<ExtractedLink>,
+    visited: HashSet<String>,
+    max_depth: usize,
+}
+
+impl CrawlQueue {
+    pub fn new(max_depth: usize) -> Self {
+        Self {
+            queue: VecDeque::new(),
+            visited: HashSet::new(),
+            max_depth,
+        }
+    }
+    
+    pub fn add_links(&mut self, links: Vec<ExtractedLink>) {
+        for link in links {
+            if link.depth <= self.max_depth && !self.visited.contains(&link.url) {
+                self.visited.insert(link.url.clone());
+                self.queue.push_back(link);
+            }
+        }
+    }
+    
+    pub fn pop(&mut self) -> Option<ExtractedLink> {
+        self.queue.pop_front()
+    }
+    
+    pub fn len(&self) -> usize {
+        self.queue.len()
+    }
+    
+    pub fn is_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
+}
 
 /// Stub Parser implementation for compilation
 #[derive(Debug, Default)]
@@ -202,13 +369,14 @@ impl CrawlJob {
         let stats = Arc::new(RwLock::new(CrawlStats::new(id.clone())));
         
         // Build HTTP client with appropriate configuration
-        let mut client_builder = ClientBuilder::new()
+        let client_builder = ClientBuilder::new()
             .timeout(Duration::from_secs(30)) // Default timeout
             .connect_timeout(Duration::from_secs(10)) // Default connect timeout
             .user_agent(&config.user_agent)
             .redirect(reqwest::redirect::Policy::limited(10)); // Default max redirects
         
-        let client = client_builder.build().context("Failed to build HTTP client")?;
+        let client = client_builder.build()
+            .map_err(|e| Error::Http(e))?;
         
         // Initialize robots.txt cache
         let robots = Arc::new(RobotsCache::new(client.clone()));
@@ -373,7 +541,7 @@ impl CrawlJob {
         
         // Check robots.txt
         if config.respect_robots_txt {
-            if !robots.is_allowed(url, &config.user_agent).await {
+            if !robots.can_fetch(url, &config.user_agent).await {
                 debug!("URL disallowed by robots.txt: {}", url);
                 return Ok(());
             }
@@ -445,42 +613,42 @@ impl CrawlJob {
         
         // Create metadata
         let metadata = Metadata {
-            url: url.to_string(),
-            content_type: content_type.clone(),
-            fetch_time: Utc::now(),
-            status_code,
-            headers,
+            source_url: Some(url.to_string()),
+            content_type: Some(content_type.clone()),
+            processed_at: Utc::now(),
+            processor: Some("CrawlJob".to_string()),
+            custom: {
+                let mut custom = HashMap::new();
+                custom.insert("status_code".to_string(), status_code.to_string());
+                custom.insert("fetch_time".to_string(), Utc::now().to_rfc3339());
+                for (key, value) in headers.iter() {
+                    custom.insert(key.to_string(), value.to_string());
+                }
+                custom
+            },
+            file_extension: None,
+            original_filename: None,
         };
         
         // Parse content
-        let parse_result = parser.parse(&body, &content_type, &metadata).await?;
+        let body_str = String::from_utf8_lossy(&body);
+        let parse_result = parser.parse(url, &body_str).await?;
         
         // Extract links if crawling is enabled
         let mut links = Vec::new();
-        if config.follow_links && parse_result.links.len() > 0 {
-            for link in &parse_result.links {
-                // Normalize link
-                let normalized_link = match Url::parse(&link.url) {
-                    Ok(parsed) => parsed.to_string(),
-                    Err(_) => {
-                        // Relative URL, resolve against base URL
-                        match parsed_url.join(&link.url) {
-                            Ok(resolved) => resolved.to_string(),
-                            Err(e) => {
-                                debug!("Failed to resolve relative URL {}: {}", link.url, e);
-                                continue;
-                            }
-                        }
-                    }
-                };
-                
+        if config.follow_links {
+            // Use a simple link extractor instead of relying on parse_result.links
+            let link_extractor = LinkExtractor::new(url, vec![])?;
+            let extracted_links = link_extractor.extract_links(&body_str, url, 0);
+            
+            for link in &extracted_links {
                 // Apply URL filters
-                if Self::should_follow_link(&normalized_link, config) {
+                if Self::should_follow_link(&link.url, config) {
                     links.push(Link {
-                        url: normalized_link.clone(),
+                        url: link.url.clone(),
                         text: link.text.clone(),
                         source_url: url.to_string(),
-                        rel: link.rel.clone(),
+                        rel: None,
                     });
                     
                     // Add to queue if not visited
@@ -491,13 +659,17 @@ impl CrawlJob {
                     
                     if !is_visited {
                         let mut queue = queue.lock();
-                        queue.push_back(normalized_link);
+                        queue.push_back(link.url.clone());
                     }
                 }
             }
         }
         
         // Create document
+        // Calculate metrics before moving content
+        let word_count = parse_result.content.split_whitespace().count();
+        let content_length = parse_result.content.len() as u64;
+        
         let document = Document {
             id: format!("doc_{}", Uuid::new_v4().to_string().replace('-', "")[..8].to_string()),
             title: parse_result.title,
@@ -511,10 +683,10 @@ impl CrawlJob {
             source_url: Some(url.to_string()),
             document_type: Some("html".to_string()),
             language: None,
-            word_count: Some(parse_result.content.split_whitespace().count()),
-            size_bytes: Some(parse_result.content.len() as u64),
+            word_count: Some(word_count),
+            size_bytes: Some(content_length),
             content_type: Some("text/html".to_string()),
-            file_size: Some(parse_result.content.len() as u64),
+            file_size: Some(content_length),
             extracted_at: chrono::Utc::now(),
         };
         
@@ -524,7 +696,7 @@ impl CrawlJob {
         // Update stats
         {
             let mut stats = stats.write();
-            stats.update_extraction_stats(1, document.links.len());
+            stats.update_extraction_stats(1, links.len());
         }
         
         // Respect politeness delay

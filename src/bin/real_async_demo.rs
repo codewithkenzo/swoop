@@ -56,7 +56,7 @@ async fn performance_comparison() -> Result<()> {
     for (i, url) in urls.iter().enumerate() {
         println!("   Processing URL {}: {}", i + 1, url);
         let resp_start = Instant::now();
-        match client.get(url).send().await {
+        match client.get(*url).send().await {
             Ok(response) => {
                 let status = response.status();
                 let _response_text = response.text().await?;
