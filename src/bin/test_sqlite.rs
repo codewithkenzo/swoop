@@ -5,10 +5,10 @@
 use std::collections::HashMap;
 use chrono::Utc;
 use swoop::{
-    models::{Document, Link, ExtractedContent, DocumentMetadata},
+    error::Result,
+    models::Document,
     storage::{sqlite::SqliteStorage, Storage},
     config::StorageConfig,
-    Result,
 };
 
 #[tokio::main]

@@ -56,10 +56,10 @@ async fn performance_comparison() -> Result<()> {
     for (i, url) in urls.iter().enumerate() {
         println!("   Processing URL {}: {}", i + 1, url);
         let resp_start = Instant::now();
-        match client.get(*url).send().await {
+        match client.get(url).send().await {
             Ok(response) => {
                 let status = response.status();
-                let _content = response.text().await?;
+                let _response_text = response.text().await?;
                 println!("   ✅ URL {} completed in {:?} - Status: {}", 
                          i + 1, resp_start.elapsed(), status);
             },
@@ -79,10 +79,10 @@ async fn performance_comparison() -> Result<()> {
         tokio::spawn(async move {
             println!("   🚀 Starting concurrent request {}: {}", i + 1, url);
             let resp_start = Instant::now();
-            match client.get(&url).send().await {
+            match client.get(url).send().await {
                 Ok(response) => {
                     let status = response.status();
-                    let _content = response.text().await.unwrap_or_default();
+                    let _response_text = response.text().await.unwrap_or_default();
                     println!("   ✅ Concurrent request {} completed in {:?} - Status: {}", 
                              i + 1, resp_start.elapsed(), status);
                     (i + 1, true, resp_start.elapsed())
@@ -109,10 +109,13 @@ async fn performance_comparison() -> Result<()> {
 
 async fn concurrent_url_processing() -> Result<()> {
     let config = LoaderConfig {
-        max_urls: 100,
+        batch_size: 50,
+        max_concurrent: 10,
+        timeout_seconds: 30,
+        max_urls: 1000,
+        skip_invalid: true,
         validate_urls: true,
         deduplicate: true,
-        skip_invalid: true,
     };
     
     let mut loader = BulkLoader::new(config);
@@ -159,16 +162,16 @@ async fn concurrent_url_processing() -> Result<()> {
             {
                 Ok(response) => {
                     let status = response.status();
-                    let response_text = response.text().await.unwrap_or_default();
+                    let _response_text = response.text().await.unwrap_or_default();
                     if status.is_success() {
-                        if let Ok(json) = serde_json::from_str::<Value>(&response_text) {
+                        if let Ok(json) = serde_json::from_str::<Value>(&_response_text) {
                             if let Some(job_id) = json.get("job_id").and_then(|v| v.as_str()) {
                                 println!("   ✅ Batch {} job started: {}", i + 1, job_id);
                                 return Some((i + 1, job_id.to_string()));
                             }
                         }
                     }
-                    println!("   ❌ Batch {} failed: {} - {}", i + 1, status, response_text);
+                    println!("   ❌ Batch {} failed: {} - {}", i + 1, status, _response_text);
                     None
                 },
                 Err(e) => {
@@ -202,7 +205,7 @@ async fn concurrent_url_processing() -> Result<()> {
                         .await
                     {
                         Ok(response) => {
-                            let response_text = response.text().await.unwrap_or_default();
+                            let _response_text = response.text().await.unwrap_or_default();
                             println!("   📊 Batch {} (attempt {}): Job status received", batch_id, attempt);
                         },
                         Err(e) => println!("   ❌ Batch {} monitoring error: {}", batch_id, e),
@@ -233,9 +236,9 @@ async fn concurrent_server_ops() -> Result<()> {
             async move {
                 match client.get("http://localhost:3056/api/v1/health").send().await {
                     Ok(response) => {
-                        let text = response.text().await.unwrap_or_default();
+                        let _response_text = response.text().await.unwrap_or_default();
                         println!("   🏥 Health check completed: Server healthy");
-                        Some(("health", text))
+                        Some(("health", _response_text))
                     },
                     Err(e) => {
                         println!("   ❌ Health check failed: {}", e);
@@ -249,9 +252,9 @@ async fn concurrent_server_ops() -> Result<()> {
             async move {
                 match client.get("http://localhost:3056/api/v1/stats").send().await {
                     Ok(response) => {
-                        let text = response.text().await.unwrap_or_default();
+                        let _response_text = response.text().await.unwrap_or_default();
                         println!("   📊 Stats retrieved: Server statistics");
-                        Some(("stats", text))
+                        Some(("stats", _response_text))
                     },
                     Err(e) => {
                         println!("   ❌ Stats failed: {}", e);
@@ -265,9 +268,9 @@ async fn concurrent_server_ops() -> Result<()> {
             async move {
                 match client.get("http://localhost:3056/ready").send().await {
                     Ok(response) => {
-                        let text = response.text().await.unwrap_or_default();
+                        let _response_text = response.text().await.unwrap_or_default();
                         println!("   ✅ Readiness check completed: Server ready");
-                        Some(("ready", text))
+                        Some(("ready", _response_text))
                     },
                     Err(e) => {
                         println!("   ❌ Readiness check failed: {}", e);
@@ -281,9 +284,9 @@ async fn concurrent_server_ops() -> Result<()> {
             async move {
                 match client.get("http://localhost:3056/metrics").send().await {
                     Ok(response) => {
-                        let text = response.text().await.unwrap_or_default();
+                        let _response_text = response.text().await.unwrap_or_default();
                         println!("   📈 Metrics retrieved: Prometheus metrics");
-                        Some(("metrics", text))
+                        Some(("metrics", _response_text))
                     },
                     Err(e) => {
                         println!("   ❌ Metrics failed: {}", e);
@@ -330,8 +333,9 @@ async fn bulk_concurrent_extraction() -> Result<()> {
         tokio::spawn(async move {
             println!("   🚀 Starting concurrent extraction {}: {}", i + 1, url);
             let extract_start = Instant::now();
+            let url_clone = url.clone();
             
-            match client.get(&url).send().await {
+            match client.get(url).send().await {
                 Ok(response) => {
                     match response.text().await {
                         Ok(content) => {
@@ -347,7 +351,7 @@ async fn bulk_concurrent_extraction() -> Result<()> {
                                         let _ = fs::write(&filename, json).await;
                                     }
                                     
-                                    Some((i + 1, url.clone(), extracted, extract_time))
+                                    Some((i + 1, url_clone, extracted, extract_time))
                                 },
                                 Err(e) => {
                                     println!("   ❌ Extraction {} failed: {}", i + 1, e);

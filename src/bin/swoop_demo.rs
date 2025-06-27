@@ -36,13 +36,25 @@ struct SwoopDemo {
     stats: Arc<tokio::sync::RwLock<DemoStats>>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct DemoStats {
     documents_processed: usize,
     total_extraction_time: Duration,
     total_ai_time: Duration,
     storage_operations: usize,
     start_time: Instant,
+}
+
+impl Default for DemoStats {
+    fn default() -> Self {
+        Self {
+            documents_processed: 0,
+            total_extraction_time: Duration::new(0, 0),
+            total_ai_time: Duration::new(0, 0),
+            storage_operations: 0,
+            start_time: Instant::now(),
+        }
+    }
 }
 
 /// Sample documents for demonstration
@@ -388,33 +400,28 @@ For immediate assistance, call our hotline: (555) SWOOP-AI or email urgent@swoop
     async fn demonstrate_storage_features(&self) -> Result<()> {
         info!("🗄️  Testing storage system capabilities...");
 
-        // List all stored documents
-        let start = Instant::now();
-        let stored_docs = self.storage.list_documents(Some(50), Some(0)).await?;
-        let list_time = start.elapsed();
-
-        info!("📋 Storage listing completed in {:?}", list_time);
-        info!("   Documents in storage: {}", stored_docs.len());
-
-        // Search functionality test
-        if !stored_docs.is_empty() {
-            let search_start = Instant::now();
-            let search_results = self.storage.search("demo", Some(10), Some(0)).await?;
-            let search_time = search_start.elapsed();
-
-            info!("🔍 Search completed in {:?}", search_time);
-            info!("   Search results: {}", search_results.len());
+        let stored_docs = self.storage.list_documents().await?;
+        
+        info!("📂 Stored documents: {}", stored_docs.len());
+        for doc_id in stored_docs.iter().take(10) {
+            info!("   Document: {}", doc_id);
         }
 
-        // Statistics gathering
-        info!("📊 Storage system statistics:");
+        if !stored_docs.is_empty() {
+            info!("🔍 Demo: Document Search Simulation");
+            // Since search method doesn't exist, we'll simulate it
+            let filtered_docs: Vec<&String> = stored_docs.iter()
+                .filter(|doc_id| doc_id.contains("demo"))
+                .take(10)
+                .collect();
+            
+            info!("📊 Search results: {} matching documents", filtered_docs.len());
+        }
+
+        // Storage performance summary
+        info!("📊 Storage Performance Summary:");
         info!("   Total documents: {}", stored_docs.len());
-        info!("   List operation time: {:?}", list_time);
-        
-        let total_size: u64 = stored_docs.iter()
-            .filter_map(|doc| doc.size_bytes)
-            .sum();
-        info!("   Total storage size: {} bytes", total_size);
+        info!("   Storage operations completed: {}", self.stats.read().await.storage_operations);
 
         Ok(())
     }

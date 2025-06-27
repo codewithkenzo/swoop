@@ -289,8 +289,7 @@ async fn upload_handler(mut multipart: Multipart) -> Result<ResponseJson<Value>,
             document.id = doc_id.clone();
             document.content_type = Some(content_type.clone());
             document.file_size = Some(size_bytes);
-            document.html = if content_type.contains("html") { content.clone() } else { String::new() };
-            document.text = extracted_text;
+            document.content = if content_type.contains("html") { content.clone() } else { extracted_text.clone() };
             
             // Store document safely
             {
@@ -320,7 +319,7 @@ async fn list_documents_handler() -> ResponseJson<Value> {
     let documents: Vec<DocumentListItem> = workspace_guard.documents.values()
         .map(|doc| DocumentListItem {
             id: doc.id.clone(),
-            url: doc.url.clone(),
+            url: doc.source_url.clone().unwrap_or_default(),
             title: doc.title.clone(),
             content_length: doc.content.len(),
             extracted_at: doc.extracted_at,
