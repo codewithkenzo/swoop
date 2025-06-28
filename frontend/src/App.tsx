@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { ThemeProvider } from '@/components/theme-provider'
 import { useSession } from './context/AuthContext'
-import { Login } from '@/pages/Login'
+import Landing from '@/pages/Landing'
 
 import { Layout } from '@/components/layout/Layout'
 import { Dashboard } from '@/pages/Dashboard'
@@ -33,7 +33,7 @@ function App() {
   }
 
   if (!session?.user) {
-    return <Login />
+    return <Landing />
   }
 
   return (
