@@ -55,8 +55,69 @@ cd frontend && npm i && npm run dev
 - Frontend Polish
 - Production Deploy
 
-## 🔧 API Endpoints
-(See previous docs for full list)
+## 🔧 API Endpoints — quick curls
+
+> Replace `<HOST>` with your Vercel domain or local `localhost:3000`.
+
+### Health check
+
+```bash
+curl https://<HOST>/health
+```
+
+### Upload document (PDF/MD/HTML)
+
+```bash
+curl -F "file=@sample.pdf" \
+     -H "Authorization: Bearer $SWOOP_API_KEY" \
+     https://<HOST>/api/documents/upload
+```
+
+### Get document JSON
+
+```bash
+curl https://<HOST>/api/documents/{id}
+```
+
+### Stream processing progress (SSE)
+
+```bash
+curl -N https://<HOST>/api/documents/{id}/stream
+```
+
+### Chat with a document (sync)
+
+```bash
+curl -X POST https://<HOST>/api/chat \
+     -H 'Content-Type: application/json' \
+     -d '{"document_id":"{id}","message":"Summarise the key points"}'
+```
+
+### Chat with streaming tokens (SSE)
+
+```bash
+curl -N https://<HOST>/api/chat/stream?document_id={id}&q=What+is+the+goal
+```
+
+### Synthesised audio (TTS)
+
+```bash
+curl -L https://<HOST>/api/audio/{id}?voice=Rachel -o out.wav
+```
+
+### Start a crawl job
+
+```bash
+curl -X POST https://<HOST>/api/crawl \
+     -H 'Content-Type: application/json' \
+     -d '{"url":"https://rust-lang.org","depth":1}'
+```
+
+### Stream crawl progress
+
+```bash
+curl -N https://<HOST>/api/crawl/{job_id}/stream
+```
 
 ## 🎨 Tech Stack
 Rust · Axum · libSQL · React 18 · Tailwind · Vercel Edge
