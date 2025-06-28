@@ -1,6 +1,6 @@
 # Swoop 🚁 – AI-Powered Document Intelligence Platform
 
-> **Status**: Production Ready ✅ | **Tests**: 6/6 Passing 🧪 | **Frontend**: Building Clean 🎯 | **Deploy**: One-click to Vercel 🌐
+> **Status**: Production Ready ✅ | **Frontend**: Clean Build 🎯 | **Deploy**: One-click to Vercel 🌐
 
 Transform your documents into intelligent, searchable insights with real-time AI processing. Built with Rust for blazing speed and deployed to the edge for global performance.
 
@@ -23,6 +23,9 @@ Transform your documents into intelligent, searchable insights with real-time AI
 🔗 **Vector Embeddings**
 💡 **Smart Insights**
 📄 **Multi-Format Support**
+🔊 **Voice & TTS Streaming**
+🧬 **Hybrid RAG Engine**
+🌍 **Edge-first Deployment**
 
 ### 🕸️ **Intelligent Web Crawling**
 ### 🔐 **Enterprise-Grade Auth**
