@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { StreamingProgress } from '@/components/StreamingProgress';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -146,7 +147,6 @@ export default function WebCrawler() {
   ]);
 
   const [results, setResults] = useState<CrawlResult[]>([]);
-  const [progress, setProgress] = useState(0);
 
   const { scrollRef: logsScrollRef } = useAutoScroll(logs);
 
@@ -170,7 +170,6 @@ export default function WebCrawler() {
       setJobId(id);
       setIsRunning(true);
       setStats((prev) => ({ ...prev, startTime: new Date(), endTime: null }));
-      setProgress(0);
       setResults([]);
       addLog('info', 'Crawler job started: ' + id);
     },
@@ -205,7 +204,6 @@ export default function WebCrawler() {
   // React to crawl status changes
   useEffect(() => {
     if (!crawlStatus) return;
-    setProgress(Math.min(100, (crawlStatus.urls_processed / (settings.maxPages || 100)) * 100));
     setStats(prev => ({
       ...prev,
       totalPages: crawlStatus.urls_processed,
@@ -218,7 +216,7 @@ export default function WebCrawler() {
       setIsRunning(false);
       addLog('success', 'Crawl completed');
     }
-  }, [crawlStatus, settings.maxPages, addLog]);
+  }, [crawlStatus, addLog]);
 
   const startCrawl = useCallback(() => {
     startCrawlMutation.mutate();
@@ -343,19 +341,22 @@ export default function WebCrawler() {
           </Card>
         </div>
 
-        {/* Progress */}
-        {isRunning && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Crawl Progress</span>
-                  <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
-                </div>
-                <Progress value={progress} className="h-2" />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Real-time Crawl Progress */}
+        {isRunning && jobId && (
+          <StreamingProgress
+            type="crawl"
+            id={jobId}
+            title="Web Crawling Progress"
+            onComplete={() => {
+              setIsRunning(false);
+              setStats((prev) => ({ ...prev, endTime: new Date() }));
+              addLog('success', 'Crawl completed successfully!');
+            }}
+            onError={(error) => {
+              setIsRunning(false);
+              addLog('error', `Crawl failed: ${error}`);
+            }}
+          />
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

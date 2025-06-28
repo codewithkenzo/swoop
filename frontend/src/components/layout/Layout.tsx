@@ -9,7 +9,8 @@ import {
   Settings,
   Brain,
   Menu,
-  X
+  X,
+  Activity
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Upload', href: '/upload', icon: Upload },
   { name: 'Web Crawl', href: '/crawl', icon: Globe },
   { name: 'AI Search', href: '/search', icon: Search },
+  { name: 'Operations', href: '/monitoring', icon: Activity },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 

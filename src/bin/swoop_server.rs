@@ -8,9 +8,9 @@ use std::env;
 use std::sync::{Arc, Mutex, LazyLock};
 
 use axum::{
-    extract::{Multipart, Path, Json},
-    http::StatusCode,
-    response::Json as ResponseJson,
+    extract::{Multipart, Path, Json, Query},
+    http::{StatusCode, HeaderMap, HeaderValue},
+    response::{Json as ResponseJson, IntoResponse},
     routing::{get, post},
     Router,
 };
@@ -21,6 +21,12 @@ use swoop::{DocumentWorkspace, Document};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use clap::{Arg, Command};
+use std::collections::HashMap;
+use axum::response::sse::{Sse, Event};
+use futures_util::{stream, Stream, StreamExt};
+use tokio_stream::wrappers::IntervalStream;
+use std::time::Duration;
+use axum::body::Bytes;
 
 // Thread-safe workspace using LazyLock
 static WORKSPACE: LazyLock<Arc<Mutex<DocumentWorkspace>>> = LazyLock::new(|| {
@@ -99,6 +105,21 @@ struct DocumentChatContext {
     relevant_excerpt: String,
     word_position: usize,
     context_score: f64,
+}
+
+#[derive(Deserialize)]
+struct VoiceChatRequest {
+    text: String,
+    voice: Option<String>,
+    model: Option<String>,
+    stream: Option<bool>,
+}
+
+#[derive(Serialize)]
+struct VoiceChatChunk {
+    role: &'static str,
+    text: Option<String>,
+    audio_b64: Option<String>,
 }
 
 fn get_workspace_document_count() -> usize {
@@ -381,20 +402,21 @@ async fn document_chat_handler(
     Path(doc_id): Path<String>,
     Json(request): Json<ChatRequest>
 ) -> Result<ResponseJson<Value>, StatusCode> {
-    // Ensure document exists
-    let workspace_guard = WORKSPACE.lock().unwrap();
-    let document = workspace_guard.documents.get(&doc_id)
-        .ok_or(StatusCode::NOT_FOUND)?;
-    
-    let document_content = document.content.clone();
-    drop(workspace_guard);
-    
+    // Clone document content while holding the lock, then release immediately
+    let document_content = {
+        let workspace_guard = WORKSPACE.lock().unwrap();
+        match workspace_guard.documents.get(&doc_id) {
+            Some(doc) => doc.content.clone(),
+            None => return Err(StatusCode::NOT_FOUND),
+        }
+    };
+
     let mut chat_request = request;
     chat_request.document_id = Some(doc_id.clone());
-    
+
     let response = process_document_chat(chat_request, &document_content).await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
+
     Ok(Json(json!({
         "status": "success",
         "document_id": doc_id,
@@ -536,6 +558,71 @@ fn create_simple_summary(content: &str) -> String {
     }
 }
 
+async fn audio_handler(
+    Path(id): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<impl IntoResponse, StatusCode> {
+    // Extract the text we need while the lock is held, then drop it
+    let voice = params.get("voice").cloned().unwrap_or_else(|| "en-us-female".to_string());
+
+    let text = {
+        let workspace_guard = WORKSPACE.lock().unwrap();
+        match workspace_guard.documents.get(&id) {
+            Some(doc) => doc.content.clone(),
+            None => return Err(StatusCode::NOT_FOUND),
+        }
+    };
+
+    match swoop::tts::synthesize_to_wav(&text, &voice).await {
+        Ok(pcm) => {
+            let mut headers = HeaderMap::new();
+            headers.insert("Content-Type", HeaderValue::from_static("audio/wav"));
+            headers.insert("Cache-Control", HeaderValue::from_static("public, max-age=31536000"));
+            Ok((headers, Bytes::from(pcm)))
+        }
+        Err(_) => Err(StatusCode::NOT_IMPLEMENTED),
+    }
+}
+
+async fn voice_chat_handler(
+    Json(req): Json<VoiceChatRequest>
+) -> Result<Sse<impl Stream<Item = Result<Event, std::io::Error>>>, StatusCode> {
+    let voice = req.voice.unwrap_or_else(|| "en-us-female".to_string());
+    let response_text = format!("You said: {}. Here is a short response from the AI.", req.text.trim());
+
+    let tokens_vec: Vec<String> = response_text.split_whitespace().map(|s| s.to_string()).collect();
+    let stream_len = tokens_vec.len();
+    let tokens = Arc::new(tokens_vec);
+
+    let token_stream = IntervalStream::new(tokio::time::interval(Duration::from_millis(300)))
+        .enumerate()
+        .take(stream_len)
+        .map(move |(idx, _)| {
+            let tok = tokens[idx].clone();
+            let chunk = VoiceChatChunk { role: "assistant", text: Some(tok), audio_b64: None };
+            let json = serde_json::to_string(&chunk).unwrap();
+            Ok(Event::default().data(json))
+        });
+
+    let text_clone = response_text.clone();
+    let voice_clone = voice.clone();
+    let final_audio_events = async move {
+        match swoop::tts::synthesize_to_wav(&text_clone, &voice_clone).await {
+            Ok(pcm) => {
+                let audio_b64 = base64::encode(pcm);
+                let chunk = VoiceChatChunk { role: "assistant", text: None, audio_b64: Some(audio_b64) };
+                let json = serde_json::to_string(&chunk).unwrap();
+                vec![Ok(Event::default().data(json))]
+            }
+            Err(_) => Vec::new(),
+        }
+    };
+
+    let stream = token_stream.chain(stream::iter(final_audio_events.await));
+
+    Ok(Sse::new(stream))
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse CLI arguments
@@ -593,6 +680,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/documents", get(list_documents_handler))
         .route("/api/documents/:id/analyze", post(analyze_document_handler))
         .route("/api/chat", post(chat_handler))
+        .route("/api/documents/:id/chat", post(document_chat_handler))
+        .route("/api/audio/:id", get(audio_handler))
+        .route("/api/voice-chat", post(voice_chat_handler))
         .layer(CorsLayer::permissive());
     
     let addr = format!("0.0.0.0:{}", port);
@@ -606,6 +696,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Document analysis: POST http://localhost:{}/api/documents/{{id}}/analyze", port);
     println!("General chat: POST http://localhost:{}/api/chat", port);
     println!("Document chat: POST http://localhost:{}/api/documents/{{id}}/chat", port);
+    println!("Audio playback: GET http://localhost:{}/api/audio/{{id}}", port);
+    println!("Voice chat: POST http://localhost:{}/api/voice-chat", port);
     println!("Enhanced with PDF/Markdown support, chat interface, and robust processing");
     
     axum::serve(listener, app).await?;

@@ -196,6 +196,8 @@ robust-parsing = ["encoding_rs", "chardet"]
 sqlite = []
 libsql = ["dep:libsql", "dep:libsql-client"]
 edge = ["libsql"]
+tts = []
+semantic-rag = ["qdrant-client", "redis"]
 
 # Development features
 dev = ["tokio/test-util"]

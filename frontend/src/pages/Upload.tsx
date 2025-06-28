@@ -1,13 +1,16 @@
 
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { FileUpload } from '@/components/upload/FileUpload'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { StreamingProgress } from '@/components/StreamingProgress'
 import { apiClient } from '@/lib/api'
 import { Brain, Settings } from 'lucide-react'
 
 export function Upload() {
   const queryClient = useQueryClient()
+  const [processingDocuments, setProcessingDocuments] = useState<string[]>([])
 
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
@@ -18,7 +21,13 @@ export function Upload() {
         })
       )
       
-      return Promise.all(uploadPromises)
+      const results = await Promise.all(uploadPromises)
+      
+      // Start tracking document processing
+      const documentIds = results.map(result => result.data?.id).filter(Boolean) as string[]
+      setProcessingDocuments(documentIds)
+      
+      return results
     },
     onSuccess: () => {
       // Invalidate and refetch documents
@@ -29,6 +38,18 @@ export function Upload() {
       console.error('Upload failed:', error)
     }
   })
+
+  const handleDocumentComplete = (documentId: string) => {
+    setProcessingDocuments(prev => prev.filter(id => id !== documentId))
+    // Refresh document list
+    queryClient.invalidateQueries({ queryKey: ['documents'] })
+  }
+
+  const handleDocumentError = (documentId: string, error: string) => {
+    console.error(`Document ${documentId} processing failed:`, error)
+    // Still remove from processing list
+    setProcessingDocuments(prev => prev.filter(id => id !== documentId))
+  }
 
   const handleUpload = (files: File[]) => {
     uploadMutation.mutate(files)
@@ -46,12 +67,29 @@ export function Upload() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Upload Area */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
           <FileUpload
             onUpload={handleUpload}
             maxFiles={20}
             maxSize={100 * 1024 * 1024} // 100MB
           />
+          
+          {/* Real-time Processing Progress */}
+          {processingDocuments.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Processing Documents</h3>
+              {processingDocuments.map((documentId) => (
+                <StreamingProgress
+                  key={documentId}
+                  type="document"
+                  id={documentId}
+                  title={`Document ${documentId.slice(0, 8)}...`}
+                  onComplete={() => handleDocumentComplete(documentId)}
+                  onError={(error) => handleDocumentError(documentId, error)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Settings Panel */}

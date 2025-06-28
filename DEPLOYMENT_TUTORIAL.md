@@ -31,6 +31,8 @@ Copy `vercel-edge/env.example` → `.env` (local) **and** paste into Vercel → 
 | `ANTHROPIC_API_KEY` | ⛔ | Claude models (via Anthropic API) |
 | `GEMINI_API_KEY` | ⛔ | Google Gemini Pro models |
 | `OPENROUTER_API_KEY` | ⛔ | OpenRouter LLM routing hub |
+| `ELEVENLABS_API_KEY` | ⛔ | ElevenLabs TTS API key – enables real audio synthesis |
+| `ELEVENLABS_VOICE_ID` | ⛔ | Override default voice (optional) |
 | `TURSO_AUTH_TOKEN` | only for Turso | JWT from `turso db tokens` |
 | `NEXTAUTH_URL` | prod only | Full canonical URL (e.g. `https://swoop.vercel.app`) |
 
@@ -106,7 +108,7 @@ The current code will automatically pick up whichever keys are provided and rout
 
 | Area | Recommendation |
 |------|----------------|
-| **Observability** | Set `SENTRY_DSN` to capture runtime errors; enable Vercel Analytics in *Project ▷ Settings*. |
+Observability (Optional) If you already have a **Sentry** account you can set `SENTRY_DSN` to capture runtime exceptions.  Otherwise leave it blank; the platform will still run just fine.  You can also rely on **Vercel Analytics** (free) or self-hosted OpenTelemetry + Grafana for metrics. |
 | **Edge Cold-Start** | Keep Prisma Data Proxy on; ensure `prisma` version ≥ 5.12. |
 | **Storage** | For >10 MB uploads consider S3/Cloudflare R2 and store pointer in DB. |
 | **Scaling** | Edge functions scale automatically; heavy ML should be off-loaded to Rust API or background workers. |
@@ -128,3 +130,11 @@ task clippy   # or cargo clippy -- -D warnings
 ---
 
 🎉  You're ready to ship Swoop to the world!  Push to your `main` branch and `vercel --prod` for a permanent production URL. 
+
+> ℹ️  **Rust build flag:** To include TTS at runtime compile binaries with `--features tts`:
+
+```bash
+cargo build --release --features tts
+```
+
+When the feature is omitted, endpoints `/api/audio/{id}` and `/api/voice-chat` return **501 Not Implemented** but the remainder of the platform functions normally. 

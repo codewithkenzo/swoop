@@ -14,6 +14,7 @@ import { Upload } from '@/pages/Upload'
 import { Crawl } from '@/pages/Crawl'
 import { Search } from '@/pages/Search'
 import { Settings } from '@/pages/Settings'
+import { RealtimeMonitoring } from '@/pages/RealtimeMonitoring'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -49,6 +50,7 @@ function App() {
                   <Route path="/upload" element={<Upload />} />
                   <Route path="/crawl" element={<Crawl />} />
                   <Route path="/search" element={<Search />} />
+                  <Route path="/monitoring" element={<RealtimeMonitoring />} />
                   <Route path="/settings" element={<Settings />} />
                 </Routes>
               </Suspense>

@@ -1,4 +1,5 @@
-import { createClient, Client } from '@libsql/client';
+import { createClient } from '@libsql/client';
+import type { Client } from '@libsql/client';
 import type { Document, DocumentBatch, DocumentMetadata } from '../types';
 
 export class EdgeDatabase {
@@ -86,12 +87,13 @@ export class EdgeDatabase {
       return null;
     }
 
-    const row = result.rows[0];
+    const row = result.rows[0]!;
+    const summary = (row.summary as string | null) ?? "";
     return {
       id: row.id as string,
       title: row.title as string,
       content: row.content as string,
-      summary: row.summary as string | undefined,
+      summary,
       metadata: JSON.parse(row.metadata as string) as DocumentMetadata,
       quality_score: row.quality_score as number,
       content_hash: row.content_hash as string,
@@ -99,7 +101,7 @@ export class EdgeDatabase {
       updated_at: row.updated_at as string,
       word_count: row.word_count as number,
       character_count: row.character_count as number,
-      language: row.language as string | undefined,
+      language: (row.language as string | null) ?? "",
       tags: JSON.parse(row.tags as string) as string[],
     };
   }
@@ -110,21 +112,24 @@ export class EdgeDatabase {
       args: [limit, offset],
     });
 
-    return result.rows.map((row) => ({
-      id: row.id as string,
-      title: row.title as string,
-      content: row.content as string,
-      summary: row.summary as string | undefined,
-      metadata: JSON.parse(row.metadata as string) as DocumentMetadata,
-      quality_score: row.quality_score as number,
-      content_hash: row.content_hash as string,
-      created_at: row.created_at as string,
-      updated_at: row.updated_at as string,
-      word_count: row.word_count as number,
-      character_count: row.character_count as number,
-      language: row.language as string | undefined,
-      tags: JSON.parse(row.tags as string) as string[],
-    }));
+    return result.rows.map((row): Document => {
+      const summary = (row.summary as string | null) ?? "";
+      return {
+        id: row.id as string,
+        title: row.title as string,
+        content: row.content as string,
+        summary,
+        metadata: JSON.parse(row.metadata as string) as DocumentMetadata,
+        quality_score: row.quality_score as number,
+        content_hash: row.content_hash as string,
+        created_at: row.created_at as string,
+        updated_at: row.updated_at as string,
+        word_count: row.word_count as number,
+        character_count: row.character_count as number,
+        language: (row.language as string | null) ?? "",
+        tags: JSON.parse(row.tags as string) as string[],
+      };
+    });
   }
 
   async deleteDocument(id: string): Promise<boolean> {
@@ -147,26 +152,29 @@ export class EdgeDatabase {
       args: [`%${query}%`, `%${query}%`, limit],
     });
 
-    return result.rows.map((row) => ({
-      id: row.id as string,
-      title: row.title as string,
-      content: row.content as string,
-      summary: row.summary as string | undefined,
-      metadata: JSON.parse(row.metadata as string) as DocumentMetadata,
-      quality_score: row.quality_score as number,
-      content_hash: row.content_hash as string,
-      created_at: row.created_at as string,
-      updated_at: row.updated_at as string,
-      word_count: row.word_count as number,
-      character_count: row.character_count as number,
-      language: row.language as string | undefined,
-      tags: JSON.parse(row.tags as string) as string[],
-    }));
+    return result.rows.map((row): Document => {
+      const summary = (row.summary as string | null) ?? "";
+      return {
+        id: row.id as string,
+        title: row.title as string,
+        content: row.content as string,
+        summary,
+        metadata: JSON.parse(row.metadata as string) as DocumentMetadata,
+        quality_score: row.quality_score as number,
+        content_hash: row.content_hash as string,
+        created_at: row.created_at as string,
+        updated_at: row.updated_at as string,
+        word_count: row.word_count as number,
+        character_count: row.character_count as number,
+        language: (row.language as string | null) ?? "",
+        tags: JSON.parse(row.tags as string) as string[],
+      };
+    });
   }
 
   async getDocumentCount(): Promise<number> {
     const result = await this.client.execute('SELECT COUNT(*) as count FROM documents');
-    return result.rows[0].count as number;
+    return (result.rows[0]! .count as number) ?? 0;
   }
 
   async healthCheck(): Promise<boolean> {
