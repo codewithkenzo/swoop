@@ -16,16 +16,16 @@ Transform your documents into intelligent, searchable insights with real-time AI
 
 **What Intelligence Do We Extract?**
 
-📊 **Document Metrics**
-🏷️ **AI-Powered Categorization**
-🔍 **Named Entity Recognition (NER)**
-📝 **Content Structure Analysis**
-🔗 **Vector Embeddings**
-💡 **Smart Insights**
-📄 **Multi-Format Support**
-🔊 **Voice & TTS Streaming**
-🧬 **Hybrid RAG Engine**
-🌍 **Edge-first Deployment**
+📊 **Document Metrics** – word, character & line counts, reading-time and language detection.
+🏷️ **AI Categorization** – classifies docs into technical, legal, business, academic and more.
+🔍 **NER Extraction** – pulls people, orgs, places, dates and tech terms from text.
+📝 **Structure Parsing** – detects headings, summaries and key points for fast skimming.
+🔗 **Vector Embeddings** – 384-dim semantic vectors enable instant similarity search.
+💡 **Smart Insights** – quality score, duplicate hash, processing time, confidence levels.
+📄 **Multi-Format I/O** – PDF, Markdown, HTML, plain-text; Word & ePub on the way.
+🔊 **Voice Streaming** – ElevenLabs TTS returns WAV chunks alongside chat tokens.
+🧬 **Hybrid RAG Engine** – combines keyword BM25 with embedding search for accurate answers.
+🌍 **Edge Deployment** – Rust API + Vercel Edge functions within 5 global regions.
 
 ### 🕸️ **Intelligent Web Crawling**
 ### 🔐 **Enterprise-Grade Auth**
