@@ -316,13 +316,6 @@ Want to make Swoop even better? We love contributors!
 - Some websites block our crawler (we respect robots.txt though!)
 - Vector search could be faster (working on it)
 
-## 📈 Roadmap
-
-- [ ] **Q1 2024**: Multi-tenant support
-- [ ] **Q2 2024**: Advanced analytics dashboard
-- [ ] **Q3 2024**: API rate limiting
-- [ ] **Q4 2024**: Enterprise SSO
-
 ## 📝 License
 
 MIT License - see `LICENSE` file. Use it, abuse it, make money with it. Just don't blame us if your servers catch fire. 🔥
