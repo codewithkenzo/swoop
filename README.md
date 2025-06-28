@@ -28,8 +28,19 @@ Transform your documents into intelligent, searchable insights with real-time AI
 - 🌍 **Edge Deployment** — Rust API + Vercel Edge functions within 5 global regions.
 
 ### 🕸️ **Intelligent Web Crawling**
+- Follows `robots.txt`, polite rate-limiting and retry back-off.
+- Streams live URL discovery & status via SSE.
+- Saves HTML, text and link graph into libSQL for analysis.
+
 ### 🔐 **Enterprise-Grade Auth**
+- Magic-link email plus OAuth (GitHub, Google) via BetterAuth.
+- JWT cookies: HTTP-only, SameSite, 7-day sliding window.
+- Role-based ACL (Admin · Member · Viewer) on every route.
+
 ### ⚡ **Performance Beast**
+- Rust async pipelines & zero-copy buffers keep memory low.
+- Edge compute in 5 regions; P95 latency < 50 ms worldwide.
+- Built-in Prometheus / tracing for real-time observability.
 
 ## 🏗️ Architecture
 
