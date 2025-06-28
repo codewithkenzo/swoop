@@ -90,7 +90,8 @@ local.db
 # Ignore specified markdown/docs and license
 DEPLOYMENT_TUTORIAL.md
 DEV_TASKS_PHASE2.md
-README.md
+# Allow top-level README
+!README.md
 USER_GUIDE.md
 LICENSE
 !CONTRIBUTING.md
