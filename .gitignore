@@ -87,10 +87,13 @@ deploy_*.sh
 local.db
 
 # Keep essential user-facing documentation
-!README.md
-!CHANGELOG.md
+# Ignore specified markdown/docs and license
+DEPLOYMENT_TUTORIAL.md
+DEV_TASKS_PHASE2.md
+README.md
+USER_GUIDE.md
+LICENSE
 !CONTRIBUTING.md
-!LICENSE*
 !docs/
 !api/
 
