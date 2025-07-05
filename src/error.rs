@@ -105,6 +105,10 @@ pub enum Error {
     #[error("External service error: {0}")]
     ExternalService(String),
     
+    /// Network error
+    #[error("Network error: {0}")]
+    NetworkError(String),
+    
     /// MCP error
     #[error("MCP error: {0}")]
     Mcp(String),
@@ -161,6 +165,7 @@ impl Error {
             Error::Validation(_) => "VALIDATION_ERROR".to_string(),
             Error::Conversion(_) => "CONVERSION_ERROR".to_string(),
             Error::ExternalService(_) => "EXTERNAL_SERVICE_ERROR".to_string(),
+            Error::NetworkError(_) => "NETWORK_ERROR".to_string(),
             Error::Mcp(_) => "MCP_ERROR".to_string(),
             Error::Other(_) => "OTHER_ERROR".to_string(),
         }
@@ -238,6 +243,20 @@ impl From<sqlx::migrate::MigrateError> for Error {
 // Pool timeout and closed errors are handled through the main sqlx::Error enum
 
 // These From implementations are handled by the #[from] derive macro above
+
+/// Convert HTTP StatusCode to Error
+impl From<axum::http::StatusCode> for Error {
+    fn from(status: axum::http::StatusCode) -> Self {
+        match status {
+            axum::http::StatusCode::NOT_FOUND => Error::NotFound(status.to_string()),
+            axum::http::StatusCode::BAD_REQUEST => Error::Validation(status.to_string()),
+            axum::http::StatusCode::UNAUTHORIZED => Error::Authentication(status.to_string()),
+            axum::http::StatusCode::FORBIDDEN => Error::Authorization(status.to_string()),
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR => Error::Other(status.to_string()),
+            _ => Error::Other(format!("HTTP Status: {}", status)),
+        }
+    }
+}
 
 // Legacy alias for backward compatibility
 pub type SwoopError = Error;

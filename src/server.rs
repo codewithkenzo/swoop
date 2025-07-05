@@ -205,6 +205,7 @@ pub struct AppState {
     pub conversations: Arc<RwLock<HashMap<String, Vec<ChatMessage>>>>,
     pub system_stats: Arc<RwLock<SystemStats>>,
     pub workspace: Arc<DocumentWorkspace>,
+    pub monitoring: Arc<crate::monitoring::MonitoringSystem>,
 }
 
 /// API request/response types
@@ -352,6 +353,7 @@ impl CrawlServer {
                 memory_usage_mb: 0.0,
             })),
             workspace: Arc::new(DocumentWorkspace::new()),
+            monitoring: Arc::new(monitoring),
         };
 
         Ok(Self {
@@ -847,7 +849,7 @@ async fn sse_handler(
 pub async fn upload_document(
     State(state): State<AppState>,
     mut multipart: Multipart,
-) -> Result<ResponseJson<ApiResponse<DocumentProcessingStatus>>, StatusCode> {
+) -> Result<Json<DocumentProcessingStatus>, StatusCode> {
     while let Some(field) = multipart.next_field().await.map_err(|_| StatusCode::BAD_REQUEST)? {
         let name = field.name().unwrap_or("").to_string();
         
@@ -878,7 +880,7 @@ pub async fn upload_document(
                 simulate_document_processing(state_clone, doc_id, data.to_vec()).await;
             });
             
-            return Ok(ResponseJson(ApiResponse::success(document_status)));
+            return Ok(Json(document_status));
         }
     }
     
@@ -888,11 +890,11 @@ pub async fn upload_document(
 pub async fn get_document_status(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
-) -> Result<ResponseJson<ApiResponse<DocumentProcessingStatus>>, StatusCode> {
+) -> Result<Json<DocumentProcessingStatus>, StatusCode> {
     let documents = state.documents.read().await;
     
     if let Some(document) = documents.get(&document_id) {
-        Ok(ResponseJson(ApiResponse::success(document.clone())))
+        Ok(Json(document.clone()))
     } else {
         Err(StatusCode::NOT_FOUND)
     }
@@ -900,17 +902,17 @@ pub async fn get_document_status(
 
 pub async fn list_documents(
     State(state): State<AppState>,
-) -> Result<ResponseJson<ApiResponse<Vec<DocumentProcessingStatus>>>, StatusCode> {
+) -> Result<Json<Vec<DocumentProcessingStatus>>, StatusCode> {
     let documents = state.documents.read().await;
     let document_list: Vec<DocumentProcessingStatus> = documents.values().cloned().collect();
     
-    Ok(ResponseJson(ApiResponse::success(document_list)))
+    Ok(Json(document_list))
 }
 
 pub async fn chat_query(
     State(state): State<AppState>,
     Json(request): Json<ChatRequest>,
-) -> Result<ResponseJson<ApiResponse<ChatResponse>>, StatusCode> {
+) -> Result<Json<ChatResponse>, StatusCode> {
     let start_time = std::time::Instant::now();
     
     // Generate conversation ID if not provided
@@ -955,32 +957,32 @@ pub async fn chat_query(
         processing_time_ms: processing_time,
     };
     
-    Ok(ResponseJson(ApiResponse::success(response)))
+    Ok(Json(response))
 }
 
 pub async fn get_conversation(
     State(state): State<AppState>,
     Path(conversation_id): Path<String>,
-) -> Result<ResponseJson<ApiResponse<Vec<ChatMessage>>>, StatusCode> {
+) -> Result<Json<Vec<ChatMessage>>, StatusCode> {
     let conversations = state.conversations.read().await;
     
     if let Some(messages) = conversations.get(&conversation_id) {
-        Ok(ResponseJson(ApiResponse::success(messages.clone())))
+        Ok(Json(messages.clone()))
     } else {
-        Ok(ResponseJson(ApiResponse::success(Vec::new())))
+        Ok(Json(Vec::new()))
     }
 }
 
 pub async fn get_system_stats(
     State(state): State<AppState>,
-) -> Result<ResponseJson<ApiResponse<SystemStats>>, StatusCode> {
+) -> Result<Json<SystemStats>, StatusCode> {
     let stats = state.system_stats.read().await;
-    Ok(ResponseJson(ApiResponse::success(stats.clone())))
+    Ok(Json(stats.clone()))
 }
 
 pub async fn get_processing_metrics(
     State(state): State<AppState>,
-) -> Result<ResponseJson<ApiResponse<ProcessingMetrics>>, StatusCode> {
+) -> Result<Json<ProcessingMetrics>, StatusCode> {
     let documents = state.documents.read().await;
     
     let total_documents = documents.len() as u64;
@@ -1024,7 +1026,7 @@ pub async fn get_processing_metrics(
         recent_activity,
     };
     
-    Ok(ResponseJson(ApiResponse::success(metrics)))
+    Ok(Json(metrics))
 }
 
 // Helper Functions

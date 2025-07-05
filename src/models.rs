@@ -414,3 +414,18 @@ pub struct CrawlPage {
     /// Timestamp when fetched
     pub fetched_at: DateTime<Utc>,
 }
+
+/// A vector record for document embeddings
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VectorRecord {
+    /// Unique identifier for the vector record
+    pub id: String,
+    /// Document ID this vector belongs to
+    pub document_id: String,
+    /// Vector data (embeddings)
+    pub vector: Vec<f32>,
+    /// Metadata about the vector
+    pub metadata: HashMap<String, String>,
+    /// When the vector was created
+    pub created_at: DateTime<Utc>,
+}

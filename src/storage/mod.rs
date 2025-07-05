@@ -73,4 +73,14 @@ pub trait Storage: Send + Sync {
     async fn store_crawl_page(&self, _page: &crate::models::CrawlPage) -> Result<()> {
         Ok(())
     }
+
+    /// Store a document vector (for embeddings/AI features)
+    async fn store_document_vector(&self, _vector_record: &crate::models::VectorRecord) -> Result<()> {
+        Ok(())
+    }
+
+    /// List crawl pages for a job with pagination
+    async fn list_crawl_pages(&self, _job_id: &str, _offset: usize, _limit: usize) -> Result<Vec<crate::models::CrawlPage>> {
+        Ok(vec![])
+    }
 } 
