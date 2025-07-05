@@ -351,7 +351,7 @@ pub async fn chat_query(
 pub async fn get_conversation(
     State(state): State<AppState>,
     Path(conversation_id): Path<String>,
-) -> Result<ResponseJson<ApiResponse<Vec<ChatMessage>>>, StatusCode> {
+) -> std::result::Result<Json<Vec<ChatMessage>>, StatusCode> {
     let conversations = state.conversations.read().await;
     
     if let Some(messages) = conversations.get(&conversation_id) {
@@ -417,7 +417,7 @@ pub async fn get_processing_metrics(
     Ok(Json(metrics))
 }
 
-pub async fn health_check() -> ResponseJson<ApiResponse<String>> {
+pub async fn health_check() -> Json<String> {
     Json("OK".to_string())
 }
 
