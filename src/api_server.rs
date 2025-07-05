@@ -177,7 +177,7 @@ impl AppState {
             })),
             llm_service: Arc::new(llm_service),
             crawler: {
-                let storage_arc: Arc<dyn Storage> = storage.clone();
+                let storage_arc = Arc::new(storage.clone()) as Arc<dyn Storage>;
                 let crawler = CrawlerBuilder::new()
                     .with_storage(storage_arc)
                     .build()
