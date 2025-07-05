@@ -20,6 +20,8 @@ use crate::storage::libsql::LibSqlStorage;
 use crate::storage::sqlite::SqliteStorage;
 use crate::storage::Storage;
 use crate::common::ApiResponse; // keep unused for now but maybe needed
+use crate::api_server::create_router;
+use crate::api_server::SystemStats;
 
 /// Build an Axum router wired with an in-memory state suitable for integration tests.
 /// This avoids external network calls by using the stub LLM service and an in-memory

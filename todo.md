@@ -25,16 +25,16 @@
   - 1 sample chat conversation
 - [x] Add make seed entry in Makefile
 
-### 1.3 (cursor-env-ci) - PENDING
-- [ ] Update .github/workflows/ci.yml to spin up Postgres container
-- [ ] Run cargo test + frontend npm test in CI
+### 1.3 (cursor-env-ci) - COMPLETED
+- [x] Update .github/workflows/ci.yml to spin up Postgres container
+- [x] Run cargo test + frontend npm test in CI
 
 ## 2. Backend + DB Integration
 
-### 2.1 (cursor-api-config) - PENDING
-- [ ] Inject DATABASE_URL via config.rs
-- [ ] Make storage::postgres implementation behind feature postgres
-- [ ] Add graceful fallback to in-memory SQLite if env var missing
+### 2.1 (cursor-api-config) - COMPLETED
+- [x] Inject DATABASE_URL via config.rs
+- [x] Make storage::postgres implementation behind feature postgres
+- [x] Add graceful fallback to in-memory SQLite if env var missing
 
 ### 2.2 (cursor-endpoint-metrics) - PENDING
 - [ ] Expose /api/metrics JSON + /metrics Prometheus with no AppState requirement
@@ -172,4 +172,50 @@
 | Database Integration | ✅ Complete | ✅ Yes | ✅ Yes | SQLite/LibSQL working |
 | Mobile Experience | ⚠️ Partial | ⚠️ Partial | ❌ No | Needs responsive fixes |
 | Accessibility | ⚠️ Partial | ❌ No | ❌ No | Needs ARIA, keyboard nav |
-| API Documentation | ⚠️ Partial | ❌ No | ❌ No | Needs OpenAPI completion | 
+| API Documentation | ⚠️ Partial | ❌ No | ❌ No | Needs OpenAPI completion |
+
+## Claude-Code Async Tasks (do not overlap Cursor tasks)
+
+###  A. Landing Page & Marketing
+
+#### A.1 (claude-ui-landing-design) - PENDING
+- [ ] Draft a `frontend/src/pages/Landing.tsx` redesign proposal in `docs/landing_design.md` including:
+  - Wireframe sketches (Markdown diagrams)
+  - Color palette (dark + vibrant accent)
+  - Font & spacing guidelines
+  - Animation concepts (Framer Motion)
+
+#### A.2 (claude-ui-landing-hero) - PENDING
+- [ ] Implement Hero section (`components/marketing/Hero.tsx`) per design with:
+  - Responsive layout
+  - Background gradient animation
+  - CTA button group ("Get Started" / "View Demo")
+  - Dark-mode aware styles
+
+#### A.3 (claude-ui-landing-pricing) - PENDING
+- [ ] Create Pricing tables component (`components/marketing/Pricing.tsx`) supporting three tiers with monthly/yearly toggle.
+
+#### A.4 (claude-ui-landing-assets) - PENDING
+- [ ] Add SVG wave divider, logo variants, and favicon assets under `frontend/public/`.
+
+###  B. Documentation & Planning
+
+#### B.1 (claude-docs-update-cleanup) - PENDING
+- [ ] Refresh `CLEANUP_AND_PRIORITIZATION_ANALYSIS.md` to reflect latest compile status & removed errors (use green ✅ for resolved items).
+
+#### B.2 (claude-docs-demo-plan) - PENDING
+- [ ] Update `AGGRESSIVE_CRAWLER_DEMO_PLAN.md` with new benchmark targets (aim 150 URLs/s) and integration checkpoints.
+
+###  C. DevOps & Deployment
+
+#### C.1 (claude-devops-vercel-domain) - PENDING
+- [ ] Research available `.ai` or `.app` domains via Namecheap API; propose top 3 names in `docs/domain_options.md`.
+- [ ] Draft Vercel configuration (`vercel.json`) with edge functions routing.
+
+###  D. Code Quality Upgrades
+
+#### D.1 (claude-refactor-base64) - PENDING
+- [ ] Replace deprecated `base64::encode/decode` with `engine.encode/engine.decode` across codebase; submit PR with zero warnings.
+
+---
+> Note: Claude-Code should mark ONE task as `IN_PROGRESS` at a time under this section and open a dedicated branch `claude/<task-id>` for each PR. 

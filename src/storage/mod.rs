@@ -9,12 +9,17 @@ pub mod filesystem;
 #[cfg(feature = "libsql")]
 pub mod libsql;
 
+#[cfg(feature = "postgres")]
+pub mod postgres;
+
 /// Storage backend types
 #[derive(Debug, Clone)]
 pub enum StorageBackend {
     Memory,
     Sqlite(String),
     FileSystem(String),
+    #[cfg(feature = "postgres")]
+    Postgres(String),
     #[cfg(feature = "libsql")]
     LibSql(String),
 }
@@ -82,5 +87,55 @@ pub trait Storage: Send + Sync {
     /// List crawl pages for a job with pagination
     async fn list_crawl_pages(&self, _job_id: &str, _offset: usize, _limit: usize) -> Result<Vec<crate::models::CrawlPage>> {
         Ok(vec![])
+    }
+}
+
+/// Create a storage backend based on configuration
+pub async fn create_storage(config: &crate::config::Config) -> Result<Box<dyn Storage>> {
+    match config.storage.backend.as_str() {
+        "memory" => {
+            log::info!("Using memory storage backend");
+            Ok(Box::new(memory::MemoryStorage::new()))
+        }
+        "sqlite" => {
+            let default_path = "swoop.db".to_string();
+            let path = config.storage.sqlite_path.as_ref()
+                .unwrap_or(&default_path);
+            log::info!("Using SQLite storage backend: {}", path);
+            Ok(Box::new(sqlite::SqliteStorage::new(path).await?))
+        }
+        #[cfg(feature = "postgres")]
+        "postgres" => {
+            if let Some(database_url) = &config.storage.database_url {
+                log::info!("Using PostgreSQL storage backend");
+                let storage = postgres::PostgresStorage::new(database_url).await?;
+                storage.initialize().await?;
+                Ok(Box::new(storage))
+            } else {
+                log::warn!("PostgreSQL backend selected but no DATABASE_URL provided, falling back to memory storage");
+                Ok(Box::new(memory::MemoryStorage::new()))
+            }
+        }
+        #[cfg(feature = "libsql")]
+        "libsql" => {
+            if let Some(connection_string) = &config.storage.connection_string {
+                log::info!("Using LibSQL storage backend");
+                Ok(Box::new(libsql::LibSqlStorage::new(connection_string, config.storage.auth_token.as_deref()).await?))
+            } else {
+                log::warn!("LibSQL backend selected but no connection string provided, falling back to memory storage");
+                Ok(Box::new(memory::MemoryStorage::new()))
+            }
+        }
+        "filesystem" => {
+            let default_path = "./swoop_data".to_string();
+            let path = config.storage.connection_string.as_ref()
+                .unwrap_or(&default_path);
+            log::info!("Using filesystem storage backend: {}", path);
+            Ok(Box::new(filesystem::FileSystemStorage::new(std::path::PathBuf::from(path))?))
+        }
+        _ => {
+            log::warn!("Unknown storage backend '{}', falling back to memory storage", config.storage.backend);
+            Ok(Box::new(memory::MemoryStorage::new()))
+        }
     }
 } 

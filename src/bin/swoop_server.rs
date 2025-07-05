@@ -1014,7 +1014,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Voice chat: POST http://localhost:{current_port}/api/voice-chat");
                 println!("Enhanced with PDF/Markdown support, chat interface, and robust processing");
                 // Clone the app so it can be reused if we loop again.
-                axum::serve(listener, app.clone()).await?;
+                axum::serve(listener, app.clone().with_state(()).into_make_service()).await?;
                 return Ok(());
             }
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && current_port < starting_port + 10 => {
