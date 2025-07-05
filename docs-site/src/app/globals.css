@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import 'fumadocs-ui/style.css';
+
+:root {
+  --font-inter: 'Inter', sans-serif;
+  --font-jetbrains-mono: 'JetBrains Mono', monospace;
+}
+
+/* Custom Swoop theme */
+:root {
+  --fd-primary: 59 130 246; /* blue-500 */
+  --fd-primary-foreground: 255 255 255;
+  --fd-background: 255 255 255;
+  --fd-foreground: 15 23 42; /* slate-900 */
+  --fd-muted: 248 250 252; /* slate-50 */
+  --fd-muted-foreground: 100 116 139; /* slate-500 */
+  --fd-border: 226 232 240; /* slate-200 */
+  --fd-accent: 241 245 249; /* slate-100 */
+  --fd-accent-foreground: 15 23 42; /* slate-900 */
+}
+
+[data-theme='dark'] {
+  --fd-primary: 59 130 246; /* blue-500 */
+  --fd-primary-foreground: 255 255 255;
+  --fd-background: 2 6 23; /* slate-950 */
+  --fd-foreground: 248 250 252; /* slate-50 */
+  --fd-muted: 15 23 42; /* slate-900 */
+  --fd-muted-foreground: 148 163 184; /* slate-400 */
+  --fd-border: 30 41 59; /* slate-800 */
+  --fd-accent: 15 23 42; /* slate-900 */
+  --fd-accent-foreground: 248 250 252; /* slate-50 */
+}
+
+/* Custom components */
+.hero-gradient {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.feature-card {
+  @apply p-6 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow;
+}
+
+.code-block {
+  @apply bg-muted rounded-md p-4 overflow-x-auto font-mono text-sm;
+}
+
+/* API endpoint styling */
+.api-method {
+  @apply inline-flex items-center px-2 py-1 rounded text-xs font-semibold;
+}
+
+.api-method.get {
+  @apply bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400;
+}
+
+.api-method.post {
+  @apply bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400;
+}
+
+.api-method.put {
+  @apply bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400;
+}
+
+.api-method.delete {
+  @apply bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400;
+}
+
+/* Swagger UI customizations */
+.swagger-ui {
+  font-family: var(--font-inter) !important;
+}
+
+.swagger-ui .info {
+  margin: 0 0 20px 0 !important;
+}
+
+.swagger-ui .scheme-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* Live example styling */
+.live-example {
+  @apply border rounded-lg p-4 bg-card;
+}
+
+.live-example-header {
+  @apply flex items-center justify-between mb-4 pb-2 border-b;
+}
+
+.live-example-content {
+  @apply space-y-4;
+}
+
+.status-indicator {
+  @apply inline-flex items-center gap-2;
+}
+
+.status-indicator.online {
+  @apply text-green-600 dark:text-green-400;
+}
+
+.status-indicator.offline {
+  @apply text-red-600 dark:text-red-400;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .hero-content {
+    @apply text-center px-4;
+  }
+  
+  .feature-grid {
+    @apply grid-cols-1 gap-4;
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "title": "Swoop Documentation",
+  "description": "AI-Powered Document Intelligence Platform",
+  "pages": [
+    {
+      "title": "Get Started",
+      "description": "Quick setup and first steps",
+      "icon": "Book",
+      "url": "/docs/get-started"
+    },
+    {
+      "title": "Backend",
+      "description": "Server-side development",
+      "icon": "Server",
+      "url": "/docs/backend"
+    },
+    {
+      "title": "Frontend",
+      "description": "Client-side integration",
+      "icon": "Monitor",
+      "url": "/docs/frontend"
+    },
+    {
+      "title": "API",
+      "description": "REST API reference",
+      "icon": "Code",
+      "url": "/docs/api"
+    },
+    {
+      "title": "Operations",
+      "description": "Deployment and monitoring",
+      "icon": "Settings",
+      "url": "/docs/operations"
+    }
+  ]
+}

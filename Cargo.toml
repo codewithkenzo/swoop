@@ -1,0 +1,239 @@
+[package]
+name = "swoop"
+version = "0.2.0"
+edition = "2021"
+authors = ["Kenzo <codewithkenzo@github.com>"]
+description = "Advanced Document Processing & Analysis Platform with Multi-Model LLM Integration"
+license = "MIT"
+repository = "https://github.com/codewithkenzo/swoop"
+homepage = "https://github.com/codewithkenzo/swoop"
+documentation = "https://docs.rs/swoop"
+keywords = ["document-processing", "llm", "ai", "analysis", "openrouter"]
+categories = ["text-processing", "web-programming", "api-bindings"]
+readme = "README.md"
+rust-version = "1.75"
+
+[lib]
+name = "swoop"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "swoop_server"
+path = "src/bin/swoop_server.rs"
+
+[[bin]]
+name = "swoop_demo"
+path = "src/bin/swoop_demo.rs"
+
+[[bin]]
+name = "swoop_high_performance"
+path = "src/bin/swoop_high_performance.rs"
+
+[[bin]]
+name = "consumer_demo"
+path = "src/bin/consumer_demo.rs"
+
+[[bin]]
+name = "real_world_demo"
+path = "src/bin/real_world_demo.rs"
+
+[[bin]]
+name = "real_async_demo"
+path = "src/bin/real_async_demo.rs"
+
+[[bin]]
+name = "advanced_crawler_demo"
+path = "src/bin/advanced_crawler_demo.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
+futures = "0.3"
+
+# Web and networking
+reqwest = { version = "0.12", features = ["json", "stream", "multipart", "cookies", "gzip"] }
+url = "2.5"
+http = "1.0"
+hyper = { version = "1.0", features = ["full"] }
+
+# HTML parsing - SECURITY FIX: Replaced unmaintained kuchiki with scraper
+scraper = "0.20"
+html5ever = "0.27"
+selectors = "0.25"
+
+# JSON processing
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Utilities
+log = "0.4.20"
+env_logger = "0.10.2"
+regex = "1.10"
+lazy_static = "1.4.0"
+rayon = "1.8"
+parking_lot = "0.12.1"
+rand = "0.8"
+fastrand = "2.0"
+
+# Storage
+qdrant-client = { version = "1.7", optional = true }
+redis = { version = "0.26", features = ["tokio-comp"] }
+
+# PDF processing
+pdf = "0.9"
+lopdf = "0.32"
+
+# Headless browser
+fantoccini = "0.20"
+thirtyfour = "0.32"
+
+# Python bindings (optional) - SECURITY FIX: Updated to latest version
+pyo3 = { version = "0.24", features = ["extension-module"], optional = true }
+
+# Additional storage dependencies
+dashmap = "6.0"
+flate2 = "1.0.28"
+
+# HTTP server dependencies
+axum = { version = "0.7", features = ["multipart", "macros", "ws"] }
+axum-extra = { version = "0.9.2", features = ["cookie"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "fs", "compression-gzip", "trace"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+tokio-util = "0.7.10"
+futures-util = "0.3"
+uuid = { version = "1.10", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Rate limiting - SECURITY FIX: Replaced unmaintained backoff with tower::retry
+governor = "0.6.0"
+
+# GPU acceleration (for future ML model integration)
+half = { version = "2.4", features = ["serde"] }
+ndarray = { version = "0.15.6", features = ["rayon"] }
+
+# Optimization
+mimalloc = { version = "0.1.43", default-features = false }
+smartstring = "1.0.1"
+ahash = "0.8.7"
+
+# CLI and user interface
+clap = { version = "4.5", features = ["derive"] }
+
+# Monitoring and observability (production features)
+metrics = "0.23"
+metrics-exporter-prometheus = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# SECURITY FIX: Updated opentelemetry to use the unified crate
+opentelemetry = "0.24"
+
+# AI/NLP dependencies (enabled with the 'ai' feature flag)
+linfa = { version = "0.7", optional = true }
+tokenizers = { version = "0.19", optional = true }
+whatlang = { version = "0.16", optional = true }
+
+# CSV processing
+csv = "1.3"
+# SECURITY FIX: Updated validator to 0.19+ to fix idna vulnerability (RUSTSEC-2024-0421)
+validator = { version = "0.19", features = ["derive"] }
+
+# Intelligence and chat dependencies
+fuzzy-matcher = { version = "0.3", optional = true }
+strsim = { version = "0.11", optional = true }
+unicode-normalization = { version = "0.1", optional = true }
+unicode-segmentation = { version = "1.11", optional = true }
+
+# Document processing robustness
+encoding_rs = { version = "0.8", optional = true }
+chardet = { version = "0.2", optional = true }
+
+# PDF and Markdown processing
+pdf-extract = "0.7"
+pulldown-cmark = "0.11"
+markdown = "1.0"
+
+# Configuration & Environment
+config = "0.14"
+dotenvy = "0.15"
+
+# Security & Validation
+jsonwebtoken = "9.3"
+argon2 = "0.5"
+
+# Caching & Performance
+lru = "0.12"
+
+# Additional dependencies
+# SECURITY FIX: Updated sqlx to 0.8.6 to fix Binary Protocol Misinterpretation vulnerability
+# Disabled default features and macros to avoid rsa vulnerability (RUSTSEC-2023-0071)
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid", "migrate"] }
+# SECURITY FIX: Updated polars to latest version to fix fast-float vulnerability
+polars = { version = "0.49.1", features = ["lazy", "temporal", "strings"] } 
+async-trait = "0.1"
+async-stream = "0.3"
+
+# libSQL for serverless/edge deployments - SECURITY FIX: Updated to latest available versions
+# NOTE: Configured to use reqwest_backend only to avoid vulnerable hrana-client dependencies
+# Users can disable libsql feature to avoid any remaining vulnerabilities if not using edge/serverless deployment
+libsql = { version = "0.9.11", optional = true }
+libsql-client = { version = "0.33.4", optional = true, default-features = false, features = ["reqwest_backend", "local_backend"] }
+
+# Base64 dependency
+base64 = "0.21"
+
+# Once cell dependency
+once_cell = "1.19"
+
+[features]
+default = ["ai", "enhanced-processing", "robust-parsing", "sqlite"]
+python = ["pyo3"]
+gpu = []
+ai = ["linfa", "tokenizers", "whatlang"]
+enhanced-processing = ["fuzzy-matcher", "strsim", "unicode-normalization", "unicode-segmentation"]
+robust-parsing = ["encoding_rs", "chardet"]
+sqlite = []
+libsql = ["dep:libsql", "dep:libsql-client"]
+edge = ["libsql"]
+tts = []
+semantic-rag = ["qdrant-client"]
+
+# Development features
+dev = ["tokio/test-util"]
+
+[dev-dependencies]
+criterion = "0.5.1"
+tempfile = "3.8"
+rstest = "0.18.2"
+mockito = "1.4"
+wiremock = "0.6"
+tokio-test = "0.4"
+axum-test = "15.0"
+httpmock = "0.7"
+testcontainers = "0.16"
+proptest = "1.4"
+serial_test = "3.0"
+reqwest-eventsource = "0.6"
+futures-util = "0.3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+# Packaging metadata for crates.io
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+

@@ -1,0 +1,94 @@
+/*!
+ * Configuration module for Swoop
+ */
+
+use serde::{Deserialize, Serialize};
+
+/// Parser configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParserConfig {
+    pub max_content_length: usize,
+    pub enable_html_parsing: bool,
+    pub enable_pdf_parsing: bool,
+}
+
+impl Default for ParserConfig {
+    fn default() -> Self {
+        Self {
+            max_content_length: 10_000_000, // 10MB
+            enable_html_parsing: true,
+            enable_pdf_parsing: true,
+        }
+    }
+}
+
+/// Extraction rule for content parsing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtractionRule {
+    pub name: String,
+    pub selector: String,
+    /// Type of content to extract
+    pub content_type: String,
+    pub selector_type: SelectorType,
+    /// Whether to extract multiple values
+    pub multiple: bool,
+    /// HTML attribute to extract (for CSS selectors)
+    pub attribute: Option<String>,
+    /// Default value if extraction fails
+    pub default_value: Option<String>,
+    /// Whether this field is required
+    pub required: bool,
+}
+
+/// Type of selector used in extraction rules
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SelectorType {
+    CSS,
+    XPath,
+    Regex,
+    JSONPath,
+}
+
+/// Storage configuration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct StorageConfig {
+    /// Storage backend type
+    pub backend: String, // "memory", "sqlite", "libsql"
+    /// Connection string for the storage backend
+    pub connection_string: Option<String>,
+    /// Auth token for remote storage (e.g., Turso)
+    pub auth_token: Option<String>,
+    /// SQLite database file path
+    pub sqlite_path: Option<String>,
+    /// Enable WAL mode for SQLite
+    pub wal_mode: bool,
+}
+
+impl Default for StorageConfig {
+    fn default() -> Self {
+        Self {
+            backend: "memory".to_string(),
+            connection_string: None,
+            auth_token: None,
+            sqlite_path: None,
+            wal_mode: false,
+        }
+    }
+}
+
+/// Type of storage backend
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum StorageType {
+    Memory,
+    FileSystem,
+    SQLite,
+}
+
+/// Main application configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
+pub struct Config {
+    pub parser: ParserConfig,
+    pub storage: StorageConfig,
+}
+

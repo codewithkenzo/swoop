@@ -1,0 +1,399 @@
+---
+title: Quick Start
+description: Get Swoop running in under 2 minutes and process your first document
+---
+
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Step, Steps } from 'fumadocs-ui/components/steps'
+
+# Quick Start Guide
+
+Get Swoop running in under 2 minutes and process your first document.
+
+## Prerequisites
+
+<Callout type="info">
+**System Requirements:**
+- OS: Linux, macOS, or Windows (WSL)
+- Memory: 2GB+ available RAM
+- Storage: 1GB+ free space
+- Network: Internet connection for AI services
+</Callout>
+
+## Installation
+
+<Tabs items={['One-Command Install', 'Docker', 'From Source']}>
+<Tab value="One-Command Install">
+
+```bash
+curl -fsSL https://install.swoop.dev | bash
+```
+
+**What this does:**
+- Downloads the latest Swoop binary
+- Sets up environment configuration
+- Starts the server on `localhost:8080`
+- Provides your API key
+
+</Tab>
+<Tab value="Docker">
+
+```bash
+# Quick start with Docker Compose
+curl -o docker-compose.yml https://raw.githubusercontent.com/your-org/swoop/main/docker-compose.yml
+docker-compose up -d
+
+# Your server is now running at http://localhost:8080
+```
+
+</Tab>
+<Tab value="From Source">
+
+```bash
+# 1. Clone repository
+git clone https://github.com/your-org/swoop.git
+cd swoop
+
+# 2. Install Rust (if needed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# 3. Build and run
+cargo run --release --bin swoop_server
+```
+
+</Tab>
+</Tabs>
+
+## Get Your API Key
+
+After installation, your API key is displayed in the terminal:
+
+```bash
+🎉 Swoop is running!
+📍 Server: http://localhost:8080
+🔑 API Key: swoop_sk_1234567890abcdef...
+```
+
+<Callout type="warn">
+Keep this key secure! You'll need it for all API requests.
+</Callout>
+
+## Your First Document
+
+<Steps>
+<Step>
+### Upload a Document
+
+<Tabs items={['cURL', 'JavaScript', 'Python']}>
+<Tab value="cURL">
+
+```bash
+# Upload a PDF
+curl -X POST "http://localhost:8080/api/documents/upload" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@document.pdf"
+
+# Upload with metadata
+curl -X POST "http://localhost:8080/api/documents/upload" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@report.pdf" \
+  -F 'metadata={"title":"Q4 Report","tags":["finance","quarterly"]}'
+```
+
+</Tab>
+<Tab value="JavaScript">
+
+```javascript
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+formData.append('metadata', JSON.stringify({
+  title: 'Q4 Report',
+  tags: ['finance', 'quarterly']
+}));
+
+const response = await fetch('http://localhost:8080/api/documents/upload', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_API_KEY'
+  },
+  body: formData
+});
+
+const document = await response.json();
+console.log('Document uploaded:', document);
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+import requests
+
+files = {'file': open('document.pdf', 'rb')}
+data = {
+  'metadata': json.dumps({
+    'title': 'Q4 Report',
+    'tags': ['finance', 'quarterly']
+  })
+}
+
+response = requests.post(
+  'http://localhost:8080/api/documents/upload',
+  headers={'Authorization': 'Bearer YOUR_API_KEY'},
+  files=files,
+  data=data
+)
+
+document = response.json()
+print('Document uploaded:', document)
+```
+
+</Tab>
+</Tabs>
+
+**Response:**
+```json
+{
+  "id": "doc_abc123",
+  "title": "document.pdf",
+  "status": "processing",
+  "created_at": "2024-01-15T10:30:00Z",
+  "analysis": {
+    "category": "business",
+    "quality_score": 85,
+    "word_count": 2547
+  }
+}
+```
+
+</Step>
+
+<Step>
+### Check Processing Status
+
+```bash
+# Get document details
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  http://localhost:8080/api/documents/doc_abc123
+```
+
+**When complete:**
+```json
+{
+  "id": "doc_abc123",
+  "title": "document.pdf",
+  "status": "completed",
+  "analysis": {
+    "category": "business",
+    "confidence": 0.92,
+    "quality_score": 85,
+    "sentiment": "neutral",
+    "key_topics": ["revenue", "growth", "market analysis"],
+    "entities": [
+      {"text": "Q4 2023", "type": "date"},
+      {"text": "Microsoft", "type": "organization"}
+    ],
+    "summary": "This document analyzes Q4 performance..."
+  }
+}
+```
+
+</Step>
+
+<Step>
+### Search Your Documents
+
+```bash
+# Simple search
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  "http://localhost:8080/api/search?q=revenue+growth"
+
+# Advanced search with filters
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  "http://localhost:8080/api/search?q=artificial+intelligence&category=technical&limit=5"
+```
+
+</Step>
+
+<Step>
+### Chat with Your Document
+
+```bash
+# Ask questions about the document
+curl -X POST "http://localhost:8080/api/documents/doc_abc123/chat" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What are the main financial highlights?"}'
+```
+
+**Response:**
+```json
+{
+  "response": "Based on the document, the main financial highlights include: 1) Revenue increased 15% year-over-year to $2.1B, 2) Net profit margin improved to 12.3%, and 3) Cash flow from operations reached $450M...",
+  "model": "gpt-4o",
+  "sources": ["doc_abc123"],
+  "timestamp": "2024-01-15T10:35:00Z"
+}
+```
+
+</Step>
+</Steps>
+
+## Web Interface
+
+Access the web dashboard at `http://localhost:8080`:
+
+1. **📊 Dashboard** - Overview of all documents
+2. **📤 Upload** - Drag-and-drop file upload
+3. **🔍 Search** - Visual search interface
+4. **💬 Chat** - Interactive document Q&A
+
+## Real-time Updates
+
+Monitor document processing in real-time:
+
+```javascript
+// JavaScript example for live updates
+const eventSource = new EventSource(
+  'http://localhost:8080/api/documents/doc_abc123/stream',
+  {
+    headers: {
+      'Authorization': 'Bearer YOUR_API_KEY'
+    }
+  }
+);
+
+eventSource.onmessage = (event) => {
+  const progress = JSON.parse(event.data);
+  console.log(`Processing: ${progress.percentage}%`);
+  
+  if (progress.completed) {
+    console.log('Document processing completed!');
+    eventSource.close();
+  }
+};
+```
+
+## Web Crawling
+
+Crawl websites to extract and analyze content:
+
+```bash
+# Start crawling a website
+curl -X POST "http://localhost:8080/api/crawl" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "max_depth": 2,
+    "max_pages": 10,
+    "include_patterns": ["*/blog/*", "*/docs/*"]
+  }'
+
+# Check crawl status
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  http://localhost:8080/api/crawl/job_xyz789/status
+```
+
+## Health Check
+
+Verify your installation:
+
+```bash
+# Basic health check
+curl http://localhost:8080/health
+
+# Detailed system status
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  http://localhost:8080/api/status
+```
+
+**Healthy response:**
+```json
+{
+  "status": "healthy",
+  "version": "0.2.0",
+  "uptime": 3600,
+  "memory_usage": {
+    "used": 524288000,
+    "total": 8589934592
+  },
+  "storage": {
+    "documents": 42,
+    "total_size": 10485760
+  }
+}
+```
+
+## Troubleshooting
+
+<Tabs items={['Common Issues', 'Configuration', 'Getting Help']}>
+<Tab value="Common Issues">
+
+**Port already in use:**
+```bash
+# Kill existing process
+pkill swoop_server
+# Or use different port
+./swoop_server --port 8081
+```
+
+**Database connection error:**
+```bash
+# Reset database
+rm swoop.db
+./swoop_server  # Will recreate database
+```
+
+**API key not working:**
+```bash
+# Check server logs
+tail -f swoop.log
+# Restart server to get new key
+```
+
+</Tab>
+<Tab value="Configuration">
+
+Create a `.env` file for custom configuration:
+
+```bash
+# Required
+OPENROUTER_API_KEY=your_openrouter_key
+ELEVENLABS_API_KEY=your_elevenlabs_key
+
+# Optional
+DATABASE_URL=sqlite:./swoop.db
+REDIS_URL=redis://localhost:6379
+LOG_LEVEL=info
+MAX_UPLOAD_SIZE=10485760  # 10MB
+WORKER_THREADS=4
+```
+
+</Tab>
+<Tab value="Getting Help">
+
+- **Logs**: Check `swoop.log` for detailed error messages
+- **Documentation**: Visit our [complete documentation](/docs)
+- **Issues**: Report bugs on [GitHub](https://github.com/your-org/swoop/issues)
+- **Discord**: Join our [community](https://discord.gg/swoop) for real-time help
+
+</Tab>
+</Tabs>
+
+## What's Next?
+
+<Callout type="success">
+🎉 **Congratulations!** You now have a fully functional document intelligence platform.
+</Callout>
+
+Now that you have Swoop running:
+
+1. **[API Documentation](/docs/api)** - Explore all endpoints
+2. **[Integration Examples](/docs/backend/integration)** - Client libraries and code samples  
+3. **[Architecture Guide](/docs/backend/architecture)** - Understanding the system
+4. **[Performance Tuning](/docs/operations/performance)** - Optimization for production
+5. **[Deployment Guide](/docs/operations/deployment)** - Production deployment
+
+Ready to dive deeper? Check out our [Core Concepts](/docs/get-started/concepts) to understand how Swoop works under the hood.

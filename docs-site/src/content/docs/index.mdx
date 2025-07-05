@@ -1,0 +1,165 @@
+---
+title: Welcome to Swoop
+description: AI-Powered Document Intelligence Platform - Transform documents into searchable, actionable insights
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card'
+import { Step, Steps } from 'fumadocs-ui/components/steps'
+
+# Welcome to Swoop
+
+**Swoop** is a production-ready, AI-powered document intelligence platform that transforms documents into searchable, actionable insights. Built with Rust for performance and React for user experience.
+
+<Cards>
+  <Card
+    href="/docs/get-started/quick-start"
+    title="Quick Start"
+    description="Get up and running in under 2 minutes"
+    icon="⚡"
+  />
+  <Card
+    href="/docs/api"
+    title="API Reference"
+    description="Complete REST API documentation"
+    icon="📚"
+  />
+  <Card
+    href="/docs/get-started/concepts"
+    title="Core Concepts"
+    description="Understanding documents, analysis, and search"
+    icon="🧠"
+  />
+  <Card
+    href="/docs/backend/integration"
+    title="Integration Examples"
+    description="JavaScript, Python, and cURL examples"
+    icon="🔗"
+  />
+</Cards>
+
+## What is Swoop?
+
+Swoop eliminates the complexity of document intelligence by providing a single API that transforms any document into structured, searchable, and actionable data.
+
+### Key Features
+
+- **⚡ Lightning Fast**: Sub-second document processing with Rust performance
+- **🧠 AI-Powered**: Automatic categorization, entity extraction, and quality scoring
+- **🔍 Hybrid Search**: Combines keyword and semantic search for best results
+- **💬 Document Chat**: Ask questions about your documents with AI
+- **🌐 Web Crawling**: Intelligent web scraping with robots.txt compliance
+- **🛡️ Enterprise Ready**: Production-grade security and monitoring
+
+### Why Choose Swoop?
+
+<Steps>
+<Step>
+**Performance First**
+
+Built with Rust for memory-safe, concurrent processing. Handle thousands of documents with sub-second response times.
+</Step>
+
+<Step>
+**AI-Native**
+
+Integrated with 200+ AI models through OpenRouter. Automatic content analysis, categorization, and intelligent responses.
+</Step>
+
+<Step>
+**Developer Friendly**
+
+Clean REST API, comprehensive documentation, real-time updates, and client libraries for popular languages.
+</Step>
+
+<Step>
+**Production Ready**
+
+Authentication, rate limiting, audit logging, monitoring, and enterprise-grade security out of the box.
+</Step>
+</Steps>
+
+## Architecture Overview
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Backend       │    │   AI Services   │
+│   React + TS    │◄──►│   Rust + Axum   │◄──►│   OpenRouter    │
+│   Real-time UI  │    │   Async Engine  │    │   ElevenLabs    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Web Browser   │    │   Database      │    │   Vector Store  │
+│   Mobile Apps   │    │   PostgreSQL    │    │   Qdrant        │
+│   API Clients   │    │   Redis Cache   │    │   384-dim       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+## Getting Started
+
+Ready to transform your documents? Here's how to get started:
+
+### 1. Install Swoop
+
+```bash
+curl -fsSL https://install.swoop.dev | bash
+```
+
+### 2. Upload Your First Document
+
+```bash
+curl -X POST "http://localhost:8080/api/documents/upload" \
+  -H "Authorization: Bearer your-api-key" \
+  -F "file=@document.pdf"
+```
+
+### 3. Search Your Content
+
+```bash
+curl "http://localhost:8080/api/search?q=artificial+intelligence" \
+  -H "Authorization: Bearer your-api-key"
+```
+
+### 4. Chat with Your Documents
+
+```bash
+curl -X POST "http://localhost:8080/api/documents/doc-123/chat" \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{"message":"What are the main points?"}'
+```
+
+## What's Next?
+
+<Cards>
+  <Card
+    href="/docs/get-started/quick-start"
+    title="Complete Setup Guide"
+    description="Detailed installation and configuration instructions"
+  />
+  <Card
+    href="/docs/backend/architecture"
+    title="Architecture Deep Dive"
+    description="Understanding the system design and components"
+  />
+  <Card
+    href="/docs/frontend/integration"
+    title="Client Integration"
+    description="React components and JavaScript examples"
+  />
+  <Card
+    href="/docs/operations/deployment"
+    title="Production Deployment"
+    description="Docker, Kubernetes, and cloud deployment guides"
+  />
+</Cards>
+
+## Community and Support
+
+- **GitHub**: [Open source repository](https://github.com/your-org/swoop)
+- **Discord**: [Join our community](https://discord.gg/swoop)
+- **Documentation**: You're reading it!
+- **Issues**: [Report bugs and feature requests](https://github.com/your-org/swoop/issues)
+
+---
+
+**Ready to get started?** Check out our [Quick Start Guide](/docs/get-started/quick-start) to have Swoop running in under 2 minutes.

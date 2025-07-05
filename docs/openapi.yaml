@@ -1,0 +1,1140 @@
+openapi: 3.0.3
+info:
+  title: Swoop API
+  description: |
+    **Swoop** is a production-ready, AI-powered document intelligence platform that transforms documents into searchable, actionable insights.
+    
+    ## Key Features
+    - **Document Processing**: Upload and analyze PDF, HTML, Markdown, and plain text files
+    - **AI-Powered Analysis**: Automated categorization, entity recognition, sentiment analysis
+    - **Real-time Intelligence**: Live progress tracking with Server-Sent Events
+    - **Web Crawling**: Intelligent web scraping with robots.txt compliance
+    - **Chat Interface**: Document-specific Q&A and general AI assistance
+    - **Audio Generation**: Text-to-speech synthesis for document content
+    
+    ## Authentication
+    All endpoints require authentication via API key in the `Authorization` header:
+    ```
+    Authorization: Bearer your-api-key-here
+    ```
+    
+    ## Rate Limiting
+    - Standard endpoints: 100 requests per minute
+    - Upload endpoints: 10 requests per minute
+    - Chat endpoints: 50 requests per minute
+    
+  version: 0.2.0
+  contact:
+    name: Swoop API Support
+    url: https://github.com/your-org/swoop
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.swoop.dev
+    description: Production server
+  - url: https://staging-api.swoop.dev
+    description: Staging server
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns the health status of the API server
+      operationId: healthCheck
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: "0.2.0"
+
+  /api/status:
+    get:
+      summary: System status
+      description: Returns detailed system status including resource usage
+      operationId: getStatus
+      tags:
+        - System
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: System status information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+
+  /api/documents/upload:
+    post:
+      summary: Upload document
+      description: |
+        Upload a document for processing and analysis. Supports PDF, HTML, Markdown, and plain text files.
+        
+        The document will be immediately processed for:
+        - Content extraction and metrics
+        - AI-powered categorization
+        - Quality scoring and readability analysis
+        - Vector embedding generation
+        - Entity recognition
+      operationId: uploadDocument
+      tags:
+        - Documents
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Document file to upload
+                metadata:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                      description: Custom title for the document
+                    tags:
+                      type: array
+                      items:
+                        type: string
+                      description: Tags for categorization
+                    priority:
+                      type: string
+                      enum: [low, medium, high]
+                      default: medium
+              required:
+                - file
+      responses:
+        '200':
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          description: Invalid file format or size
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: File size exceeds limit (10MB)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/documents:
+    get:
+      summary: List documents
+      description: Retrieve a paginated list of documents with optional filtering
+      operationId: listDocuments
+      tags:
+        - Documents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number (0-based)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: category
+          in: query
+          description: Filter by document category
+          schema:
+            type: string
+            enum: [technical, business, legal, academic, other]
+        - name: tag
+          in: query
+          description: Filter by tag
+          schema:
+            type: string
+        - name: quality_min
+          in: query
+          description: Minimum quality score (0-100)
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+        - name: sort
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [created_desc, created_asc, title_asc, title_desc, quality_desc]
+            default: created_desc
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /api/documents/{id}:
+    get:
+      summary: Get document
+      description: Retrieve a specific document by ID with full metadata
+      operationId: getDocument
+      tags:
+        - Documents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Document ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Document details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete document
+      description: Permanently delete a document and all associated data
+      operationId: deleteDocument
+      tags:
+        - Documents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Document ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Document deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Document deleted successfully"
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/documents/{id}/analyze:
+    post:
+      summary: Re-analyze document
+      description: Trigger re-analysis of a document with updated AI models
+      operationId: analyzeDocument
+      tags:
+        - Documents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Document ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force:
+                  type: boolean
+                  description: Force re-analysis even if recently analyzed
+                  default: false
+                model:
+                  type: string
+                  description: Specific AI model to use for analysis
+                  example: "gpt-4-turbo"
+      responses:
+        '200':
+          description: Analysis started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Analysis started"
+                  job_id:
+                    type: string
+                    format: uuid
+                  estimated_time:
+                    type: integer
+                    description: Estimated completion time in seconds
+
+  /api/documents/{id}/chat:
+    post:
+      summary: Chat with document
+      description: |
+        Start a conversation about a specific document. The AI will use the document's content and metadata to provide contextual responses.
+        
+        Supports streaming responses for real-time interaction.
+      operationId: chatWithDocument
+      tags:
+        - Chat
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Document ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  description: User message
+                  minLength: 1
+                  maxLength: 4000
+                stream:
+                  type: boolean
+                  description: Enable streaming response
+                  default: false
+                context_length:
+                  type: integer
+                  description: Number of previous messages to include
+                  minimum: 0
+                  maximum: 10
+                  default: 3
+                model:
+                  type: string
+                  description: AI model to use
+                  example: "gpt-4-turbo"
+              required:
+                - message
+      responses:
+        '200':
+          description: Chat response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-sent events for streaming responses
+
+  /api/chat:
+    post:
+      summary: General chat
+      description: General AI chat interface not tied to any specific document
+      operationId: generalChat
+      tags:
+        - Chat
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  description: User message
+                  minLength: 1
+                  maxLength: 4000
+                stream:
+                  type: boolean
+                  description: Enable streaming response
+                  default: false
+                personality:
+                  type: string
+                  description: AI personality mode
+                  enum: [professional, casual, technical, creative]
+                  default: professional
+                model:
+                  type: string
+                  description: AI model to use
+                  example: "gpt-4-turbo"
+              required:
+                - message
+      responses:
+        '200':
+          description: Chat response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+
+  /api/crawl:
+    post:
+      summary: Start web crawl
+      description: |
+        Start a web crawling job to extract content from websites. The crawler respects robots.txt and implements polite crawling with rate limiting.
+        
+        Supports both single-page and multi-page crawling with configurable depth limits.
+      operationId: startCrawl
+      tags:
+        - Crawling
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  description: Starting URL for crawling
+                  example: "https://example.com"
+                max_depth:
+                  type: integer
+                  description: Maximum crawl depth
+                  minimum: 1
+                  maximum: 5
+                  default: 1
+                max_pages:
+                  type: integer
+                  description: Maximum number of pages to crawl
+                  minimum: 1
+                  maximum: 100
+                  default: 10
+                respect_robots:
+                  type: boolean
+                  description: Whether to respect robots.txt
+                  default: true
+                delay_ms:
+                  type: integer
+                  description: Delay between requests in milliseconds
+                  minimum: 100
+                  maximum: 10000
+                  default: 1000
+                include_patterns:
+                  type: array
+                  items:
+                    type: string
+                  description: URL patterns to include
+                  example: ["*/blog/*", "*/docs/*"]
+                exclude_patterns:
+                  type: array
+                  items:
+                    type: string
+                  description: URL patterns to exclude
+                  example: ["*/admin/*", "*/private/*"]
+              required:
+                - url
+      responses:
+        '200':
+          description: Crawl job started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: "started"
+                  estimated_time:
+                    type: integer
+                    description: Estimated completion time in seconds
+
+  /api/crawl/{job_id}/status:
+    get:
+      summary: Get crawl status
+      description: Check the status of a crawling job
+      operationId: getCrawlStatus
+      tags:
+        - Crawling
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          description: Crawl job ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Crawl job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrawlStatus'
+
+  /api/crawl/{job_id}/results:
+    get:
+      summary: Get crawl results
+      description: Retrieve the results of a completed crawl job
+      operationId: getCrawlResults
+      tags:
+        - Crawling
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          description: Crawl job ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Crawl results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                  documents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+                  statistics:
+                    type: object
+                    properties:
+                      pages_crawled:
+                        type: integer
+                      pages_failed:
+                        type: integer
+                      total_size:
+                        type: integer
+                        description: Total size in bytes
+                      duration:
+                        type: integer
+                        description: Crawl duration in seconds
+
+  /api/audio/{id}:
+    get:
+      summary: Get document audio
+      description: |
+        Generate or retrieve audio (TTS) for a document. The audio is generated using high-quality text-to-speech synthesis.
+        
+        Supports multiple voice options and audio formats.
+      operationId: getDocumentAudio
+      tags:
+        - Audio
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Document ID
+          schema:
+            type: string
+            format: uuid
+        - name: voice
+          in: query
+          description: Voice to use for synthesis
+          schema:
+            type: string
+            enum: [male, female, neutral]
+            default: neutral
+        - name: format
+          in: query
+          description: Audio format
+          schema:
+            type: string
+            enum: [mp3, wav, ogg]
+            default: mp3
+        - name: speed
+          in: query
+          description: Playback speed multiplier
+          schema:
+            type: number
+            minimum: 0.5
+            maximum: 2.0
+            default: 1.0
+      responses:
+        '200':
+          description: Audio file
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+            audio/ogg:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Length:
+              description: File size in bytes
+              schema:
+                type: integer
+            Content-Disposition:
+              description: Filename for download
+              schema:
+                type: string
+                example: 'attachment; filename="document-audio.mp3"'
+
+  /api/voice-chat:
+    post:
+      summary: Voice chat
+      description: Voice-based chat interface with speech-to-text and text-to-speech
+      operationId: voiceChat
+      tags:
+        - Audio
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio file (speech input)
+                document_id:
+                  type: string
+                  format: uuid
+                  description: Optional document ID for context
+                voice:
+                  type: string
+                  enum: [male, female, neutral]
+                  default: neutral
+              required:
+                - audio
+      responses:
+        '200':
+          description: Voice chat response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transcript:
+                    type: string
+                    description: Speech-to-text transcript
+                  response:
+                    type: string
+                    description: AI text response
+                  audio_url:
+                    type: string
+                    format: uri
+                    description: URL to download audio response
+
+  /api/search:
+    get:
+      summary: Search documents
+      description: |
+        Hybrid search across documents using both keyword (BM25) and semantic (vector) search.
+        
+        Results are ranked by relevance combining both search methods.
+      operationId: searchDocuments
+      tags:
+        - Search
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 500
+        - name: limit
+          in: query
+          description: Maximum number of results
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+        - name: semantic_weight
+          in: query
+          description: Weight for semantic search (0.0-1.0)
+          schema:
+            type: number
+            minimum: 0.0
+            maximum: 1.0
+            default: 0.5
+        - name: category
+          in: query
+          description: Filter by document category
+          schema:
+            type: string
+            enum: [technical, business, legal, academic, other]
+        - name: min_score
+          in: query
+          description: Minimum relevance score
+          schema:
+            type: number
+            minimum: 0.0
+            maximum: 1.0
+            default: 0.1
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: string
+                  results:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/Document'
+                        - type: object
+                          properties:
+                            score:
+                              type: number
+                              description: Relevance score
+                            highlights:
+                              type: array
+                              items:
+                                type: string
+                              description: Highlighted text snippets
+                  total:
+                    type: integer
+                  semantic_weight:
+                    type: number
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: API key authentication
+
+  schemas:
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique document identifier
+        title:
+          type: string
+          description: Document title
+        content:
+          type: string
+          description: Full document content
+        content_type:
+          type: string
+          enum: [pdf, html, markdown, text]
+          description: Document format
+        file_size:
+          type: integer
+          description: File size in bytes
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        metadata:
+          $ref: '#/components/schemas/DocumentMetadata'
+        analysis:
+          $ref: '#/components/schemas/DocumentAnalysis'
+        tags:
+          type: array
+          items:
+            type: string
+          description: Document tags
+        url:
+          type: string
+          format: uri
+          description: Original URL (for crawled documents)
+          nullable: true
+
+    DocumentMetadata:
+      type: object
+      properties:
+        word_count:
+          type: integer
+          description: Number of words
+        character_count:
+          type: integer
+          description: Number of characters
+        reading_time:
+          type: integer
+          description: Estimated reading time in minutes
+        language:
+          type: string
+          description: Detected language code
+          example: "en"
+        author:
+          type: string
+          description: Document author
+          nullable: true
+        creation_date:
+          type: string
+          format: date-time
+          description: Original document creation date
+          nullable: true
+
+    DocumentAnalysis:
+      type: object
+      properties:
+        category:
+          type: string
+          enum: [technical, business, legal, academic, other]
+          description: AI-generated category
+        confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Category confidence score
+        quality_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Content quality score
+        complexity_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Content complexity score
+        sentiment:
+          type: string
+          enum: [positive, negative, neutral]
+          description: Overall sentiment
+        sentiment_score:
+          type: number
+          minimum: -1.0
+          maximum: 1.0
+          description: Sentiment score (-1 to 1)
+        key_topics:
+          type: array
+          items:
+            type: string
+          description: Extracted key topics
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Entity'
+          description: Named entities
+        summary:
+          type: string
+          description: AI-generated summary
+        headings:
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+              level:
+                type: integer
+                minimum: 1
+                maximum: 6
+          description: Document headings
+        embedding:
+          type: array
+          items:
+            type: number
+          description: 384-dimensional semantic embedding
+          minItems: 384
+          maxItems: 384
+
+    Entity:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Entity text
+        type:
+          type: string
+          enum: [person, organization, location, date, technical_term, other]
+          description: Entity type
+        confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Recognition confidence
+        position:
+          type: object
+          properties:
+            start:
+              type: integer
+            end:
+              type: integer
+          description: Position in document
+
+    ChatResponse:
+      type: object
+      properties:
+        response:
+          type: string
+          description: AI response text
+        model:
+          type: string
+          description: AI model used
+        timestamp:
+          type: string
+          format: date-time
+        usage:
+          type: object
+          properties:
+            prompt_tokens:
+              type: integer
+            completion_tokens:
+              type: integer
+            total_tokens:
+              type: integer
+          description: Token usage statistics
+        context_used:
+          type: boolean
+          description: Whether document context was used
+        sources:
+          type: array
+          items:
+            type: string
+          description: Source documents referenced
+
+    CrawlStatus:
+      type: object
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed, cancelled]
+        progress:
+          type: object
+          properties:
+            pages_crawled:
+              type: integer
+            pages_queued:
+              type: integer
+            pages_failed:
+              type: integer
+            current_depth:
+              type: integer
+        started_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        estimated_completion:
+          type: string
+          format: date-time
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+
+    SystemStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, down]
+        version:
+          type: string
+        uptime:
+          type: integer
+          description: Uptime in seconds
+        memory_usage:
+          type: object
+          properties:
+            used:
+              type: integer
+              description: Used memory in bytes
+            total:
+              type: integer
+              description: Total memory in bytes
+        storage:
+          type: object
+          properties:
+            documents:
+              type: integer
+              description: Number of documents
+            total_size:
+              type: integer
+              description: Total storage used in bytes
+        active_jobs:
+          type: integer
+          description: Number of active processing jobs
+        api_limits:
+          type: object
+          properties:
+            requests_per_minute:
+              type: integer
+            concurrent_uploads:
+              type: integer
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        has_next:
+          type: boolean
+        has_previous:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Human-readable error message
+        code:
+          type: string
+          description: Error code
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+tags:
+  - name: System
+    description: Health checks and system status
+  - name: Documents
+    description: Document upload, management, and analysis
+  - name: Chat
+    description: AI chat interfaces
+  - name: Crawling
+    description: Web crawling and content extraction
+  - name: Audio
+    description: Text-to-speech and voice interfaces
+  - name: Search
+    description: Document search and retrieval
