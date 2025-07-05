@@ -268,12 +268,12 @@ pub async fn get_document_preview(
     // Attempt to convert to UTF-8 string; if fails, return placeholder message
     let content_str = match String::from_utf8(data) {
         Ok(s) => s,
-        Err(_) => return Ok(ResponseJson(ApiResponse::success(DocumentPreview {
+        Err(_) => return Ok(Json(DocumentPreview {
             id: doc.id.clone(),
             filename: doc.filename.clone(),
             preview: "Binary or non-UTF8 file preview not supported".to_string(),
             size_bytes: data.len(),
-        }))),
+        })),
     };
 
     let preview_len = 1000.min(content_str.len());
