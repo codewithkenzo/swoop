@@ -364,7 +364,21 @@ pub async fn monitoring_readiness_check(State(state): State<AppState>) -> impl I
 
 /// Prometheus metrics endpoint
 pub async fn monitoring_metrics_endpoint(State(state): State<AppState>) -> impl IntoResponse {
-    state.monitoring.metrics_handle.0.render()
+    // Return basic metrics in text format
+    let stats = state.monitoring.get_stats().await;
+    let metrics_text = format!(
+        "# HELP crawl4ai_requests_total Total number of crawl requests\n# TYPE crawl4ai_requests_total counter\ncrawl4ai_requests_total {}\n\n# HELP crawl4ai_successful_crawls Number of successful crawls\n# TYPE crawl4ai_successful_crawls counter\ncrawl4ai_successful_crawls {}\n\n# HELP crawl4ai_failed_crawls Number of failed crawls\n# TYPE crawl4ai_failed_crawls counter\ncrawl4ai_failed_crawls {}\n\n# HELP crawl4ai_active_connections Current number of active connections\n# TYPE crawl4ai_active_connections gauge\ncrawl4ai_active_connections {}\n\n# HELP crawl4ai_uptime_seconds System uptime in seconds\n# TYPE crawl4ai_uptime_seconds gauge\ncrawl4ai_uptime_seconds {}\n",
+        stats.requests_total,
+        stats.successful_crawls,
+        stats.failed_crawls,
+        stats.active_connections,
+        stats.uptime_seconds
+    );
+    
+    axum::response::Response::builder()
+        .header("content-type", "text/plain; version=0.0.4; charset=utf-8")
+        .body(metrics_text)
+        .unwrap()
 }
 
 /// Comprehensive statistics endpoint

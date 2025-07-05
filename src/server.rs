@@ -206,6 +206,7 @@ pub struct AppState {
     pub system_stats: Arc<RwLock<SystemStats>>,
     pub workspace: Arc<DocumentWorkspace>,
     pub monitoring: Arc<crate::monitoring::MonitoringSystem>,
+    pub active_jobs: Arc<RwLock<HashMap<String, String>>>,
 }
 
 /// API request/response types
@@ -238,7 +239,7 @@ pub struct DocumentUploadRequest {
     pub size: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentProcessingStatus {
     pub id: String,
     pub filename: String,
@@ -251,7 +252,7 @@ pub struct DocumentProcessingStatus {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProcessingStatus {
     Pending,
     Processing,
@@ -260,7 +261,7 @@ pub enum ProcessingStatus {
 }
 
 // Chat System Types
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub id: String,
     pub content: String,
@@ -270,7 +271,7 @@ pub struct ChatMessage {
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MessageRole {
     User,
     Assistant,
@@ -293,7 +294,7 @@ pub struct ChatResponse {
 }
 
 // Analytics Types
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemStats {
     pub documents_processed: u64,
     pub documents_pending: u64,
@@ -354,6 +355,7 @@ impl CrawlServer {
             })),
             workspace: Arc::new(DocumentWorkspace::new()),
             monitoring: Arc::new(monitoring),
+            active_jobs: Arc::new(RwLock::new(HashMap::new())),
         };
 
         Ok(Self {
@@ -849,7 +851,7 @@ async fn sse_handler(
 pub async fn upload_document(
     State(state): State<AppState>,
     mut multipart: Multipart,
-) -> Result<Json<DocumentProcessingStatus>, StatusCode> {
+) -> std::result::Result<Json<DocumentProcessingStatus>, StatusCode> {
     while let Some(field) = multipart.next_field().await.map_err(|_| StatusCode::BAD_REQUEST)? {
         let name = field.name().unwrap_or("").to_string();
         
@@ -890,7 +892,7 @@ pub async fn upload_document(
 pub async fn get_document_status(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
-) -> Result<Json<DocumentProcessingStatus>, StatusCode> {
+) -> std::result::Result<Json<DocumentProcessingStatus>, StatusCode> {
     let documents = state.documents.read().await;
     
     if let Some(document) = documents.get(&document_id) {
@@ -902,7 +904,7 @@ pub async fn get_document_status(
 
 pub async fn list_documents(
     State(state): State<AppState>,
-) -> Result<Json<Vec<DocumentProcessingStatus>>, StatusCode> {
+) -> std::result::Result<Json<Vec<DocumentProcessingStatus>>, StatusCode> {
     let documents = state.documents.read().await;
     let document_list: Vec<DocumentProcessingStatus> = documents.values().cloned().collect();
     
@@ -912,7 +914,7 @@ pub async fn list_documents(
 pub async fn chat_query(
     State(state): State<AppState>,
     Json(request): Json<ChatRequest>,
-) -> Result<Json<ChatResponse>, StatusCode> {
+) -> std::result::Result<Json<ChatResponse>, StatusCode> {
     let start_time = std::time::Instant::now();
     
     // Generate conversation ID if not provided
@@ -975,14 +977,14 @@ pub async fn get_conversation(
 
 pub async fn get_system_stats(
     State(state): State<AppState>,
-) -> Result<Json<SystemStats>, StatusCode> {
+) -> std::result::Result<Json<SystemStats>, StatusCode> {
     let stats = state.system_stats.read().await;
     Ok(Json(stats.clone()))
 }
 
 pub async fn get_processing_metrics(
     State(state): State<AppState>,
-) -> Result<Json<ProcessingMetrics>, StatusCode> {
+) -> std::result::Result<Json<ProcessingMetrics>, StatusCode> {
     let documents = state.documents.read().await;
     
     let total_documents = documents.len() as u64;
