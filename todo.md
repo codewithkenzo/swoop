@@ -47,10 +47,9 @@
 - [x] Integration test db_document.rs (SQLite in-memory) – passes
 - [ ] Integration test suite for Postgres backend – pending
 
-### 2.4 (cursor-tests-integration) - PENDING
-- [ ] Add tests/db_integration.rs
-- [ ] Ensure upload inserts row, crawl creates job row, chat writes conversation row
-- [ ] Use sqlx::query! assertions
+### 2.4 (cursor-tests-integration) - IN_PROGRESS
+- [ ] Postgres feature CI enabled (`cargo test --all-features`) – update workflow
+- [ ] Ensure upload inserts row, crawl creates job row, chat writes conversation row (sqlite & pg)
 
 ## 3. E2E Automated Tests (browsermcp)
 

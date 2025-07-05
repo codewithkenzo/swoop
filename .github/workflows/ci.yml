@@ -80,13 +80,13 @@ jobs:
       env:
         DATABASE_URL: postgresql://swoop_user:swoop_pass@localhost:5432/swoop_db
         RUST_LOG: debug
-      run: cargo test --verbose
+      run: cargo test --all-features --verbose
 
     - name: Run integration tests
       env:
         DATABASE_URL: postgresql://swoop_user:swoop_pass@localhost:5432/swoop_db
         RUST_LOG: debug
-      run: cargo test --test '*' --verbose
+      run: cargo test --all-features --test '*' --verbose
 
   # Frontend testing
   frontend-test:
