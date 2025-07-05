@@ -41,9 +41,10 @@
 - [x] Added thin wrappers in swoop_server.rs and wired shared state
 - [x] Frontend path remains /api/metrics (no change required)
 
-### 2.3 (cursor-endpoint-settings) - IN_PROGRESS
-- [ ] POST /api/settings (JSON) → persist to settings table
-- [ ] GET /api/settings → return merged defaults + overrides
+### 2.3 (cursor-endpoint-settings) - COMPLETED
+- [x] Backend endpoints implemented (/api/settings GET/POST)
+- [x] Migration 002_settings.sql added
+- [ ] Integration tests (settings_roundtrip) – pending
 
 ### 2.4 (cursor-tests-integration) - PENDING
 - [ ] Add tests/db_integration.rs
