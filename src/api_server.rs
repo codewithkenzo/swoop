@@ -942,7 +942,7 @@ pub struct ProcessingMetricsSnapshot {
 pub async fn stream_document_status(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+) -> Sse<impl Stream<Item = std::result::Result<Event, Infallible>>> {
     let documents = state.documents.clone();
     let doc_id = document_id.clone();
 
@@ -1043,7 +1043,7 @@ pub struct CrawlErrorSummary {
 pub async fn stream_crawl_progress(
     State(state): State<AppState>,
     Path(job_id): Path<String>,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+) -> Sse<impl Stream<Item = std::result::Result<Event, Infallible>>> {
     let crawler = state.crawler.clone();
     let storage = state.storage.clone();
     let job_id_clone = job_id.clone();
