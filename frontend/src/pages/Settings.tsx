@@ -7,13 +7,16 @@ import {
 } from "@/components/ui/card";
 import { LoadingSwitch } from "@/components/ui/loading-switch";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { ToggleSettingsCard, SingleToggleCard } from "@/components/ui/settings-card";
+import { InlineToggle } from "@/components/ui/inline-toggle";
+import { QuickToggle } from "@/components/ui/quick-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useTheme } from '@/components/theme-provider';
 import { useSettings } from '@/hooks/useSettings';
 import { AppSettings } from '@/types';
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Zap, Bell, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function Settings() {
@@ -128,45 +131,66 @@ export function Settings() {
         <p className="text-muted-foreground">Configure platform preferences</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Crawling Options</CardTitle>
-          <CardDescription>Configure advanced web crawling features</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-sm font-medium">Advanced Crawl Features</span>
-              <p className="text-xs text-muted-foreground">
-                Enable JavaScript rendering and deep content extraction
-              </p>
-            </div>
-            <LoadingSwitch 
-              checked={localSettings.advanced_crawl ?? false}
-              onCheckedChange={(checked) => handleToggleChange('advanced_crawl', checked)}
-              loading={isUpdating}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <SingleToggleCard
+        title="Advanced Crawling"
+        description="Configure advanced web crawling features"
+        checked={localSettings.advanced_crawl ?? false}
+        onCheckedChange={(checked) => handleToggleChange('advanced_crawl', checked)}
+        loading={isUpdating}
+        toggleLabel="JavaScript Rendering"
+        toggleDescription="Enable JavaScript execution and deep content extraction"
+      />
+
+      <SingleToggleCard
+        title="Notifications"
+        description="Manage platform notification preferences"
+        checked={localSettings.notifications ?? true}
+        onCheckedChange={(checked) => handleToggleChange('notifications', checked)}
+        loading={isUpdating}
+        toggleLabel="Push Notifications"
+        toggleDescription="Receive notifications for completed operations and system updates"
+      />
 
       <Card>
         <CardHeader>
-          <CardTitle>Notifications</CardTitle>
-          <CardDescription>Manage notification preferences</CardDescription>
+          <CardTitle>Quick Toggles Demo</CardTitle>
+          <CardDescription>Example of different toggle styles for reference</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-sm font-medium">Enable Notifications</span>
-              <p className="text-xs text-muted-foreground">
-                Receive notifications for completed operations and system updates
-              </p>
-            </div>
-            <LoadingSwitch 
+        <CardContent className="space-y-6">
+          <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+            <span className="text-sm font-medium">Inline Toggle:</span>
+            <InlineToggle
+              checked={localSettings.advanced_crawl ?? false}
+              onCheckedChange={(checked) => handleToggleChange('advanced_crawl', checked)}
+              loading={isUpdating}
+              onLabel="Advanced"
+              offLabel="Basic"
+            />
+          </div>
+          
+          <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+            <span className="text-sm font-medium">Quick Toggle with Icon:</span>
+            <QuickToggle
               checked={localSettings.notifications ?? true}
               onCheckedChange={(checked) => handleToggleChange('notifications', checked)}
               loading={isUpdating}
+              icon={<Bell className="h-4 w-4" />}
+              activeIcon={<Bell className="h-4 w-4 fill-current" />}
+              tooltip="Toggle notifications"
+              size="md"
+            />
+          </div>
+
+          <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+            <span className="text-sm font-medium">Button Style Toggle:</span>
+            <QuickToggle
+              variant="button"
+              checked={localSettings.advanced_crawl ?? false}
+              onCheckedChange={(checked) => handleToggleChange('advanced_crawl', checked)}
+              loading={isUpdating}
+              icon={<Zap className="h-4 w-4" />}
+              activeIcon={<Sparkles className="h-4 w-4" />}
+              tooltip="Advanced crawling features"
             />
           </div>
         </CardContent>
