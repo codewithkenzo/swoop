@@ -918,7 +918,7 @@ pub async fn chat_query(
     let start_time = std::time::Instant::now();
     
     // Generate conversation ID if not provided
-    let conversation_id = request.conversation_id.unwrap_or_else(|| Uuid::new_v4().to_string());
+    let conversation_id = request.conversation_id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
     
     // Parse document references from message
     let document_references = extract_document_references(&request.message);
