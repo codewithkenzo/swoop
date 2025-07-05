@@ -194,7 +194,7 @@ impl AppState {
 pub async fn upload_document(
     State(state): State<AppState>,
     mut multipart: Multipart,
-) -> Result<ResponseJson<ApiResponse<DocumentProcessingStatus>>, StatusCode> {
+) -> std::result::Result<Json<DocumentProcessingStatus>, StatusCode> {
     while let Some(field) = multipart.next_field().await.map_err(|_| StatusCode::BAD_REQUEST)? {
         let name = field.name().unwrap_or("").to_string();
         
@@ -232,7 +232,7 @@ pub async fn upload_document(
                 process_document_job(state_clone, doc_id, filename_clone, data.to_vec()).await;
             });
             
-            return Ok(ResponseJson(ApiResponse::success(document_status)));
+            return Ok(Json(document_status));
         }
     }
     
@@ -242,11 +242,11 @@ pub async fn upload_document(
 pub async fn get_document_status(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
-) -> Result<ResponseJson<ApiResponse<DocumentProcessingStatus>>, StatusCode> {
+) -> std::result::Result<Json<DocumentProcessingStatus>, StatusCode> {
     let documents = state.documents.read().await;
     
     if let Some(document) = documents.get(&document_id) {
-        Ok(ResponseJson(ApiResponse::success(document.clone())))
+        Ok(Json(document.clone()))
     } else {
         Err(StatusCode::NOT_FOUND)
     }
@@ -255,7 +255,7 @@ pub async fn get_document_status(
 pub async fn get_document_preview(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
-) -> Result<ResponseJson<ApiResponse<DocumentPreview>>, StatusCode> {
+) -> std::result::Result<Json<DocumentPreview>, StatusCode> {
     // Retrieve document metadata
     let docs = state.documents.read().await;
     let doc = docs.get(&document_id).ok_or(StatusCode::NOT_FOUND)?;
@@ -285,22 +285,22 @@ pub async fn get_document_preview(
         preview: preview_snippet,
         size_bytes: data.len(),
     };
-    Ok(ResponseJson(ApiResponse::success(resp)))
+    Ok(Json(resp))
 }
 
 pub async fn list_documents(
     State(state): State<AppState>,
-) -> Result<ResponseJson<ApiResponse<Vec<DocumentProcessingStatus>>>, StatusCode> {
+) -> std::result::Result<Json<Vec<DocumentProcessingStatus>>, StatusCode> {
     let documents = state.documents.read().await;
     let document_list: Vec<DocumentProcessingStatus> = documents.values().cloned().collect();
     
-    Ok(ResponseJson(ApiResponse::success(document_list)))
+    Ok(Json(document_list))
 }
 
 pub async fn chat_query(
     State(state): State<AppState>,
     Json(request): Json<ChatRequest>,
-) -> Result<ResponseJson<ApiResponse<ChatResponse>>, StatusCode> {
+) -> std::result::Result<Json<ChatResponse>, StatusCode> {
     let start_time = std::time::Instant::now();
     
     // Generate conversation ID if not provided
@@ -345,7 +345,7 @@ pub async fn chat_query(
         processing_time_ms: processing_time,
     };
     
-    Ok(ResponseJson(ApiResponse::success(response)))
+    Ok(Json(response))
 }
 
 pub async fn get_conversation(
@@ -355,22 +355,22 @@ pub async fn get_conversation(
     let conversations = state.conversations.read().await;
     
     if let Some(messages) = conversations.get(&conversation_id) {
-        Ok(ResponseJson(ApiResponse::success(messages.clone())))
+        Ok(Json(messages.clone()))
     } else {
-        Ok(ResponseJson(ApiResponse::success(Vec::new())))
+        Ok(Json(Vec::new()))
     }
 }
 
 pub async fn get_system_stats(
     State(state): State<AppState>,
-) -> Result<ResponseJson<ApiResponse<SystemStats>>, StatusCode> {
+) -> std::result::Result<Json<SystemStats>, StatusCode> {
     let stats = state.system_stats.read().await;
-    Ok(ResponseJson(ApiResponse::success(stats.clone())))
+    Ok(Json(stats.clone()))
 }
 
 pub async fn get_processing_metrics(
     State(state): State<AppState>,
-) -> Result<ResponseJson<ApiResponse<ProcessingMetrics>>, StatusCode> {
+) -> std::result::Result<Json<ProcessingMetrics>, StatusCode> {
     let documents = state.documents.read().await;
     
     let total_documents = documents.len() as u64;
@@ -414,11 +414,11 @@ pub async fn get_processing_metrics(
         recent_activity,
     };
     
-    Ok(ResponseJson(ApiResponse::success(metrics)))
+    Ok(Json(metrics))
 }
 
 pub async fn health_check() -> ResponseJson<ApiResponse<String>> {
-    ResponseJson(ApiResponse::success("OK".to_string()))
+    Json("OK".to_string())
 }
 
 // Helper Functions
@@ -458,7 +458,7 @@ async fn process_document_job(state: AppState, document_id: String, filename: St
 pub async fn llm_chat(
     State(state): State<AppState>,
     Json(request): Json<ChatRequest>,
-) -> Result<ResponseJson<ApiResponse<ChatResponse>>, StatusCode> {
+) -> std::result::Result<Json<ChatResponse>, StatusCode> {
     let start_time = std::time::Instant::now();
     
     // Create LLM completion request
@@ -531,7 +531,7 @@ pub async fn llm_chat(
                 processing_time_ms: processing_time,
             };
 
-            Ok(ResponseJson(ApiResponse::success(response)))
+            Ok(Json(response))
         }
         Err(e) => {
             eprintln!("LLM completion error: {}", e);
@@ -585,14 +585,14 @@ pub async fn llm_chat_stream(
 // Get LLM analytics
 pub async fn get_llm_analytics(
     State(state): State<AppState>,
-) -> Result<ResponseJson<ApiResponse<serde_json::Value>>, StatusCode> {
+) -> std::result::Result<Json<serde_json::Value>, StatusCode> {
     match state.llm_service.analytics.get_global_stats().await {
         Ok(stats) => {
             let analytics_data = serde_json::json!({
                 "global_stats": stats,
                 "timestamp": chrono::Utc::now()
             });
-            Ok(ResponseJson(ApiResponse::success(analytics_data)))
+            Ok(Json(analytics_data))
         }
         Err(e) => {
             eprintln!("Failed to get LLM analytics: {}", e);
@@ -607,7 +607,7 @@ pub async fn get_available_models(
 ) -> Result<ResponseJson<ApiResponse<Vec<ModelInfo>>>, StatusCode> {
     let registry = state.llm_service.model_registry.read().await;
     let models: Vec<ModelInfo> = registry.models.values().cloned().collect();
-    Ok(ResponseJson(ApiResponse::success(models)))
+    Ok(Json(models))
 }
 
 fn extract_document_references(message: &str) -> Vec<String> {
@@ -789,7 +789,7 @@ pub struct CrawlResponse {
 pub async fn start_crawl_job(
     State(state): State<AppState>,
     Json(req): Json<CrawlRequest>,
-) -> Result<ResponseJson<ApiResponse<CrawlResponse>>, StatusCode> {
+) -> std::result::Result<Json<CrawlResponse>, StatusCode> {
     if req.seeds.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
@@ -803,7 +803,7 @@ pub async fn start_crawl_job(
     }
 
     match state.crawler.start_crawl(req.seeds.clone(), Some(config)).await {
-        Ok(job_id) => Ok(ResponseJson(ApiResponse::success(CrawlResponse { job_id }))),
+        Ok(job_id) => Ok(Json(CrawlResponse { job_id })),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
@@ -811,9 +811,9 @@ pub async fn start_crawl_job(
 pub async fn get_crawl_status(
     State(state): State<AppState>,
     Path(job_id): Path<String>,
-) -> Result<ResponseJson<ApiResponse<crate::crawler::CrawlStats>>, StatusCode> {
+) -> std::result::Result<Json<crate::crawler::CrawlStats>, StatusCode> {
     if let Some(stats) = state.crawler.get_job_status(&job_id) {
-        Ok(ResponseJson(ApiResponse::success(stats)))
+        Ok(Json(stats))
     } else {
         Err(StatusCode::NOT_FOUND)
     }
@@ -822,9 +822,9 @@ pub async fn get_crawl_status(
 pub async fn stop_crawl_job(
     State(state): State<AppState>,
     Path(job_id): Path<String>,
-) -> Result<ResponseJson<ApiResponse<String>>, StatusCode> {
+) -> std::result::Result<Json<String>, StatusCode> {
     if state.crawler.stop_job(&job_id) {
-        Ok(ResponseJson(ApiResponse::success("stopped".to_string())))
+        Ok(Json("stopped".to_string()))
     } else {
         Err(StatusCode::NOT_FOUND)
     }
@@ -851,7 +851,7 @@ pub async fn get_crawl_results(
         .await
         .unwrap_or_default();
 
-    Ok(ResponseJson(ApiResponse::success((pages, stats))))
+    Ok(Json((pages, stats)))
 }
 
 async fn save_to_storage(document_id: &str, filename: &str, data: &[u8]) -> Result<(), Error> {
@@ -874,7 +874,7 @@ pub struct DocumentPreview {
 pub async fn reprocess_document(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
-) -> Result<ResponseJson<ApiResponse<String>>, StatusCode> {
+) -> std::result::Result<Json<String>, StatusCode> {
     let mut docs = state.documents.write().await;
     let doc_status = docs.get_mut(&document_id).ok_or(StatusCode::NOT_FOUND)?;
 
@@ -896,7 +896,7 @@ pub async fn reprocess_document(
         process_document_job(state_clone, doc_id, filename_clone, data).await;
     });
 
-    Ok(ResponseJson(ApiResponse::success("reprocessing_started".to_string())))
+    Ok(Json("reprocessing_started".to_string()))
 }
 
 // Enhanced document status with rich metadata
