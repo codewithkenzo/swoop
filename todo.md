@@ -36,12 +36,12 @@
 - [x] Make storage::postgres implementation behind feature postgres
 - [x] Add graceful fallback to in-memory SQLite if env var missing
 
-### 2.2 (cursor-endpoint-metrics) - PENDING
-- [ ] Expose /api/metrics JSON + /metrics Prometheus with no AppState requirement
-- [ ] Use src/monitoring.rs helpers → add thin wrappers in swoop_server.rs
-- [ ] Update frontend getMetrics() if path changes
+### 2.2 (cursor-endpoint-metrics) - COMPLETED
+- [x] Expose /api/metrics JSON + /metrics Prometheus with no AppState requirement (implemented via monitoring::monitoring_metrics_endpoint with shared AppState)
+- [x] Added thin wrappers in swoop_server.rs and wired shared state
+- [x] Frontend path remains /api/metrics (no change required)
 
-### 2.3 (cursor-endpoint-settings) - PENDING
+### 2.3 (cursor-endpoint-settings) - IN_PROGRESS
 - [ ] POST /api/settings (JSON) → persist to settings table
 - [ ] GET /api/settings → return merged defaults + overrides
 

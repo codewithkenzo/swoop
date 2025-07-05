@@ -30,6 +30,8 @@ use swoop::storage::memory::MemoryStorage;
 use once_cell::sync::Lazy;
 use async_stream::stream;
 use swoop::monitoring as monitoring;
+use tokio::sync::{broadcast, RwLock};
+use swoop::server::{AppState as CoreAppState, StatsTracker, SystemStats, ServerConfig};
 
 // Thread-safe workspace using LazyLock
 static WORKSPACE: LazyLock<Arc<Mutex<DocumentWorkspace>>> = LazyLock::new(|| {
@@ -972,7 +974,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Force workspace initialization
     let _ = get_workspace_document_count();
     
-    // Build application with CORS
+    // -----------------------------------------------------------------------
+    // 🗄️  Create shared application state (CoreAppState)
+    // -----------------------------------------------------------------------
+    let (event_sender, _)= broadcast::channel(1000);
+    let stats = Arc::new(StatsTracker::new());
+    let monitoring_system = monitoring::MonitoringSystem::new()?;
+
+    let app_state = CoreAppState {
+        config: ServerConfig { bind_addr: format!("0.0.0.0:{port}").parse().unwrap(), ..ServerConfig::default() },
+        stats,
+        event_sender,
+        documents: Arc::new(RwLock::new(HashMap::new())),
+        conversations: Arc::new(RwLock::new(HashMap::new())),
+        system_stats: Arc::new(RwLock::new(SystemStats {
+            documents_processed: 0,
+            documents_pending: 0,
+            average_quality_score: 0.0,
+            processing_rate_per_hour: 0.0,
+            error_rate: 0.0,
+            uptime_seconds: 0,
+            memory_usage_mb: 0.0,
+        })),
+        workspace: Arc::new(DocumentWorkspace::new()),
+        monitoring: Arc::new(monitoring_system),
+        active_jobs: Arc::new(RwLock::new(HashMap::new())),
+    };
+
+    // Build application with CORS and shared state
     let app = Router::new()
         .route("/", get(root_handler))
         .route("/health", get(health_handler))
@@ -993,7 +1022,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/crawl/:job_id/stream", get(crawl_stream_handler))
         .route("/api/metrics", get(monitoring::monitoring_metrics_endpoint))
         .route("/api/stats", get(monitoring::monitoring_stats_endpoint))
-        .layer(CorsLayer::permissive());
+        .layer(CorsLayer::permissive())
+        .with_state(app_state.clone());
     
     // --- Dynamic port binding --------------------------------------------------
     let starting_port = port;
@@ -1013,8 +1043,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Audio playback: GET http://localhost:{current_port}/api/audio/{{id}}");
                 println!("Voice chat: POST http://localhost:{current_port}/api/voice-chat");
                 println!("Enhanced with PDF/Markdown support, chat interface, and robust processing");
-                // Clone the app so it can be reused if we loop again.
-                axum::serve(listener, app.clone().with_state(()).into_make_service()).await?;
+                axum::serve(listener, app.clone().into_make_service()).await?;
                 return Ok(());
             }
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && current_port < starting_port + 10 => {
