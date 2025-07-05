@@ -611,7 +611,7 @@ fn create_simple_summary(content: &str) -> String {
 async fn audio_handler(
     Path(id): Path<String>,
     Query(params): Query<HashMap<String, String>>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> std::std::result::Result<impl IntoResponse, StatusCode> {
     // Extract the text we need while the lock is held, then drop it
     let voice = params.get("voice").cloned().unwrap_or_else(|| "en-us-female".to_string());
 

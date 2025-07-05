@@ -535,7 +535,7 @@ async fn request_middleware(
 async fn start_crawl(
     State(state): State<AppState>,
     Json(payload): Json<StartCrawlRequest>,
-) -> std::result::Result<Json<StartCrawlResponse>, StatusCode> {
+) -> std::result::std::std::result::Result<Json<StartCrawlResponse>, StatusCode> {
     log::info!("🕷️ Starting crawl for {} URLs", payload.urls.len());
     
     let job_id = format!("crawl_{}", uuid::Uuid::new_v4());
@@ -602,7 +602,7 @@ async fn search_documents(
 async fn get_document(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<String>,
-) -> std::result::Result<Json<Document>, StatusCode> {
+) -> std::result::std::std::result::Result<Json<Document>, StatusCode> {
     let documents = state.documents.read().await;
     match documents.get(&id) {
         Some(document) => Ok(Json(document.clone())),
@@ -823,7 +823,7 @@ async fn handle_websocket(socket: WebSocket, state: AppState, addr: SocketAddr) 
 /// Server-sent events handler
 async fn sse_handler(
     State(state): State<AppState>,
-) -> Sse<impl futures_util::Stream<Item = std::result::Result<axum::response::sse::Event, io::Error>>> {
+) -> Sse<impl futures_util::Stream<Item = std::std::result::Result<axum::response::sse::Event, io::Error>>> {
     log::info!("📡 SSE connection established");
     
     let rx = state.event_sender.subscribe();
@@ -851,7 +851,7 @@ async fn sse_handler(
 pub async fn upload_document(
     State(state): State<AppState>,
     mut multipart: Multipart,
-) -> std::result::Result<Json<DocumentProcessingStatus>, StatusCode> {
+) -> std::result::std::std::result::Result<Json<DocumentProcessingStatus>, StatusCode> {
     while let Some(field) = multipart.next_field().await.map_err(|_| StatusCode::BAD_REQUEST)? {
         let name = field.name().unwrap_or("").to_string();
         
@@ -892,7 +892,7 @@ pub async fn upload_document(
 pub async fn get_document_status(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
-) -> std::result::Result<Json<DocumentProcessingStatus>, StatusCode> {
+) -> std::result::std::std::result::Result<Json<DocumentProcessingStatus>, StatusCode> {
     let documents = state.documents.read().await;
     
     if let Some(document) = documents.get(&document_id) {
@@ -904,7 +904,7 @@ pub async fn get_document_status(
 
 pub async fn list_documents(
     State(state): State<AppState>,
-) -> std::result::Result<Json<Vec<DocumentProcessingStatus>>, StatusCode> {
+) -> std::std::result::Result<Json<Vec<DocumentProcessingStatus>>, StatusCode> {
     let documents = state.documents.read().await;
     let document_list: Vec<DocumentProcessingStatus> = documents.values().cloned().collect();
     
@@ -914,7 +914,7 @@ pub async fn list_documents(
 pub async fn chat_query(
     State(state): State<AppState>,
     Json(request): Json<ChatRequest>,
-) -> std::result::Result<Json<ChatResponse>, StatusCode> {
+) -> std::result::std::std::result::Result<Json<ChatResponse>, StatusCode> {
     let start_time = std::time::Instant::now();
     
     // Generate conversation ID if not provided
@@ -977,14 +977,14 @@ pub async fn get_conversation(
 
 pub async fn get_system_stats(
     State(state): State<AppState>,
-) -> std::result::Result<Json<SystemStats>, StatusCode> {
+) -> std::result::std::std::result::Result<Json<SystemStats>, StatusCode> {
     let stats = state.system_stats.read().await;
     Ok(Json(stats.clone()))
 }
 
 pub async fn get_processing_metrics(
     State(state): State<AppState>,
-) -> std::result::Result<Json<ProcessingMetrics>, StatusCode> {
+) -> std::result::std::std::result::Result<Json<ProcessingMetrics>, StatusCode> {
     let documents = state.documents.read().await;
     
     let total_documents = documents.len() as u64;

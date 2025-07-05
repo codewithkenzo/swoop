@@ -8,7 +8,7 @@ use std::fmt;
 use thiserror::Error;
 
 /// Result type for Crawl4AI operations
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::std::result::Result<T, Error>;
 
 /// Error type for Crawl4AI
 #[derive(Error, Debug)]
@@ -113,6 +113,10 @@ pub enum Error {
     #[error("MCP error: {0}")]
     Mcp(String),
     
+    /// Initialization error
+    #[error("Initialization error: {0}")]
+    Initialization(String),
+    
     /// Other error
     #[error("Other error: {0}")]
     Other(String),
@@ -167,6 +171,7 @@ impl Error {
             Error::ExternalService(_) => "EXTERNAL_SERVICE_ERROR".to_string(),
             Error::NetworkError(_) => "NETWORK_ERROR".to_string(),
             Error::Mcp(_) => "MCP_ERROR".to_string(),
+            Error::Initialization(_) => "INITIALIZATION_ERROR".to_string(),
             Error::Other(_) => "OTHER_ERROR".to_string(),
         }
     }
