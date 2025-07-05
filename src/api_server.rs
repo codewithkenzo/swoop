@@ -604,7 +604,7 @@ pub async fn get_llm_analytics(
 // Get available models
 pub async fn get_available_models(
     State(state): State<AppState>,
-) -> Result<ResponseJson<ApiResponse<Vec<ModelInfo>>>, StatusCode> {
+) -> std::result::Result<Json<Vec<ModelInfo>>, StatusCode> {
     let registry = state.llm_service.model_registry.read().await;
     let models: Vec<ModelInfo> = registry.models.values().cloned().collect();
     Ok(Json(models))
@@ -838,7 +838,7 @@ pub async fn get_crawl_results(
     State(state): State<AppState>,
     Path(job_id): Path<String>,
     Query(pag): Query<Pagination>,
-) -> Result<ResponseJson<ApiResponse<(Vec<CrawlPage>, crate::crawler::CrawlStats)>>, StatusCode> {
+) -> std::result::Result<Json<(Vec<CrawlPage>, crate::crawler::CrawlStats)>, StatusCode> {
     let stats = state.crawler.get_job_status(&job_id).ok_or(StatusCode::NOT_FOUND)?;
 
     let page = pag.page.unwrap_or(1).max(1);
