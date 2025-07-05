@@ -1260,7 +1260,7 @@ async fn create_enhanced_crawl_status(
             url: page.url,
             status_code: Some(200), // Simulated
             fetch_time_ms: Some(150), // Simulated
-            content_length: Some(page.content_length as usize),
+            content_length: Some(page.text_length),
             timestamp: page.fetched_at,
         }
     }).collect();
