@@ -139,7 +139,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn new(workspace: DocumentWorkspace) -> Result<Self, Error> {
+    pub async fn new(workspace: DocumentWorkspace) -> std::result::Result<Self, Error> {
         let llm_config = LLMConfig::default();
         let llm_service = LLMService::new(llm_config).await
             .map_err(|e| Error::Initialization(format!("Failed to initialize LLM service: {}", e)))?;
@@ -175,7 +175,7 @@ impl AppState {
                 uptime_seconds: 0,
                 memory_usage_mb: 0.0,
             })),
-            llm_service: Arc::new(llm_service),
+            llm_service: Arc::new(llm_service.clone()),
             crawler: {
                 let storage_arc = Arc::new(storage.clone()) as Arc<dyn Storage>;
                 let crawler = CrawlerBuilder::new()
@@ -184,7 +184,7 @@ impl AppState {
                     .map_err(|e| Error::Initialization(format!("Crawler init failed: {}", e)))?;
                 Arc::new(crawler)
             },
-            processor: Arc::new(DocumentProcessor::new(Some(llm_service.clone()))),
+            processor: Arc::new(DocumentProcessor::new(Some(llm_service))),
             storage: Arc::new(storage),
         })
     }
@@ -264,6 +264,7 @@ pub async fn get_document_preview(
     let file_path = format!("{}/{}_{}", storage_dir, doc.id, doc.filename);
 
     let data = fs::read(&file_path).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let data_size = data.len();
 
     // Attempt to convert to UTF-8 string; if fails, return placeholder message
     let content_str = match String::from_utf8(data) {
@@ -272,7 +273,7 @@ pub async fn get_document_preview(
             id: doc.id.clone(),
             filename: doc.filename.clone(),
             preview: "Binary or non-UTF8 file preview not supported".to_string(),
-            size_bytes: data.len(),
+            size_bytes: data_size,
         })),
     };
 
@@ -283,7 +284,7 @@ pub async fn get_document_preview(
         id: doc.id.clone(),
         filename: doc.filename.clone(),
         preview: preview_snippet,
-        size_bytes: data.len(),
+        size_bytes: data_size,
     };
     Ok(Json(resp))
 }
@@ -434,11 +435,12 @@ async fn process_document_job(state: AppState, document_id: String, filename: St
 
         // Persist embedding vector if available
         if let Some(vec) = processed.embedding {
-            let vector_record = crate::models::DocumentVector {
+            let vector_record = crate::models::VectorRecord {
                 id: uuid::Uuid::new_v4().to_string(),
-                url: document_id.clone(),
+                document_id: document_id.clone(),
                 vector: vec,
                 metadata: std::collections::HashMap::new(),
+                created_at: chrono::Utc::now(),
             };
             if let Err(e) = state.storage.store_document_vector(&vector_record).await {
                 eprintln!("[process_document_job] failed to store vector: {}", e);
@@ -727,7 +729,7 @@ pub fn create_router(state: AppState) -> Router {
         .with_state(state)
 }
 
-pub async fn start_server(workspace: DocumentWorkspace, port: u16) -> Result<(), Error> {
+pub async fn start_server(workspace: DocumentWorkspace, port: u16) -> std::result::Result<(), Error> {
     let env_cfg = EnvConfig::load();
     let state = AppState::new(workspace).await?;
     let mut app = create_router(state);
@@ -847,14 +849,14 @@ pub async fn get_crawl_results(
 
     let pages = state
         .storage
-        .list_crawl_pages(&job_id, offset, limit)
+        .list_crawl_pages(&job_id, offset as usize, limit as usize)
         .await
         .unwrap_or_default();
 
     Ok(Json((pages, stats)))
 }
 
-async fn save_to_storage(document_id: &str, filename: &str, data: &[u8]) -> Result<(), Error> {
+async fn save_to_storage(document_id: &str, filename: &str, data: &[u8]) -> std::result::Result<(), Error> {
     let storage_dir = std::env::var("STORAGE_DIR").unwrap_or_else(|_| "swoop_data".to_string());
     let file_path = format!("{}/{}_{}", storage_dir, document_id, filename);
     
