@@ -44,7 +44,8 @@
 ### 2.3 (cursor-endpoint-settings) - COMPLETED
 - [x] Backend endpoints implemented (/api/settings GET/POST)
 - [x] Migration 002_settings.sql added
-- [ ] Integration tests (settings_roundtrip) – pending
+- [x] Integration test db_document.rs (SQLite in-memory) – passes
+- [ ] Integration test suite for Postgres backend – pending
 
 ### 2.4 (cursor-tests-integration) - PENDING
 - [ ] Add tests/db_integration.rs
