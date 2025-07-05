@@ -423,7 +423,7 @@ pub async fn health_check() -> Json<String> {
 
 // Helper Functions
 async fn process_document_job(state: AppState, document_id: String, filename: String, data: Vec<u8>) {
-    if let Ok(processed) = state.processor.process_document(Path::new(&filename), &data).await {
+    if let Ok(processed) = state.processor.process_document(std::path::Path::new(&filename), &data).await {
         let mut docs = state.documents.write().await;
         if let Some(status) = docs.get_mut(&document_id) {
             status.status = ProcessingStatus::Completed;
