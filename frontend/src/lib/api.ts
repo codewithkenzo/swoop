@@ -53,25 +53,25 @@ class ApiClient {
       filter.tags.forEach(tag => params.append('tags', tag))
     }
 
-    return this.request<PaginatedResponse<Document>>(`/documents?${params}`)
+    return this.request<PaginatedResponse<Document>>(`/api/documents?${params}`)
   }
 
   async getDocument(id: string): Promise<ApiResponse<Document>> {
-    return this.request<ApiResponse<Document>>(`/documents/${id}`)
+    return this.request<ApiResponse<Document>>(`/api/documents/${id}`)
   }
 
   async getDocumentPreview(id: string): Promise<ApiResponse<{ preview: string }>> {
-    return this.request<ApiResponse<{ preview: string }>>(`/documents/${id}/preview`)
+    return this.request<ApiResponse<{ preview: string }>>(`/api/documents/${id}/preview`)
   }
 
   async reprocessDocument(id: string): Promise<ApiResponse<string>> {
-    return this.request<ApiResponse<string>>(`/documents/${id}/reprocess`, {
+    return this.request<ApiResponse<string>>(`/api/documents/${id}/reprocess`, {
       method: 'POST',
     })
   }
 
   async deleteDocument(id: string): Promise<ApiResponse<null>> {
-    return this.request<ApiResponse<null>>(`/documents/${id}`, {
+    return this.request<ApiResponse<null>>(`/api/documents/${id}`, {
       method: 'DELETE',
     })
   }
@@ -80,7 +80,7 @@ class ApiClient {
     id: string, 
     updates: Partial<Document>
   ): Promise<ApiResponse<Document>> {
-    return this.request<ApiResponse<Document>>(`/documents/${id}`, {
+    return this.request<ApiResponse<Document>>(`/api/documents/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     })
@@ -116,7 +116,7 @@ class ApiClient {
         reject(new Error('Upload failed'))
       })
 
-      xhr.open('POST', `${API_BASE_URL}/documents/upload`)
+      xhr.open('POST', `${API_BASE_URL}/api/documents/upload`)
       xhr.send(formData)
     })
   }
@@ -143,29 +143,29 @@ class ApiClient {
   }
 
   // Web Crawling
-  async startCrawl(url: string): Promise<ApiResponse<{ job_id: string }>> {
-    return this.request<ApiResponse<{ job_id: string }>>('/crawl', {
+  async startCrawl(url: string): Promise<{ job_id: string }> {
+    return this.request<{ job_id: string }>('/api/crawl', {
       method: 'POST',
       body: JSON.stringify({ url }),
     })
   }
 
   async getCrawlJob(jobId: string): Promise<ApiResponse<CrawlJob>> {
-    return this.request<ApiResponse<CrawlJob>>(`/crawl/${jobId}`)
+    return this.request<ApiResponse<CrawlJob>>(`/api/crawl/${jobId}`)
   }
 
   async getCrawlJobs(): Promise<ApiResponse<CrawlJob[]>> {
-    return this.request<ApiResponse<CrawlJob[]>>('/crawl')
+    return this.request<ApiResponse<CrawlJob[]>>('/api/crawl')
   }
 
   async stopCrawl(jobId: string): Promise<ApiResponse<null>> {
-    return this.request<ApiResponse<null>>(`/crawl/${jobId}/stop`, {
+    return this.request<ApiResponse<null>>(`/api/crawl/${jobId}/stop`, {
       method: 'POST',
     })
   }
 
   async getCrawlResults(jobId: string): Promise<ApiResponse<any>> {
-    return this.request<ApiResponse<any>>(`/crawl/${jobId}/results`)
+    return this.request<ApiResponse<any>>(`/api/crawl/${jobId}/results`)
   }
 
   // Search
@@ -182,7 +182,7 @@ class ApiClient {
       limit: (options?.limit ?? 10).toString(),
     })
 
-    return this.request<ApiResponse<Document[]>>(`/search?${params}`)
+    return this.request<ApiResponse<Document[]>>(`/api/documents?${params}`)
   }
 
   // Health Check
@@ -192,11 +192,11 @@ class ApiClient {
 
   // Stats & Metrics
   async getStats() {
-    return this.request<ApiResponse<any>>('/stats')
+    return this.request<ApiResponse<any>>('/api/stats')
   }
 
   async getMetrics() {
-    return this.request<ApiResponse<any>>('/metrics')
+    return this.request<ApiResponse<any>>('/api/metrics')
   }
 }
 

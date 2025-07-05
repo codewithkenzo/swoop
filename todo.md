@@ -18,12 +18,12 @@
 - [x] Create backend/.env template with DATABASE_URL and other config (created as config.template)
 - [x] Add scripts/dev/db-init.sql to create db/user/demo tables
 
-### 1.2 (cursor-env-seed) - PENDING
-- [ ] Write scripts/dev/seed.rs (or SQL) to insert:
+### 1.2 (cursor-env-seed) - COMPLETED
+- [x] Write scripts/dev/seed.rs (or SQL) to insert:
   - 3 demo documents (PDF + HTML)
   - 5 crawl seed URLs
   - 1 sample chat conversation
-- [ ] Add make seed entry in Makefile
+- [x] Add make seed entry in Makefile
 
 ### 1.3 (cursor-env-ci) - PENDING
 - [ ] Update .github/workflows/ci.yml to spin up Postgres container

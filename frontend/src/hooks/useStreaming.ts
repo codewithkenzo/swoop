@@ -17,15 +17,21 @@ export interface DocumentStreamData {
 
 // Crawl progress from SSE
 export interface CrawlStreamData {
-  id: string;
+  job_id: string;
   status: 'running' | 'completed' | 'failed';
-  pages_crawled: number;
-  total_pages?: number;
+  urls_processed: number;
+  successful_fetches: number;
+  failed_fetches: number;
+  bytes_downloaded: number;
+  documents_extracted: number;
+  links_discovered: number;
+  avg_fetch_time_ms: number;
+  start_time: string;
+  end_time?: string;
   current_url?: string;
   progress?: number;
   message?: string;
   error?: string;
-  timestamp: string;
 }
 
 // Generic SSE hook options
@@ -98,7 +104,49 @@ function useSSE<T>(
       }
     };
 
+    // Handle custom events
+    eventSource.addEventListener('update', (event) => {
+      try {
+        const parsedData = JSON.parse(event.data) as T;
+        setData(parsedData);
+      } catch (err) {
+        console.error('Failed to parse SSE update data:', err);
+        setError('Failed to parse server data');
+      }
+    });
+
+    eventSource.addEventListener('completed', (event) => {
+      try {
+        const parsedData = JSON.parse(event.data) as T;
+        setData(parsedData);
+        // Don't disconnect immediately - let the server send close event
+      } catch (err) {
+        console.error('Failed to parse SSE completed data:', err);
+        setError('Failed to parse server data');
+      }
+    });
+
+    eventSource.addEventListener('close', (event) => {
+      // Server is closing the stream gracefully
+      console.log('Stream closed gracefully by server');
+      setConnectionState('closed');
+      eventSource.close();
+    });
+
+    eventSource.addEventListener('error', (event) => {
+      console.error('SSE error event:', event);
+      setError('Server sent error event');
+      // Don't auto-retry on server errors
+    });
+
     eventSource.onerror = (event) => {
+      // Only treat as connection error if it's not a graceful close
+      if (eventSource.readyState === EventSource.CLOSED) {
+        // Stream was closed, this is normal
+        setConnectionState('closed');
+        return;
+      }
+      
       setConnectionState('error');
       const errorMessage = 'Connection lost to server';
       setError(errorMessage);
@@ -161,7 +209,7 @@ export function useDocumentStream(documentId: string | null, options?: UseSSEOpt
 
 // Crawl progress stream hook
 export function useCrawlStream(crawlId: string | null, options?: UseSSEOptions) {
-  const url = crawlId ? `${API_BASE_URL}/crawl/${crawlId}/stream` : null;
+  const url = crawlId ? `${API_BASE_URL}/api/crawl/${crawlId}/stream` : null;
   
   return useSSE<CrawlStreamData>(url, {
     ...options,

@@ -29,6 +29,7 @@ use swoop::crawler::Crawler;
 use swoop::storage::memory::MemoryStorage;
 use once_cell::sync::Lazy;
 use async_stream::stream;
+use swoop::monitoring as monitoring;
 
 // Thread-safe workspace using LazyLock
 static WORKSPACE: LazyLock<Arc<Mutex<DocumentWorkspace>>> = LazyLock::new(|| {
@@ -805,6 +806,44 @@ async fn crawl_stream_handler(
 
     // Stream that polls crawler stats every second and emits JSON updates
     let event_stream = stream! {
+        // First, immediately check if job exists
+        let initial_status = CRAWLER.get_job_status(&job_id_clone);
+        
+        match initial_status {
+            Some(stats) => {
+                // Job exists, send initial status
+                let data_json = serde_json::to_string(&stats).unwrap_or_default();
+                yield Ok(Event::default().event("update").data(&data_json));
+                
+                // If already completed, send completion event and keep alive briefly
+                if stats.status == "completed" || stats.status == "failed" {
+                    yield Ok(Event::default().event("completed").data(&data_json));
+                    
+                    // Keep the connection alive for a few seconds to prevent browser EventSource errors
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                    
+                    // Send a final keep-alive before closing
+                    yield Ok(Event::default().event("close").data("{\"message\":\"Stream ended normally\"}"));
+                    return;
+                }
+            }
+            None => {
+                // Job not found - might be completed and cleaned up, or never existed
+                let err = serde_json::json!({
+                    "error": "crawl_job_not_found",
+                    "job_id": job_id_clone,
+                    "message": "Job may have completed quickly or does not exist"
+                });
+                yield Ok(Event::default().event("error").data(&err.to_string()));
+                
+                // Keep connection alive briefly even for errors
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                yield Ok(Event::default().event("close").data("{\"message\":\"Stream ended with error\"}"));
+                return;
+            }
+        }
+
+        // Continue polling for updates
         let mut interval = tokio::time::interval(Duration::from_secs(1));
         loop {
             interval.tick().await;
@@ -815,17 +854,29 @@ async fn crawl_stream_handler(
                     yield Ok(Event::default().event("update").data(&data_json));
 
                     if stats.status == "completed" || stats.status == "failed" {
-                        // send a final event then break
-                        yield Ok(Event::default().event("completed").data(data_json));
+                        // Send final completion event
+                        yield Ok(Event::default().event("completed").data(&data_json));
+                        
+                        // Keep connection alive briefly to prevent browser errors
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        
+                        // Send close event and end gracefully
+                        yield Ok(Event::default().event("close").data("{\"message\":\"Stream completed normally\"}"));
                         break;
                     }
                 }
                 None => {
-                    let err = serde_json::json!({
-                        "error": "crawl_job_not_found",
+                    // Job disappeared during polling - likely completed and cleaned up
+                    let completion = serde_json::json!({
                         "job_id": job_id_clone,
+                        "status": "completed",
+                        "message": "Job completed and was cleaned up"
                     });
-                    yield Ok(Event::default().event("error").data(err.to_string()));
+                    yield Ok(Event::default().event("completed").data(&completion.to_string()));
+                    
+                    // Keep connection alive briefly
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                    yield Ok(Event::default().event("close").data("{\"message\":\"Stream ended normally\"}"));
                     break;
                 }
             }
@@ -940,6 +991,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/crawl/:job_id/stop", post(stop_crawl_handler))
         .route("/api/crawl/:job_id/results", get(crawl_results_handler))
         .route("/api/crawl/:job_id/stream", get(crawl_stream_handler))
+        .route("/api/metrics", get(monitoring::monitoring_metrics_endpoint))
+        .route("/api/stats", get(monitoring::monitoring_stats_endpoint))
         .layer(CorsLayer::permissive());
     
     // --- Dynamic port binding --------------------------------------------------

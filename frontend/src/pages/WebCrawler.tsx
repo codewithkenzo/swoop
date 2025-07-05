@@ -164,7 +164,7 @@ export default function WebCrawler() {
   const startCrawlMutation = useMutation({
     mutationFn: async () => {
       const res = await apiClient.startCrawl(settings.startUrl);
-      return res.data?.job_id as string;
+      return res.job_id as string;
     },
     onSuccess: (id) => {
       setJobId(id);

@@ -9,18 +9,18 @@ const rawBase: string | undefined = (
   import.meta.env.VITE_BACKEND_URL as string | undefined) ??
   (import.meta.env.VITE_API_BASE_URL as string | undefined);
 
-// Normalise: if a host is provided without the `/api` suffix we append it.
+// Backend serves endpoints without /api prefix (except for versioned API routes)
 export const API_BASE_URL: string = (() => {
   if (!rawBase) {
     // When no env var is set we assume the backend is served from the same origin
-    // and is mounted under /api (dev-server proxy or prod reverse-proxy).
+    // without the /api prefix (direct endpoint access).
     // Using location.origin ensures absolute URL for EventSource to avoid CORS preflight.
     if (typeof window !== 'undefined' && window.location) {
-      return `${window.location.origin}/api`;
+      return `${window.location.origin}`;
     }
-    return '/api';
+    return '';
   }
-  return rawBase.endsWith('/api') ? rawBase : `${rawBase.replace(/\/*$/, '')}/api`;
+  return rawBase.replace(/\/*$/, '');
 })();
 
 // Currently selected LLM provider for UI hints / feature-gating.

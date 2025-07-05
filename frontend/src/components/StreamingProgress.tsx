@@ -101,12 +101,12 @@ export function StreamingProgress({
   const getProgress = () => {
     if (!data) return 0;
     
-    if (type === 'crawl' && 'pages_crawled' in data) {
+    if (type === 'crawl' && 'urls_processed' in data) {
       const crawlData = data as any;
       if (crawlData.total_pages) {
-        return (crawlData.pages_crawled / crawlData.total_pages) * 100;
+        return (crawlData.urls_processed / crawlData.total_pages) * 100;
       }
-      return crawlData.pages_crawled * 2; // Rough estimate when total unknown
+      return crawlData.urls_processed * 10; // Rough estimate when total unknown
     }
     
     return data.progress || 0;
@@ -131,13 +131,22 @@ export function StreamingProgress({
       );
     }
     
-    if (type === 'crawl' && 'pages_crawled' in data) {
+    if (type === 'crawl' && 'urls_processed' in data) {
       const crawlData = data as any;
       return (
         <div className="space-y-2">
           <p className="text-sm text-gray-600">
-            Pages crawled: <span className="font-medium">{crawlData.pages_crawled}</span>
-            {crawlData.total_pages && ` of ${crawlData.total_pages}`}
+            URLs processed: <span className="font-medium">{crawlData.urls_processed}</span>
+          </p>
+          <p className="text-sm text-gray-600">
+            Success: <span className="font-medium text-green-600">{crawlData.successful_fetches}</span>
+            {' / '}
+            Failed: <span className="font-medium text-red-600">{crawlData.failed_fetches}</span>
+          </p>
+          <p className="text-sm text-gray-600">
+            Documents: <span className="font-medium">{crawlData.documents_extracted}</span>
+            {' • '}
+            Links: <span className="font-medium">{crawlData.links_discovered}</span>
           </p>
           {crawlData.current_url && (
             <p className="text-sm text-gray-600 truncate">
@@ -219,9 +228,9 @@ export function StreamingProgress({
         )}
 
         {/* Timestamp */}
-        {data?.timestamp && (
+        {data && 'start_time' in data && data.start_time && (
           <p className="text-xs text-gray-500">
-            Last update: {new Date(data.timestamp).toLocaleTimeString()}
+            Started: {new Date(data.start_time).toLocaleTimeString()}
           </p>
         )}
       </CardContent>

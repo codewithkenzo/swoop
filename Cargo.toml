@@ -25,6 +25,10 @@ path = "src/bin/swoop_server.rs"
 name = "performance_crawler_demo"
 path = "src/bin/performance_crawler_demo.rs"
 
+[[bin]]
+name = "seed"
+path = "src/bin/seed.rs"
+
 [dependencies]
 # Async runtime
 tokio = { version = "1.40", features = ["full"] }
@@ -152,6 +156,8 @@ lru = "0.12"
 # SECURITY FIX: Updated sqlx to 0.8.6 to fix Binary Protocol Misinterpretation vulnerability
 # Disabled default features and macros to avoid rsa vulnerability (RUSTSEC-2023-0071)
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid", "migrate"] }
+# PostgreSQL client for seed script
+tokio-postgres = "0.7"
 # SECURITY FIX: Updated polars to latest version to fix fast-float vulnerability
 polars = { version = "0.49.1", features = ["lazy", "temporal", "strings"] } 
 async-trait = "0.1"

@@ -146,10 +146,10 @@ impl AppState {
         // Initialize storage backend
         #[cfg(feature = "libsql")]
         let storage = {
-            let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "file:local.db".to_string());
-            let auth_token = std::env::var("TURSO_AUTH_TOKEN").ok();
+        let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "file:local.db".to_string());
+        let auth_token = std::env::var("TURSO_AUTH_TOKEN").ok();
             LibSqlStorage::new(&db_url, auth_token.as_deref())
-                .await
+            .await
                 .map_err(|e| Error::Initialization(format!("LibSQL storage init failed: {}", e)))?
         };
         
@@ -1076,7 +1076,7 @@ pub async fn stream_crawl_progress(
                     "total_time_seconds": stats.elapsed_time_seconds(),
                     "average_pages_per_second": if stats.elapsed_time_seconds() > 0 { 
                         stats.completed_pages() as f64 / stats.elapsed_time_seconds() as f64 
-                    } else { 0.0 },
+                            } else { 0.0 },
                             "timestamp": chrono::Utc::now()
                         });
                         yield Ok(Event::default().event("completed").data(completion_data.to_string()));

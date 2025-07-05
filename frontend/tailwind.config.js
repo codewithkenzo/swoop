@@ -50,17 +50,11 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        primary: { DEFAULT: "#09868b" },
-        secondary: { DEFAULT: "#e05915" },
+        // Custom theme colors with fallback for specific features
         success: { DEFAULT: "#3d7c47" },
         warning: { DEFAULT: "#cdd422" },
         error: { DEFAULT: "#eb1736" },
-        background: { DEFAULT: "#f7f7f7" },
         surface: { DEFAULT: "#bccbde" },
-        text: {
-          DEFAULT: "#222222",
-          secondary: "#628078",
-        },
       },
       borderRadius: {
         lg: "var(--radius)",

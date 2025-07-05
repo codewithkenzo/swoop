@@ -158,7 +158,7 @@ impl AggressivePerformanceDemo {
         info!("🔥 BENCHMARK 1: Quick Burst Demo (10s target)");
         info!("   Target: Small news site (50-100 pages)");
         info!("   Goal: Showcase speed and real-time updates");
-
+        
         let mut metrics = self.metrics.write().await;
         *metrics = PerformanceMetrics::new();
         drop(metrics);
@@ -193,30 +193,30 @@ impl AggressivePerformanceDemo {
                     let content = format!("Page content for {} - batch {}", url, batch);
                     let result = extractor.extract_all(&content, &content)?;
                     
-                    let document = Document {
+        let document = Document {
                         id: format!("burst_test_{batch}_{idx}"),
                         title: format!("Burst Test Page {}-{}", batch, idx),
                         content: content.clone(),
                         content_type: Some("text/html".to_string()),
                         file_size: Some(content.len() as u64),
-                        metadata: Metadata {
+            metadata: Metadata {
                             source_url: Some(url.clone()),
-                            processed_at: chrono::Utc::now(),
+                processed_at: chrono::Utc::now(),
                             processor: Some("aggressive-crawler".to_string()),
-                            ..Default::default()
-                        },
+                ..Default::default()
+            },
                         content_hash: Some(format!("hash_{batch}_{idx}")),
                         summary: Some("High-speed crawl test page".to_string()),
-                        extracted_at: chrono::Utc::now(),
-                        created_at: chrono::Utc::now(),
-                        updated_at: chrono::Utc::now(),
-                        quality_score: Some(result.quality_score),
+            extracted_at: chrono::Utc::now(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            quality_score: Some(result.quality_score),
                         source_url: Some(url),
                         document_type: Some("webpage".to_string()),
-                        language: Some("en".to_string()),
+            language: Some("en".to_string()),
                         word_count: Some(content.split_whitespace().count()),
                         size_bytes: Some(content.len() as u64),
-                    };
+        };
 
                     storage.store_document(&document).await?;
                     Ok::<(), swoop::error::Error>(())
@@ -339,7 +339,7 @@ impl AggressivePerformanceDemo {
         }
 
         let final_metrics = self.metrics.read().await;
-        
+
         info!("🎯 SUSTAINED PERFORMANCE RESULTS:");
         info!("   ⚡ Sustained speed: {:.1} pages/sec", final_metrics.pages_per_second);
         info!("   📊 Total pages: {}", final_metrics.total_pages_crawled);

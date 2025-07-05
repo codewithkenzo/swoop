@@ -30,11 +30,12 @@ export default function CrawlStream() {
       <div className="space-y-2 max-h-96 overflow-y-auto">
         {updates.map((u, idx) => (
           <div key={idx} className="border rounded p-3 text-sm bg-gray-50 flex justify-between">
-            <span>{u.current_url ?? u.id}</span>
+            <span>{u.current_url ?? u.job_id}</span>
             <span>
               <Badge variant={u.status === 'completed' ? 'secondary' : 'default'}>
                 {u.status}
               </Badge>
+              <span className="ml-2">{u.urls_processed} URLs</span>
               {u.progress !== undefined && <span className="ml-2">{u.progress?.toFixed(0)}%</span>}
             </span>
           </div>

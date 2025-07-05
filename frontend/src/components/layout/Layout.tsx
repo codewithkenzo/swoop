@@ -10,10 +10,13 @@ import {
   Brain,
   Menu,
   X,
-  Activity
+  Activity,
+  Sun,
+  Moon
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useTheme } from '@/components/theme-provider'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -32,6 +35,7 @@ const navigation = [
 export function Layout({ children }: LayoutProps) {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
+  const { theme, setTheme } = useTheme()
 
   return (
     <div className="flex h-screen bg-background">
@@ -53,14 +57,27 @@ export function Layout({ children }: LayoutProps) {
             <Brain className="h-8 w-8 text-primary" />
             <h1 className="text-xl font-bold">Swoop</h1>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
         <nav className="mt-8 px-4">
@@ -115,7 +132,17 @@ export function Layout({ children }: LayoutProps) {
             <Brain className="h-6 w-6 text-primary" />
             <span className="font-semibold">Swoop</span>
           </div>
-          <div /> {/* Spacer */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
+            {theme === 'dark' ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
+          </Button>
         </div>
 
         {/* Page content */}

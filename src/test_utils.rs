@@ -32,9 +32,9 @@ pub async fn build_test_router() -> Router {
     // In-memory database - use libsql if available, otherwise sqlite
     #[cfg(feature = "libsql")]
     let storage = {
-        let db_url = "file:test.db?mode=memory&cache=shared";
+    let db_url = "file:test.db?mode=memory&cache=shared";
         LibSqlStorage::new(db_url, None)
-            .await
+        .await
             .expect("failed to init in-memory libsql storage")
     };
     
