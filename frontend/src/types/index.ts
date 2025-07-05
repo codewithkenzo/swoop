@@ -117,4 +117,16 @@ export interface PaginatedResponse<T> {
   page: number
   per_page: number
   has_more: boolean
+}
+
+// Settings Types
+export interface AppSettings {
+  theme: 'light' | 'dark' | 'system'
+  advanced_crawl: boolean
+  notifications: boolean
+}
+
+export interface SettingsFormData extends AppSettings {
+  enableEmbeddings?: boolean
+  enableAutoCategorize?: boolean
 } 

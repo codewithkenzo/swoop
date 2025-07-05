@@ -32,6 +32,10 @@ use async_stream::stream;
 use swoop::monitoring as monitoring;
 use tokio::sync::{broadcast, RwLock};
 use swoop::server::{AppState as CoreAppState, StatsTracker, SystemStats, ServerConfig};
+use once_cell::sync::OnceCell;
+use serde_json::Value as JsonValue;
+use tokio::fs;
+use tokio_postgres as pg;
 
 // Thread-safe workspace using LazyLock
 static WORKSPACE: LazyLock<Arc<Mutex<DocumentWorkspace>>> = LazyLock::new(|| {
@@ -46,6 +50,123 @@ static MEMORY_STORAGE: Lazy<Arc<MemoryStorage>> = Lazy::new(|| Arc::new(MemorySt
 static CRAWLER: Lazy<Arc<Crawler>> = Lazy::new(|| {
     Arc::new(Crawler::new(MEMORY_STORAGE.clone()))
 });
+
+// -------------- Application-level SETTINGS helpers -------------------------
+static DEFAULT_SETTINGS: Lazy<JsonValue> = Lazy::new(|| {
+    json!({
+        "theme": "light",
+        "advanced_crawl": false,
+        "notifications": true
+    })
+});
+
+static SETTINGS_FILE: &str = "swoop_settings.json";
+static DB_SETTINGS_TABLE_CREATED: OnceCell<()> = OnceCell::new();
+
+async fn ensure_settings_table() {
+    if DB_SETTINGS_TABLE_CREATED.get().is_some() {
+        return;
+    }
+    if let Ok(database_url) = std::env::var("DATABASE_URL") {
+        if let Ok((client, connection)) = pg::connect(&database_url, pg::NoTls).await {
+            tokio::spawn(async move {
+                let _ = connection.await;
+            });
+            let _ = client
+                .execute(
+                    "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ DEFAULT now())",
+                    &[],
+                )
+                .await;
+            let _ = DB_SETTINGS_TABLE_CREATED.set(());
+        }
+    }
+}
+
+async fn fetch_settings_from_db() -> Option<JsonValue> {
+    if let Ok(database_url) = std::env::var("DATABASE_URL") {
+        if let Ok((client, connection)) = pg::connect(&database_url, pg::NoTls).await {
+            tokio::spawn(async move {
+                let _ = connection.await;
+            });
+            let rows = match client.query("SELECT key, value FROM settings", &[]).await {
+                Ok(r) => r,
+                Err(_) => return None,
+            };
+            let mut map = serde_json::Map::new();
+            for row in rows {
+                let key: String = row.get(0);
+                let value: serde_json::Value = row.get::<_, serde_json::Value>(1);
+                map.insert(key, value);
+            }
+            return Some(JsonValue::Object(map));
+        }
+    }
+    None
+}
+
+async fn upsert_settings_to_db(payload: &JsonValue) {
+    if let Ok(database_url) = std::env::var("DATABASE_URL") {
+        if let Ok((client, connection)) = pg::connect(&database_url, pg::NoTls).await {
+            tokio::spawn(async move {
+                let _ = connection.await;
+            });
+            for (k, v) in payload.as_object().unwrap() {
+                let _ = client
+                    .execute(
+                        "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()",
+                        &[k, v],
+                    )
+                    .await;
+            }
+        }
+    }
+}
+
+async fn read_settings_file() -> Option<JsonValue> {
+    if let Ok(bytes) = fs::read(SETTINGS_FILE).await {
+        if let Ok(val) = serde_json::from_slice::<JsonValue>(&bytes) {
+            return Some(val);
+        }
+    }
+    None
+}
+
+async fn write_settings_file(payload: &JsonValue) {
+    if let Ok(serialized) = serde_json::to_vec_pretty(payload) {
+        let _ = fs::write(SETTINGS_FILE, &serialized).await;
+    }
+}
+
+// -------------------- API Handlers ----------------------------------------
+async fn get_settings_handler() -> ResponseJson<JsonValue> {
+    let mut merged = DEFAULT_SETTINGS.clone();
+
+    // Try DB first
+    if let Some(db_settings) = fetch_settings_from_db().await {
+        merged = merged.as_object_mut().unwrap().clone().into(); // convert to object
+        merged.as_object_mut().unwrap().extend(db_settings.as_object().unwrap().clone());
+        return ResponseJson(merged);
+    }
+    // Fallback to file
+    if let Some(file_settings) = read_settings_file().await {
+        merged = merged.as_object_mut().unwrap().clone().into();
+        merged.as_object_mut().unwrap().extend(file_settings.as_object().unwrap().clone());
+    }
+    ResponseJson(merged)
+}
+
+async fn update_settings_handler(Json(payload): Json<JsonValue>) -> impl IntoResponse {
+    // Persist synchronously (cheap operation)
+    upsert_settings_to_db(&payload).await;
+    write_settings_file(&payload).await;
+
+    // Merge with defaults for response
+    let mut merged = DEFAULT_SETTINGS.clone();
+    merged = merged.as_object_mut().unwrap().clone().into();
+    merged.as_object_mut().unwrap().extend(payload.as_object().unwrap().clone());
+    ResponseJson(merged)
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct DocumentResponse {
@@ -973,7 +1094,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Force workspace initialization
     let _ = get_workspace_document_count();
-    
+
+    // Ensure DB settings table exists (if DATABASE_URL configured)
+    ensure_settings_table().await;
+
     // -----------------------------------------------------------------------
     // 🗄️  Create shared application state (CoreAppState)
     // -----------------------------------------------------------------------
@@ -1022,6 +1146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/crawl/:job_id/stream", get(crawl_stream_handler))
         .route("/api/metrics", get(monitoring::monitoring_metrics_endpoint))
         .route("/api/stats", get(monitoring::monitoring_stats_endpoint))
+        .route("/api/settings", get(get_settings_handler).post(update_settings_handler))
         .layer(CorsLayer::permissive())
         .with_state(app_state.clone());
     

@@ -5,7 +5,8 @@ import {
   CrawlJob, 
   ApiResponse, 
   PaginatedResponse,
-  DocumentFilter 
+  DocumentFilter,
+  AppSettings 
 } from '@/types'
 
 import { API_BASE_URL } from './env'
@@ -197,6 +198,18 @@ class ApiClient {
 
   async getMetrics() {
     return this.request<ApiResponse<any>>('/api/metrics')
+  }
+
+  // Settings Management
+  async getSettings(): Promise<AppSettings> {
+    return this.request<AppSettings>('/api/settings')
+  }
+
+  async updateSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
+    return this.request<AppSettings>('/api/settings', {
+      method: 'POST',
+      body: JSON.stringify(settings),
+    })
   }
 }
 
