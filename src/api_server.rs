@@ -544,7 +544,7 @@ pub async fn llm_chat(
 pub async fn llm_chat_stream(
     State(state): State<AppState>,
     Json(request): Json<ChatRequest>,
-) -> std::std::result::Result<axum::response::Response, StatusCode> {
+) -> std::result::Result<axum::response::Response, StatusCode> {
     // Create LLM completion request for streaming
     let completion_request = CompletionRequest {
         user_id: "default_user".to_string(),

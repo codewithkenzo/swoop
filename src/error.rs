@@ -8,7 +8,7 @@ use std::fmt;
 use thiserror::Error;
 
 /// Result type for Crawl4AI operations
-pub type Result<T> = std::std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// Error type for Crawl4AI
 #[derive(Error, Debug)]
