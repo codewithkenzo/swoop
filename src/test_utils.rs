@@ -8,7 +8,8 @@ use axum::Router;
 #[allow(unused_imports)]
 use tokio::sync::RwLock;
 
-use crate::api_server::{create_router, SystemStats};
+// Unused imports removed - add back when needed for tests
+// use crate::api_server::{create_router, SystemStats};
 use crate::crawler::CrawlerBuilder;
 use crate::document_processor::DocumentProcessor;
 use crate::llm::LLMService;

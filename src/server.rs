@@ -27,7 +27,7 @@ use axum::{
     extract::{ws::WebSocket, ConnectInfo, Path, Path as AxumPath, Query, State, WebSocketUpgrade, Multipart},
     http::StatusCode, // HeaderMap may be needed for future header handling
     middleware::{self, Next},
-    response::{Html, Response, Sse, Json as ResponseJson},
+    response::{Html, Response, Sse},
     routing::{get, post, delete},
     Json,
     Router,
@@ -48,9 +48,8 @@ use tower_http::{
 use uuid::Uuid;
 
 use crate::error::{Error, Result};
-use crate::models::{Document, DocumentWorkspace};
+use crate::models::DocumentWorkspace;
 use crate::monitoring::MonitoringSystem;
-use crate::common::ApiResponse;
 
 /// Server configuration with rich customization
 #[derive(Debug, Clone)]

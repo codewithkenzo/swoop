@@ -1,7 +1,6 @@
 use axum::{
     extract::{Json, Path, State, Multipart, Query},
     http::StatusCode,
-    response::Json as ResponseJson,
     routing::{get, post},
     Router,
 };
@@ -15,7 +14,7 @@ use tokio::fs;
 use crate::environment::EnvConfig;
 use http::header;
 
-use crate::error::{Error, Result};
+use crate::error::Error;
 use crate::models::DocumentWorkspace;
 use crate::llm::{LLMService, LLMConfig, models::*};
 use crate::crawler::{Crawler, CrawlerBuilder};
@@ -33,7 +32,7 @@ use std::convert::Infallible;
 use async_stream::stream;
 use std::time::Duration;
 
-use crate::common::ApiResponse;
+// ApiResponse removed - using standard Json responses
 
 // Document Processing Types
 #[derive(Debug, Serialize, Deserialize, Clone)]

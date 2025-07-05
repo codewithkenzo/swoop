@@ -22,28 +22,8 @@ name = "swoop_server"
 path = "src/bin/swoop_server.rs"
 
 [[bin]]
-name = "swoop_demo"
-path = "src/bin/swoop_demo.rs"
-
-[[bin]]
-name = "swoop_high_performance"
-path = "src/bin/swoop_high_performance.rs"
-
-[[bin]]
-name = "consumer_demo"
-path = "src/bin/consumer_demo.rs"
-
-[[bin]]
-name = "real_world_demo"
-path = "src/bin/real_world_demo.rs"
-
-[[bin]]
-name = "real_async_demo"
-path = "src/bin/real_async_demo.rs"
-
-[[bin]]
-name = "advanced_crawler_demo"
-path = "src/bin/advanced_crawler_demo.rs"
+name = "performance_crawler_demo"
+path = "src/bin/performance_crawler_demo.rs"
 
 [dependencies]
 # Async runtime
