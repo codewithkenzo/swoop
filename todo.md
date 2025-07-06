@@ -1,3 +1,16 @@
+# Completed Tasks (Phase 1)
+
+- [x] Install Rust toolchain with version pinning (`rust-toolchain.toml`)
+- [x] Initialize Git repository and create public repo (`codewithkenzo/swoop`)
+- [x] Rename repository to **swoop** and set default branch to `main`
+- [x] Create Cargo workspace with crates: **core**, **tui**, **scrapers**, **storage**
+- [x] Add foundational dependencies to each crate (hyper, tl, ratatui, scylla, etc.)
+- [x] Scaffold minimal code:
+  - `core::fetch_url` async HTTP fetch helper
+  - Basic TUI hello screen (quit with `q`)
+
+---
+
 Based on the comprehensive research and the finalized blueprint, here is a detailed, agentically-structured to-do list for implementing the advanced web crawler project using Rust. This roadmap follows modern agile methodologies and 2024 best practices.
 Phase 1: Project Foundation & Setup (Week 1-2)
 1.1 Development Environment Setup
