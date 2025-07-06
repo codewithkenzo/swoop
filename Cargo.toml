@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "core",
+    "tui",
+    "scrapers",
+    "storage"
+]
+resolver = "2"

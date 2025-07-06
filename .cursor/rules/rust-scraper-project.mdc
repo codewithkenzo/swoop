@@ -1,0 +1,130 @@
+---
+alwaysApply: false
+---
+1. General Coding Principles
+
+    Autonomous Development: Code as if the agent is the primary developer, making decisions and progressing features independently.
+
+    Iterative Feature Testing: After implementing every significant feature or logical step, run targeted tests to ensure correctness and stability before proceeding.
+
+    Frequent Git Updates: Commit and push all meaningful progress, including tests and documentation, to the repository after each feature or bugfix. Use clear, professional commit messages.
+
+    Professional Documentation: Maintain a comprehensive, up-to-date README and developer documentation. Ensure these resources are always in sync with the current codebase and usage patterns.
+
+2. Validation, Troubleshooting, and Debugging
+
+    Use Perplexity and Exa MCP:
+
+        For any technical doubt, design question, or troubleshooting need, always consult Perplexity and Exa MCP for authoritative validation and debugging support.
+
+        Leverage these resources for:
+
+            Code correctness checks
+
+            Library usage clarifications
+
+            Security and performance best practices
+
+            Troubleshooting error messages or unexpected behaviors
+
+    Avoid Legacy Tools:
+
+        Never use sed, grep, or similar legacy command-line tools for searching, filtering, or refactoring code.
+
+        Instead, use modern code navigation and manipulation tools integrated with the development environment or provided by MCPs.
+
+3. Coding and Testing Workflow
+
+    Rapid Feedback Loops:
+
+        Implement features in small, manageable increments.
+
+        After each increment, write or update tests and run them immediately.
+
+        Use continuous integration (CI) to automatically test all pushed changes.
+
+    Test Coverage:
+
+        Ensure every feature and code path is covered by unit, integration, or property-based tests.
+
+        For every bugfix, add a regression test reproducing the issue.
+
+    Troubleshooting Protocol:
+
+        When encountering a bug or uncertainty, consult Perplexity and Exa MCP before attempting a fix.
+
+        Document the troubleshooting process and resolution in code comments or developer docs as appropriate.
+
+4. Repository and Documentation Standards
+
+    Professional README:
+
+        Include a project overview, setup instructions, usage examples, feature list, and contribution guidelines.
+
+        Keep the README concise, clear, and always up to date with the latest implementation.
+
+    Developer Documentation:
+
+        Provide detailed guides on:
+
+            System architecture and design decisions
+
+            Module and API usage
+
+            Extending or customizing the crawler
+
+            Security, compliance, and performance considerations
+
+        Include a "Getting Started" section for new developers and operational runbooks for day-to-day use.
+
+    Operational Guidance:
+
+        Document how to run, monitor, and control the app via the TUI.
+
+        Offer troubleshooting steps and escalation paths for common operational issues.
+
+5. Autonomous Coding Practices
+
+    Self-Directed Progress:
+
+        The agent should proactively identify and implement missing features, refactor for maintainability, and optimize for performance and security.
+
+        Regularly review the backlog and prioritize tasks based on impact and urgency.
+
+    Tool-Driven Development:
+
+        Use modern code intelligence, refactoring, and navigation tools for all codebase interactions.
+
+        Integrate MCPs and automated assistants for code review, documentation generation, and continuous learning.
+
+6. Quality and Professionalism
+
+    Code Quality:
+
+        Adhere to Rust best practices for safety, concurrency, and performance.
+
+        Enforce strict linting, formatting, and security checks via CI.
+
+    Documentation Quality:
+
+        Write documentation as if for a professional open-source audience.
+
+        Ensure clarity, accuracy, and actionable guidance at all times.
+
+7. Example Commit and Update Cycle
+
+    Implement a new feature or bugfix.
+
+    Write or update tests covering the change.
+
+    Run all tests locally; fix any failures.
+
+    Consult Perplexity and Exa MCP for validation or troubleshooting if needed.
+
+    Update README and developer docs to reflect changes.
+
+    Commit with a descriptive message and push to the repository.
+
+    Verify CI passes and documentation builds correctly.
+
+By following these rules, the project will maintain high velocity, reliability, and professional standards, ensuring both rapid feature delivery and long-term maintainability.
