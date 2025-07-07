@@ -1,8 +1,15 @@
-use std::io::{self, Stdout};
-use crossterm::{event::{self, Event, KeyCode}, execute, terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}};
-use ratatui::{prelude::*, widgets::{Block, Borders, Paragraph}};
+use swoop_core::fetch_url;
+use crossterm::{
+    event::{self, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
 use ratatui::backend::CrosstermBackend;
-use core::fetch_url;
+use ratatui::{
+    prelude::*,
+    widgets::{Block, Borders, Paragraph},
+};
+use std::io;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Draw a single frame with a greeting block.
     terminal.draw(|f| {
-        let size = f.size();
+        let size = f.area();
         let block = Block::default().title("Swoop TUI").borders(Borders::ALL);
         let paragraph = Paragraph::new("Hello, Swoop!").block(block);
         f.render_widget(paragraph, size);

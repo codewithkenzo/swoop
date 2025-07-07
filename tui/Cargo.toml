@@ -10,4 +10,4 @@ ratatui = "0.28"
 crossterm = "0.28"
 tokio = { version = "1.35", features = ["full"] }
 tracing = "0.1"
-core = { path = "../core" }
+swoop_core = { path = "../core" }

@@ -1,0 +1,6 @@
+# Clippy configuration for strict linting
+avoid-breaking-exported-api = false
+msrv = "1.82.0"
+
+# Lint groups to enable
+warn-on-all-wildcard-imports = true
