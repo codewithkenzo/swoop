@@ -11,3 +11,9 @@ crossterm = "0.28"
 tokio = { version = "1.35", features = ["full"] }
 tracing = "0.1"
 swoop_core = { path = "../core" }
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+[[bin]]
+name = "swoop-tui"
+path = "src/main.rs"

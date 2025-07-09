@@ -11,6 +11,7 @@ pub mod extractors;
 pub mod platforms;
 pub mod rate_limiter;
 pub mod utils;
+pub mod browser;
 
 /// Configuration for scraping operations
 #[derive(Debug, Clone, Serialize, Deserialize)]

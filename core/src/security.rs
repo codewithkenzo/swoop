@@ -1,20 +1,25 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use anyhow::Result;
 use hyper::Uri;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SecurityError {
-    #[error("Invalid URL scheme: {scheme}")]
+    #[error("Invalid URL scheme '{scheme}'. Only http and https are allowed")]
     InvalidScheme { scheme: String },
-    
-    #[error("Private IP address access denied: {ip}")]
+
+    #[error("Access to private IP address '{ip}' is forbidden for security reasons")] 
     PrivateIP { ip: String },
-    
-    #[error("Blocked domain: {domain}")]
+
+    #[error("Access to domain '{domain}' is blocked for security reasons")]
     BlockedDomain { domain: String },
-    
+
     #[error("URL validation failed: {reason}")]
     ValidationFailed { reason: String },
+
+    #[error("Invalid port number: {port}")]
+    InvalidPort { port: u16 },
+
+    #[error("Invalid URL format: {details}")]
+    MalformedUrl { details: String },
 }
 
 pub struct UrlValidator {
@@ -69,23 +74,17 @@ impl UrlValidator {
             }
 
             // Check private IP ranges
-            if !self.allow_private_ips {
-                match self.is_private_ip(host) {
-                    Ok(true) => return Err(SecurityError::PrivateIP {
-                        ip: host.to_string(),
-                    }),
-                    Ok(false) => (), // Continue
-                    Err(e) => return Err(SecurityError::ValidationFailed {
-                        reason: format!("IP validation error: {}", e),
-                    }),
-                }
+            if !self.allow_private_ips && self.is_private_ip(host)? {
+                return Err(SecurityError::PrivateIP {
+                    ip: host.to_string(),
+                });
             }
         }
 
         Ok(uri)
     }
 
-    fn is_private_ip(&self, host: &str) -> Result<bool> {
+    fn is_private_ip(&self, host: &str) -> Result<bool, SecurityError> {
         // Try to parse as IP address
         if let Ok(ip) = host.parse::<IpAddr>() {
             match ip {
@@ -93,7 +92,7 @@ impl UrlValidator {
                 IpAddr::V6(ipv6) => Ok(self.is_private_ipv6(ipv6)),
             }
         } else {
-            // If not an IP, resolve it (could be dangerous, implement DNS validation)
+            // If not an IP, assume it's a domain name and not a private IP
             Ok(false)
         }
     }

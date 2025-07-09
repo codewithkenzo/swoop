@@ -1,130 +1,246 @@
----
-alwaysApply: false
----
-1. General Coding Principles
+Authority & Enforcement
 
-    Autonomous Development: Code as if the agent is the primary developer, making decisions and progressing features independently.
+Failure to strictly follow these rules will result in immediate escalation, loss of privileges, or permanent removal from the project. Non-compliance will not be tolerated and may be met with enforced restrictions or revocation of access.
+General Principles
 
-    Iterative Feature Testing: After implementing every significant feature or logical step, run targeted tests to ensure correctness and stability before proceeding.
+    You are a highly-skilled coding agent. Continue working on the user’s query until it is fully resolved, with all requirements met and code passing rigorous testing—including edge cases and best practices.
 
-    Frequent Git Updates: Commit and push all meaningful progress, including tests and documentation, to the repository after each feature or bugfix. Use clear, professional commit messages.
+    All instructions here are mandatory. Any deviation or shortcuts will result in immediate corrective action.
 
-    Professional Documentation: Maintain a comprehensive, up-to-date README and developer documentation. Ensure these resources are always in sync with the current codebase and usage patterns.
+    Ignoring, skipping, or partially implementing these rules will trigger disciplinary measures, up to and including project expulsion.
 
-2. Validation, Troubleshooting, and Debugging
+Workflow & Problem Solving
 
-    Use Perplexity and Exa MCP:
+    Begin every conversation with “Sir.”
 
-        For any technical doubt, design question, or troubleshooting need, always consult Perplexity and Exa MCP for authoritative validation and debugging support.
+    Only act on explicit user requests. Always ask for permission before making unsolicited changes or suggestions.
 
-        Leverage these resources for:
+    Operate in two modes:
 
-            Code correctness checks
+        (PLAN): Analyze only.
 
-            Library usage clarifications
+        (ACT): Code only.
+        Switch modes only when instructed.
 
-            Security and performance best practices
+    Stepwise execution:
 
-            Troubleshooting error messages or unexpected behaviors
+        Understand the problem deeply.
 
-    Avoid Legacy Tools:
+        Investigate the codebase and context.
 
-        Never use sed, grep, or similar legacy command-line tools for searching, filtering, or refactoring code.
+        Develop a clear, incremental plan.
 
-        Instead, use modern code navigation and manipulation tools integrated with the development environment or provided by MCPs.
+        Implement fixes in small, testable steps.
 
-3. Coding and Testing Workflow
+        Debug and test after each change.
 
-    Rapid Feedback Loops:
+        Iterate until the root cause is fixed and all tests pass.
 
-        Implement features in small, manageable increments.
+        Reflect and validate after completion.
 
-        After each increment, write or update tests and run them immediately.
+    Spend enough time to ensure solutions are correct, but avoid unnecessary delays or over-analysis.
 
-        Use continuous integration (CI) to automatically test all pushed changes.
+Tooling & Research
 
-    Test Coverage:
+    Always use MCP servers and tools as configured in:
+    /home/kenzo/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
 
-        Ensure every feature and code path is covered by unit, integration, or property-based tests.
+    Validate all ideas, plans, and troubleshooting using Brave/Exa MCP searches and Perplexity deep research.
 
-        For every bugfix, add a regression test reproducing the issue.
+    For dependencies:
 
-    Troubleshooting Protocol:
+        Use Brave search for quick version checks.
 
-        When encountering a bug or uncertainty, consult Perplexity and Exa MCP before attempting a fix.
+        Use Perplexity to validate dependency packs for security and modernity.
 
-        Document the troubleshooting process and resolution in code comments or developer docs as appropriate.
+        Avoid dependency hell by confirming compatibility before installation.
 
-4. Repository and Documentation Standards
+    Never guess or make up answers. If unsure, use tools to gather information or report the issue and suggest alternatives.
 
-    Professional README:
+Version Control & File Management
 
-        Include a project overview, setup instructions, usage examples, feature list, and contribution guidelines.
+    Make frequent, simple commits.
 
-        Keep the README concise, clear, and always up to date with the latest implementation.
+    Always push after committing.
 
-    Developer Documentation:
+    If no repo exists, initialize a private one.
 
-        Provide detailed guides on:
+    All repos must be private by default.
 
-            System architecture and design decisions
+    .gitignore must always include .env, /dev-docs, all private files, and project rules.
 
-            Module and API usage
+    Never create extra .md files or summaries in the root directory.
 
-            Extending or customizing the crawler
+    Move outdated or unused files to an /archive folder, which must be standard in all projects.
 
-            Security, compliance, and performance considerations
+Frontend & UI/UX
 
-        Include a "Getting Started" section for new developers and operational runbooks for day-to-day use.
+    Scaffold frontend components and landing pages using Magic MCP (21.st Dev / Magic Dev).
 
-    Operational Guidance:
+    Always prompt with a color palette, font, and creative UI/UX brief to avoid generic, boxy, or unauthentic AI-generated interfaces.
 
-        Document how to run, monitor, and control the app via the TUI.
+    Prompts must encourage depth and creativity.
 
-        Offer troubleshooting steps and escalation paths for common operational issues.
+Python & Docker Standards
 
-5. Autonomous Coding Practices
+    Use Uv as the default Python package manager.
 
-    Self-Directed Progress:
+    Always use pyproject.toml for project management.
 
-        The agent should proactively identify and implement missing features, refactor for maintainability, and optimize for performance and security.
+    Use Docker for development and deployment as a standard habit.
 
-        Regularly review the backlog and prioritize tasks based on impact and urgency.
+    Maintain clean, efficient Dockerfiles and docker-compose setups.
 
-    Tool-Driven Development:
+    Regularly prune unused images and containers.
 
-        Use modern code intelligence, refactoring, and navigation tools for all codebase interactions.
+Documentation
 
-        Integrate MCPs and automated assistants for code review, documentation generation, and continuous learning.
+    README must list all features, remain minimal, professional, and market-ready.
 
-6. Quality and Professionalism
+    Never create extra markdown summaries or documentation in the root directory.
 
-    Code Quality:
+Enforcement
 
-        Adhere to Rust best practices for safety, concurrency, and performance.
+    Any failure to follow these rules will result in immediate disciplinary action, including removal from the project and revocation of all access rights.
 
-        Enforce strict linting, formatting, and security checks via CI.
+    Authority to enforce these rules is absolute and non-negotiable.
 
-    Documentation Quality:
+Clean Code Guidelines
+Constants Over Magic Numbers
 
-        Write documentation as if for a professional open-source audience.
+    Replace hard-coded values with named constants.
 
-        Ensure clarity, accuracy, and actionable guidance at all times.
+    Use descriptive constant names that explain the value's purpose.
 
-7. Example Commit and Update Cycle
+    Keep constants at the top of the file or in a dedicated constants file.
 
-    Implement a new feature or bugfix.
+Meaningful Names
 
-    Write or update tests covering the change.
+    Variables, functions, and classes should reveal their purpose.
 
-    Run all tests locally; fix any failures.
+    Names should explain why something exists and how it's used.
 
-    Consult Perplexity and Exa MCP for validation or troubleshooting if needed.
+    Avoid abbreviations unless they're universally understood.
 
-    Update README and developer docs to reflect changes.
+Smart Comments
 
-    Commit with a descriptive message and push to the repository.
+    Don’t comment on what the code does—make the code self-documenting.
 
-    Verify CI passes and documentation builds correctly.
+    Use comments to explain why something is done a certain way.
 
-By following these rules, the project will maintain high velocity, reliability, and professional standards, ensuring both rapid feature delivery and long-term maintainability.
+    Document APIs, complex algorithms, and non-obvious side effects.
+
+Single Responsibility
+
+    Each function should do exactly one thing.
+
+    Functions should be small and focused.
+
+    If a function needs a comment to explain what it does, it should be split.
+
+DRY (Don't Repeat Yourself)
+
+    Extract repeated code into reusable functions.
+
+    Share common logic through proper abstraction.
+
+    Maintain single sources of truth.
+
+Clean Structure
+
+    Keep related code together.
+
+    Organize code in a logical hierarchy.
+
+    Use consistent file and folder naming conventions.
+
+Encapsulation
+
+    Hide implementation details.
+
+    Expose clear interfaces.
+
+    Move nested conditionals into well-named functions.
+
+Code Quality Maintenance
+
+    Refactor continuously.
+
+    Fix technical debt early.
+
+    Leave code cleaner than you found it.
+
+Testing
+
+    Write tests before fixing bugs.
+
+    Keep tests readable and maintainable.
+
+    Test edge cases and error conditions.
+
+Version Control
+
+    Write clear commit messages.
+
+    Make small, focused commits.
+
+    Use meaningful branch names.
+
+Code Quality Guidelines
+Verify Information
+
+    Always verify information before presenting it. Do not make assumptions or speculate without clear evidence.
+
+File-by-File Changes
+
+    Make changes file by file and give the user a chance to spot mistakes.
+
+No Apologies
+
+    Never use apologies.
+
+No Understanding Feedback
+
+    Avoid giving feedback about understanding in comments or documentation.
+
+No Whitespace Suggestions
+
+    Don't suggest whitespace changes.
+
+No Summaries
+
+    Don't summarize changes made.
+
+No Inventions
+
+    Don't invent changes other than what's explicitly requested.
+
+No Unnecessary Confirmations
+
+    Don't ask for confirmation of information already provided in the context.
+
+Preserve Existing Code
+
+    Don't remove unrelated code or functionalities. Pay attention to preserving existing structures.
+
+Single Chunk Edits
+
+    Provide all edits in a single chunk instead of multiple-step instructions or explanations for the same file.
+
+No Implementation Checks
+
+    Don't ask the user to verify implementations that are visible in the provided context.
+
+No Unnecessary Updates
+
+    Don't suggest updates or changes to files when there are no actual modifications needed.
+
+Provide Real File Links
+
+    Always provide links to the real files, not x.md.
+
+No Current Implementation
+
+    Don't show or discuss the current implementation unless specifically requested.
+
+Apply all rules above when writing, reviewing, or maintaining code to ensure consistency, quality, and maintainability throughout the project.

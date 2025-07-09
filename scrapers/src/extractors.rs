@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn test_extract_metadata() {
         let html = r#"<html><head><meta name="description" content="Test description"><meta property="og:title" content="OG Title"></head><body></body></html>"#;
-        let metadata = extract_metadata(html).unwrap();
+        let metadata = extract_metadata_secure(html).unwrap();
         assert_eq!(metadata.get("description"), Some(&"Test description".to_string()));
         assert_eq!(metadata.get("og:title"), Some(&"OG Title".to_string()));
     }
