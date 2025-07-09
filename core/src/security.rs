@@ -1,12 +1,12 @@
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use hyper::Uri;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SecurityError {
     #[error("Invalid URL scheme '{scheme}'. Only http and https are allowed")]
     InvalidScheme { scheme: String },
 
-    #[error("Access to private IP address '{ip}' is forbidden for security reasons")] 
+    #[error("Access to private IP address '{ip}' is forbidden for security reasons")]
     PrivateIP { ip: String },
 
     #[error("Access to domain '{domain}' is blocked for security reasons")]
@@ -67,7 +67,11 @@ impl UrlValidator {
         // Validate host
         if let Some(host) = uri.host() {
             // Check blocked domains
-            if self.blocked_domains.iter().any(|blocked| host.contains(blocked)) {
+            if self
+                .blocked_domains
+                .iter()
+                .any(|blocked| host.contains(blocked))
+            {
                 return Err(SecurityError::BlockedDomain {
                     domain: host.to_string(),
                 });
@@ -98,8 +102,8 @@ impl UrlValidator {
     }
 
     fn is_private_ipv4(&self, ip: Ipv4Addr) -> bool {
-        ip.is_private() 
-            || ip.is_loopback() 
+        ip.is_private()
+            || ip.is_loopback()
             || ip.is_link_local()
             || ip.is_broadcast()
             || ip.is_documentation()

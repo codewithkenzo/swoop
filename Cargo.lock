@@ -1900,6 +1900,7 @@ name = "storage"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "md5",
  "scylla",

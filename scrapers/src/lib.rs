@@ -7,11 +7,11 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub mod browser;
 pub mod extractors;
 pub mod platforms;
 pub mod rate_limiter;
 pub mod utils;
-pub mod browser;
 
 /// Configuration for scraping operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,16 +31,20 @@ pub struct ScraperConfig {
 impl Default for ScraperConfig {
     fn default() -> Self {
         let mut headers = HashMap::new();
-        headers.insert("Accept".to_string(), "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8".to_string());
+        headers.insert(
+            "Accept".to_string(),
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8".to_string(),
+        );
         headers.insert("Accept-Language".to_string(), "en-US,en;q=0.5".to_string());
         headers.insert("Accept-Encoding".to_string(), "gzip, deflate".to_string());
         headers.insert("Cache-Control".to_string(), "no-cache".to_string());
-        
+
         Self {
             max_concurrent: 10,
             timeout_secs: 30,
             rate_limit: 1.0, // 1 request per second by default
-            user_agent: "Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0".to_string(),
+            user_agent: "Mozilla/5.0 (X11; Linux x86_64; rv:91.0) Gecko/20100101 Firefox/91.0"
+                .to_string(),
             headers,
         }
     }
@@ -64,11 +68,14 @@ pub struct ExtractedContent {
 /// Trait for platform-specific scrapers
 pub trait PlatformScraper {
     /// Extract content from a URL
-    fn extract(&self, url: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExtractedContent>> + Send + '_>>;
-    
+    fn extract(
+        &self,
+        url: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExtractedContent>> + Send + '_>>;
+
     /// Check if the scraper can handle this URL
     fn can_handle(&self, url: &str) -> bool;
-    
+
     /// Get the platform name
     fn platform_name(&self) -> &'static str;
 }
@@ -96,7 +103,7 @@ mod tests {
             metadata: HashMap::new(),
             extracted_at: chrono::Utc::now(),
         };
-        
+
         assert_eq!(content.url, "https://example.com");
         assert_eq!(content.title, Some("Test Title".to_string()));
     }

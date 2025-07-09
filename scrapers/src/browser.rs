@@ -28,11 +28,14 @@ pub struct BrowserConfig {
 impl Default for BrowserConfig {
     fn default() -> Self {
         let mut caps = serde_json::Map::new();
-        caps.insert("browserName".to_string(), serde_json::Value::String("chrome".to_string()));
-        
+        caps.insert(
+            "browserName".to_string(),
+            serde_json::Value::String("chrome".to_string()),
+        );
+
         // Chrome-specific options
         let mut chrome_options = serde_json::Map::new();
-        let args = vec![
+        let args = [
             "--no-sandbox",
             "--disable-dev-shm-usage",
             "--disable-gpu",
@@ -40,12 +43,20 @@ impl Default for BrowserConfig {
             "--disable-features=VizDisplayCompositor",
             "--headless=new", // Use new headless mode
         ];
-        chrome_options.insert("args".to_string(), serde_json::Value::Array(
-            args.iter().map(|s| serde_json::Value::String(s.to_string())).collect()
-        ));
-        
-        caps.insert("goog:chromeOptions".to_string(), serde_json::Value::Object(chrome_options));
-        
+        chrome_options.insert(
+            "args".to_string(),
+            serde_json::Value::Array(
+                args.iter()
+                    .map(|s| serde_json::Value::String(s.to_string()))
+                    .collect(),
+            ),
+        );
+
+        caps.insert(
+            "goog:chromeOptions".to_string(),
+            serde_json::Value::Object(chrome_options),
+        );
+
         Self {
             max_instances: 5,
             page_timeout_secs: 30,
@@ -73,19 +84,21 @@ impl BrowserPool {
     /// Get a browser instance from the pool
     pub async fn get_browser(&self) -> Result<BrowserInstance> {
         let _permit = self.semaphore.acquire().await?;
-        
+
         let mut client_builder = ClientBuilder::native();
-        
+
         // Set capabilities
         if let serde_json::Value::Object(caps) = &self.config.capabilities {
             client_builder.capabilities(caps.clone());
         }
-        
+
         let client = client_builder.connect(&self.config.webdriver_url).await?;
-        
+
         // Set window size
-        client.set_window_size(self.config.window_size.0, self.config.window_size.1).await?;
-        
+        client
+            .set_window_size(self.config.window_size.0, self.config.window_size.1)
+            .await?;
+
         // Set user agent if specified
         if let Some(user_agent) = &self.config.user_agent {
             client.execute(
@@ -93,10 +106,10 @@ impl BrowserPool {
                 vec![]
             ).await?;
         }
-        
+
         // Don't drop the permit, keep it alive with the instance
         std::mem::forget(_permit);
-        
+
         Ok(BrowserInstance {
             client: Arc::new(client),
             config: self.config.clone(),
@@ -116,18 +129,18 @@ impl BrowserInstance {
     /// Navigate to a URL and extract content
     pub async fn scrape_page(&self, url: &str) -> Result<ScrapedContent> {
         let _parsed_url = Url::parse(url)?;
-        
+
         // Navigate to the page
         self.client.goto(url).await?;
-        
+
         // Wait for page to load
         tokio::time::sleep(Duration::from_secs(2)).await;
-        
+
         // Extract content
         let html = self.client.source().await?;
         let title = self.client.title().await.unwrap_or_default();
         let current_url = self.client.current_url().await?.to_string();
-        
+
         // Take a screenshot for debugging (optional)
         let screenshot = if !self.config.headless {
             Some(self.client.screenshot().await?)
@@ -151,10 +164,14 @@ impl BrowserInstance {
     }
 
     /// Interact with page elements (click, type, etc.)
-    pub async fn interact_with_page(&self, url: &str, actions: Vec<PageAction>) -> Result<ScrapedContent> {
+    pub async fn interact_with_page(
+        &self,
+        url: &str,
+        actions: Vec<PageAction>,
+    ) -> Result<ScrapedContent> {
         // Navigate to the page
         self.client.goto(url).await?;
-        
+
         // Wait for page to load
         tokio::time::sleep(Duration::from_secs(2)).await;
 
@@ -247,11 +264,11 @@ mod tests {
         let action = PageAction::Click {
             selector: "#button".to_string(),
         };
-        
+
         // Test that actions can be serialized/deserialized
         let json = serde_json::to_string(&action).unwrap();
         let deserialized: PageAction = serde_json::from_str(&json).unwrap();
-        
+
         match deserialized {
             PageAction::Click { selector } => assert_eq!(selector, "#button"),
             _ => panic!("Wrong action type"),
@@ -264,7 +281,7 @@ mod tests {
             max_instances: 2,
             ..Default::default()
         };
-        
+
         let pool = BrowserPool::new(config);
         assert_eq!(pool.semaphore.available_permits(), 2);
     }

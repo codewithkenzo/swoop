@@ -21,19 +21,23 @@ impl GenericScraper {
 use std::time::Duration;
 
 impl PlatformScraper for GenericScraper {
-    fn extract(&self, url: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExtractedContent>> + Send + '_>> {
+    fn extract(
+        &self,
+        url: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExtractedContent>> + Send + '_>>
+    {
         let url = url.to_string();
         let timeout = self.config.timeout_secs;
         Box::pin(async move {
             // Use the core HTTP client to fetch the page
             let html_bytes = swoop_core::fetch_url(&url, Duration::from_secs(timeout)).await?;
             let html = String::from_utf8_lossy(&html_bytes);
-            
+
             // Extract content using our extractors
             let title = crate::extractors::extract_title(&html).unwrap_or(None);
             let text = crate::extractors::extract_text_secure(&html).ok();
             let metadata = crate::extractors::extract_metadata_secure(&html).unwrap_or_default();
-            
+
             Ok(ExtractedContent {
                 url,
                 title,
@@ -43,12 +47,12 @@ impl PlatformScraper for GenericScraper {
             })
         })
     }
-    
+
     fn can_handle(&self, url: &str) -> bool {
         // Generic scraper can handle any HTTP/HTTPS URL
         url.starts_with("http://") || url.starts_with("https://")
     }
-    
+
     fn platform_name(&self) -> &'static str {
         "generic"
     }
@@ -66,12 +70,16 @@ impl FacebookScraper {
 }
 
 impl PlatformScraper for FacebookScraper {
-    fn extract(&self, url: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExtractedContent>> + Send + '_>> {
+    fn extract(
+        &self,
+        url: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExtractedContent>> + Send + '_>>
+    {
         let url = url.to_string();
         Box::pin(async move {
             // TODO: Implement Facebook-specific scraping logic
             // This would include handling login, cookies, rate limiting, etc.
-            
+
             // For now, return a placeholder
             Ok(ExtractedContent {
                 url,
@@ -82,11 +90,11 @@ impl PlatformScraper for FacebookScraper {
             })
         })
     }
-    
+
     fn can_handle(&self, url: &str) -> bool {
         url.contains("facebook.com") || url.contains("fb.com")
     }
-    
+
     fn platform_name(&self) -> &'static str {
         "facebook"
     }
@@ -104,11 +112,15 @@ impl InstagramScraper {
 }
 
 impl PlatformScraper for InstagramScraper {
-    fn extract(&self, url: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExtractedContent>> + Send + '_>> {
+    fn extract(
+        &self,
+        url: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExtractedContent>> + Send + '_>>
+    {
         let url = url.to_string();
         Box::pin(async move {
             // TODO: Implement Instagram-specific scraping logic
-            
+
             Ok(ExtractedContent {
                 url,
                 title: Some("Instagram Content".to_string()),
@@ -118,11 +130,11 @@ impl PlatformScraper for InstagramScraper {
             })
         })
     }
-    
+
     fn can_handle(&self, url: &str) -> bool {
         url.contains("instagram.com")
     }
-    
+
     fn platform_name(&self) -> &'static str {
         "instagram"
     }
@@ -140,11 +152,15 @@ impl LinkedInScraper {
 }
 
 impl PlatformScraper for LinkedInScraper {
-    fn extract(&self, url: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExtractedContent>> + Send + '_>> {
+    fn extract(
+        &self,
+        url: &str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExtractedContent>> + Send + '_>>
+    {
         let url = url.to_string();
         Box::pin(async move {
             // TODO: Implement LinkedIn-specific scraping logic
-            
+
             Ok(ExtractedContent {
                 url,
                 title: Some("LinkedIn Content".to_string()),
@@ -154,11 +170,11 @@ impl PlatformScraper for LinkedInScraper {
             })
         })
     }
-    
+
     fn can_handle(&self, url: &str) -> bool {
         url.contains("linkedin.com")
     }
-    
+
     fn platform_name(&self) -> &'static str {
         "linkedin"
     }
@@ -175,18 +191,18 @@ impl ScraperRegistry {
             scrapers: Vec::new(),
         }
     }
-    
+
     pub fn register<T: PlatformScraper + Send + Sync + 'static>(&mut self, scraper: T) {
         self.scrapers.push(Box::new(scraper));
     }
-    
+
     pub fn find_scraper(&self, url: &str) -> Option<&(dyn PlatformScraper + Send + Sync)> {
         self.scrapers
             .iter()
             .find(|scraper| scraper.can_handle(url))
             .map(|scraper| scraper.as_ref())
     }
-    
+
     pub async fn extract(&self, url: &str) -> Result<ExtractedContent> {
         if let Some(scraper) = self.find_scraper(url) {
             scraper.extract(url).await
@@ -200,13 +216,13 @@ impl Default for ScraperRegistry {
     fn default() -> Self {
         let mut registry = Self::new();
         let config = ScraperConfig::default();
-        
+
         // Register specialized scrapers first, then generic as fallback
         registry.register(FacebookScraper::new(config.clone()));
         registry.register(InstagramScraper::new(config.clone()));
         registry.register(LinkedInScraper::new(config.clone()));
         registry.register(GenericScraper::new(config));
-        
+
         registry
     }
 }
@@ -234,12 +250,12 @@ mod tests {
     #[test]
     fn test_scraper_registry() {
         let registry = ScraperRegistry::default();
-        
+
         // Should find Facebook scraper for Facebook URLs
         let facebook_scraper = registry.find_scraper("https://facebook.com/page");
         assert!(facebook_scraper.is_some());
         assert_eq!(facebook_scraper.unwrap().platform_name(), "facebook");
-        
+
         // Should find generic scraper for other URLs
         let generic_scraper = registry.find_scraper("https://example.com");
         assert!(generic_scraper.is_some());

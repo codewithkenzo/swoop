@@ -54,21 +54,22 @@ impl StoredContent {
         let id = uuid::Uuid::new_v4().to_string();
         let scraped_at = chrono::Utc::now();
         let stored_at = chrono::Utc::now();
-        
+
         // Calculate content hash for deduplication
-        let content_for_hash = format!("{}{}{}", 
+        let content_for_hash = format!(
+            "{}{}{}",
             title.as_deref().unwrap_or(""),
             text.as_deref().unwrap_or(""),
             url
         );
         let content_hash = format!("{:x}", md5::compute(content_for_hash.as_bytes()));
-        
+
         // Calculate approximate size
-        let size_bytes = (title.as_deref().unwrap_or("").len() +
-                         text.as_deref().unwrap_or("").len() +
-                         html.as_deref().unwrap_or("").len() +
-                         url.len()) as u64;
-        
+        let size_bytes = (title.as_deref().unwrap_or("").len()
+            + text.as_deref().unwrap_or("").len()
+            + html.as_deref().unwrap_or("").len()
+            + url.len()) as u64;
+
         Self {
             id,
             url,
@@ -87,25 +88,25 @@ impl StoredContent {
             tags: Vec::new(),
         }
     }
-    
+
     /// Set extracted links
     pub fn with_links(mut self, links: Vec<String>) -> Self {
         self.links = links;
         self
     }
-    
+
     /// Set extracted images
     pub fn with_images(mut self, images: Vec<String>) -> Self {
         self.images = images;
         self
     }
-    
+
     /// Set tags for categorization
     pub fn with_tags(mut self, tags: Vec<String>) -> Self {
         self.tags = tags;
         self
     }
-    
+
     /// Update the stored timestamp
     pub fn mark_stored(&mut self) {
         self.stored_at = chrono::Utc::now();
@@ -154,7 +155,7 @@ impl StorageStats {
         if self.total_documents > 0 {
             self.avg_document_size = self.total_size_bytes / self.total_documents;
         }
-        
+
         if self.archived_size_bytes > 0 && self.total_size_bytes > 0 {
             self.compression_ratio = self.archived_size_bytes as f64 / self.total_size_bytes as f64;
         }
@@ -222,20 +223,20 @@ impl BatchResult {
             processing_time_ms: 0,
         }
     }
-    
+
     pub fn add_success(&mut self) {
         self.success_count += 1;
     }
-    
+
     pub fn add_error(&mut self, error: String) {
         self.error_count += 1;
         self.errors.push(error);
     }
-    
+
     pub fn is_success(&self) -> bool {
         self.error_count == 0
     }
-    
+
     pub fn total_operations(&self) -> u32 {
         self.success_count + self.error_count
     }
@@ -262,7 +263,7 @@ mod tests {
             None,
             HashMap::new(),
         );
-        
+
         assert_eq!(content.url, "https://example.com");
         assert_eq!(content.domain, "example.com");
         assert_eq!(content.platform, "generic");
@@ -279,9 +280,9 @@ mod tests {
             archived_size_bytes: 800000,
             ..Default::default()
         };
-        
+
         stats.calculate_derived();
-        
+
         assert_eq!(stats.avg_document_size, 10000);
         assert_eq!(stats.compression_ratio, 0.8);
     }
@@ -289,11 +290,11 @@ mod tests {
     #[test]
     fn test_batch_result() {
         let mut result = BatchResult::new();
-        
+
         result.add_success();
         result.add_success();
         result.add_error("Test error".to_string());
-        
+
         assert_eq!(result.success_count, 2);
         assert_eq!(result.error_count, 1);
         assert_eq!(result.total_operations(), 3);
@@ -303,7 +304,7 @@ mod tests {
     #[test]
     fn test_content_query_defaults() {
         let query = ContentQuery::default();
-        
+
         assert_eq!(query.limit, Some(100));
         assert_eq!(query.offset, Some(0));
         assert_eq!(query.sort_by, Some("newest_first".to_string()));

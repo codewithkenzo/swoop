@@ -4,6 +4,7 @@
 
 use crate::{models, S3Config, StorageBackend};
 use anyhow::Result;
+use async_trait::async_trait;
 
 pub struct S3Store {
     _config: S3Config,
@@ -17,40 +18,30 @@ impl S3Store {
     }
 }
 
+#[async_trait]
 impl StorageBackend for S3Store {
-    fn store_content(&self, content: &models::StoredContent) -> impl std::future::Future<Output = Result<String>> + Send {
-        let content_id = content.id.clone();
-        async move {
-            // TODO: Implement S3 storage logic
-            Ok(content_id)
-        }
+    async fn store_content(&self, content: &models::StoredContent) -> Result<String> {
+        // TODO: Implement S3 storage logic
+        Ok(content.id.clone())
     }
 
-    fn get_content(&self, _id: &str) -> impl std::future::Future<Output = Result<Option<models::StoredContent>>> + Send {
-        async {
-            // TODO: Implement S3 retrieval logic
-            Ok(None)
-        }
+    async fn get_content(&self, _id: &str) -> Result<Option<models::StoredContent>> {
+        // TODO: Implement S3 retrieval logic
+        Ok(None)
     }
 
-    fn get_content_by_url(&self, _url: &str) -> impl std::future::Future<Output = Result<Vec<models::StoredContent>>> + Send {
-        async {
-            // TODO: Implement S3 query logic
-            Ok(Vec::new())
-        }
+    async fn get_content_by_url(&self, _url: &str) -> Result<Vec<models::StoredContent>> {
+        // TODO: Implement S3 query logic
+        Ok(Vec::new())
     }
 
-    fn delete_content(&self, _id: &str) -> impl std::future::Future<Output = Result<bool>> + Send {
-        async {
-            // TODO: Implement S3 deletion logic
-            Ok(true)
-        }
+    async fn delete_content(&self, _id: &str) -> Result<bool> {
+        // TODO: Implement S3 deletion logic
+        Ok(true)
     }
 
-    fn get_stats(&self) -> impl std::future::Future<Output = Result<models::StorageStats>> + Send {
-        async {
-            // TODO: Implement S3 stats logic
-            Ok(models::StorageStats::default())
-        }
+    async fn get_stats(&self) -> Result<models::StorageStats> {
+        // TODO: Implement S3 stats logic
+        Ok(models::StorageStats::default())
     }
 }

@@ -92,6 +92,7 @@ struct LogEntry {
 
 /// Log levels
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum LogLevel {
     Info,
     Warning,
@@ -101,6 +102,7 @@ enum LogLevel {
 
 /// Control state for user interactions
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ControlState {
     /// Whether scraping is paused
     is_paused: bool,
@@ -181,9 +183,12 @@ impl Default for ControlState {
 impl AppState {
     fn new() -> Self {
         let mut logs = LogBuffer::default();
-        logs.add_entry(LogLevel::Info, "Swoop TUI Dashboard initialized".to_string());
+        logs.add_entry(
+            LogLevel::Info,
+            "Swoop TUI Dashboard initialized".to_string(),
+        );
         logs.add_entry(LogLevel::Success, "All systems operational".to_string());
-        
+
         Self {
             current_tab: 0,
             metrics: Arc::new(Mutex::new(Metrics::default())),
@@ -232,77 +237,60 @@ impl AppState {
     }
 }
 
-/// Simulate real-time metrics updates
+/// Fetches data from a test endpoint and updates metrics.
 async fn update_metrics(metrics: Arc<Mutex<Metrics>>, logs: Arc<Mutex<LogBuffer>>) {
-    let mut interval = tokio::time::interval(Duration::from_secs(1));
-    let mut counter = 0u64;
-    
+    let mut interval = tokio::time::interval(Duration::from_secs(2));
+    let endpoints = [
+        "https://httpbin.org/get",
+        "https://jsonplaceholder.typicode.com/posts/1",
+    ];
+    let mut endpoint_index = 0;
+
     loop {
         interval.tick().await;
-        counter += 1;
-        
-        if let Ok(mut m) = metrics.lock() {
-            // Simulate request rate (0-10 requests per second)
-            let rate = 2.0 + 3.0 * (counter as f64 * 0.1).sin();
-            m.requests_per_second.push_back(rate);
-            if m.requests_per_second.len() > 60 {
-                m.requests_per_second.pop_front();
+        let start_time = Instant::now();
+        let test_endpoint = endpoints[endpoint_index];
+
+        match swoop_core::fetch_url(test_endpoint, Duration::from_secs(5)).await {
+            Ok(data) => {
+                let duration = start_time.elapsed();
+                if let Ok(mut m) = metrics.lock() {
+                    m.total_requests += 1;
+                    m.total_successful += 1;
+                    m.data_processed += data.len() as u64;
+                    m.response_time.push_back(duration.as_millis() as f64);
+                    if m.response_time.len() > 60 {
+                        m.response_time.pop_front();
+                    }
+                    m.success_rate.push_back(1.0);
+                    if m.success_rate.len() > 60 {
+                        m.success_rate.pop_front();
+                    }
+                }
+                if let Ok(mut l) = logs.lock() {
+                    l.add_entry(
+                        LogLevel::Success,
+                        format!("Successfully fetched from {}", test_endpoint),
+                    );
+                }
             }
-            
-            // Simulate success rate (85-98%)
-            let success = 0.85 + 0.13 * (counter as f64 * 0.05).cos();
-            m.success_rate.push_back(success);
-            if m.success_rate.len() > 60 {
-                m.success_rate.pop_front();
-            }
-            
-            // Simulate response time (100-500ms)
-            let response_time = 200.0 + 150.0 * (counter as f64 * 0.08).sin();
-            m.response_time.push_back(response_time);
-            if m.response_time.len() > 60 {
-                m.response_time.pop_front();
-            }
-            
-            // Update totals
-            m.total_requests += rate as u64;
-            m.total_successful += (rate * success) as u64;
-            m.total_failed += (rate * (1.0 - success)) as u64;
-            m.active_connections = (10.0 + 5.0 * (counter as f64 * 0.1).cos()) as u32;
-            m.data_processed += (rate * 1024.0) as u64;
-        }
-        
-        // Add occasional log entries
-        if counter % 10 == 0 {
-            if let Ok(mut logs) = logs.lock() {
-                logs.add_entry(
-                    LogLevel::Info,
-                    format!("Processed {} requests", counter * 2),
-                );
-            }
-        }
-        
-        if counter % 30 == 0 {
-            if let Ok(mut logs) = logs.lock() {
-                logs.add_entry(
-                    LogLevel::Success,
-                    "Proxy rotation completed successfully".to_string(),
-                );
-            }
-        }
-        if counter % 45 == 0 {
-             if let Ok(mut logs) = logs.lock() {
-                logs.add_entry(
-                    LogLevel::Warning,
-                    "High latency detected on datacenter proxies".to_string(),
-                );
-            }
-        }
-         if counter % 60 == 0 {
-             if let Ok(mut logs) = logs.lock() {
-                logs.add_entry(
-                    LogLevel::Error,
-                    "Failed to connect to target: example.com".to_string(),
-                );
+            Err(e) => {
+                if let Ok(mut m) = metrics.lock() {
+                    m.total_requests += 1;
+                    m.total_failed += 1;
+                    m.success_rate.push_back(0.0);
+                    if m.success_rate.len() > 60 {
+                        m.success_rate.pop_front();
+                    }
+                }
+                if let Ok(mut l) = logs.lock() {
+                    l.add_entry(
+                        LogLevel::Error,
+                        format!("Failed to fetch from {}: {}", test_endpoint, e),
+                    );
+                }
+                // Switch to the fallback endpoint
+                endpoint_index = (endpoint_index + 1) % endpoints.len();
             }
         }
     }
@@ -317,9 +305,17 @@ fn render_dashboard(f: &mut Frame, app: &AppState) {
 
     // Render tabs
     let tabs = Tabs::new(vec!["Overview", "Metrics", "Proxies", "Logs"])
-        .block(Block::default().borders(Borders::ALL).title("Swoop Dashboard"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Swoop Dashboard"),
+        )
         .style(Style::default().fg(Color::White))
-        .highlight_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        .highlight_style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
         .select(app.current_tab);
     f.render_widget(tabs, chunks[0]);
 
@@ -356,7 +352,7 @@ fn render_overview(f: &mut Frame, area: Rect, app: &AppState) {
     } else {
         "🟢 RUNNING"
     };
-    
+
     let system_status = Paragraph::new(format!(
         "System Status: {}\n\nControls:\n• Press 'q' to quit\n• Press 'Space' to pause/resume\n• Press '+/-' to adjust rate limit\n• Press '1-4' to switch tabs",
         status_text
@@ -377,36 +373,38 @@ fn render_overview(f: &mut Frame, area: Rect, app: &AppState) {
             metrics.data_processed / 1024,
             rate_limit
         );
-        
+
         let quick_stats = Paragraph::new(stats_text)
             .block(Block::default().title("Quick Stats").borders(Borders::ALL))
             .wrap(Wrap { trim: true });
         f.render_widget(quick_stats, left_chunks[1]);
     }
 
-    // Proxy Status
+    // Proxy Status & DB Health
     if let Ok(proxy_status) = app.proxy_status.lock() {
-        let controls = app.controls.lock().unwrap();
+        let db_status = "🟢 Healthy"; // Simulated DB status
         let proxy_text = format!(
-            "Total Proxies: {}\nActive: {}\nFailed: {}\n\nHealth Status:\n• Residential: {:.1}%\n• Datacenter: {:.1}%\n• Mobile: {:.1}%\n\nSelected Target: {}",
+            "Proxy Pool:\n- Total: {}\n- Active: {}\n- Failed: {}\n\nDB Status: {}",
             proxy_status.total_proxies,
             proxy_status.active_proxies,
             proxy_status.failed_proxies,
-            proxy_status.residential_health * 100.0,
-            proxy_status.datacenter_health * 100.0,
-            proxy_status.mobile_health * 100.0,
-            controls.targets.get(controls.selected_target).map_or("None", |s| s.as_str())
+            db_status
         );
-        
+
         let proxy_status_widget = Paragraph::new(proxy_text)
-            .block(Block::default().title("Proxy Status & Targets").borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title("Infrastructure Status")
+                    .borders(Borders::ALL),
+            )
             .wrap(Wrap { trim: true });
         f.render_widget(proxy_status_widget, right_chunks[0]);
     }
 
     // Recent Activity
     if let Ok(logs) = app.logs.lock() {
-        let recent_logs: Vec<ListItem> = logs.entries
+        let recent_logs: Vec<ListItem> = logs
+            .entries
             .iter()
             .rev()
             .take(10)
@@ -420,9 +418,12 @@ fn render_overview(f: &mut Frame, area: Rect, app: &AppState) {
                 ListItem::new(entry.message.clone()).style(style)
             })
             .collect();
-        
-        let recent_activity = List::new(recent_logs)
-            .block(Block::default().title("Recent Activity").borders(Borders::ALL));
+
+        let recent_activity = List::new(recent_logs).block(
+            Block::default()
+                .title("Recent Activity")
+                .borders(Borders::ALL),
+        );
         f.render_widget(recent_activity, right_chunks[1]);
     }
 }
@@ -442,7 +443,8 @@ fn render_metrics(f: &mut Frame, area: Rect, app: &AppState) {
     if let Ok(metrics) = app.metrics.lock() {
         // Request Rate Chart
         if !metrics.requests_per_second.is_empty() {
-            let data: Vec<(f64, f64)> = metrics.requests_per_second
+            let data: Vec<(f64, f64)> = metrics
+                .requests_per_second
                 .iter()
                 .enumerate()
                 .map(|(i, &value)| (i as f64, value))
@@ -454,25 +456,30 @@ fn render_metrics(f: &mut Frame, area: Rect, app: &AppState) {
                 .data(&data);
 
             let chart = Chart::new(vec![dataset])
-                .block(Block::default().title("Request Rate (req/s)").borders(Borders::ALL))
+                .block(
+                    Block::default()
+                        .title("Request Rate (req/s)")
+                        .borders(Borders::ALL),
+                )
                 .x_axis(
                     Axis::default()
                         .title("Time (seconds)")
                         .bounds([0.0, 60.0])
-                        .style(Style::default().fg(Color::Gray))
+                        .style(Style::default().fg(Color::Gray)),
                 )
                 .y_axis(
                     Axis::default()
                         .title("Requests/sec")
                         .bounds([0.0, 10.0])
-                        .style(Style::default().fg(Color::Gray))
+                        .style(Style::default().fg(Color::Gray)),
                 );
             f.render_widget(chart, top_chunks[0]);
         }
 
         // Success Rate Chart
         if !metrics.success_rate.is_empty() {
-            let data: Vec<(f64, f64)> = metrics.success_rate
+            let data: Vec<(f64, f64)> = metrics
+                .success_rate
                 .iter()
                 .enumerate()
                 .map(|(i, &value)| (i as f64, value * 100.0))
@@ -484,25 +491,30 @@ fn render_metrics(f: &mut Frame, area: Rect, app: &AppState) {
                 .data(&data);
 
             let chart = Chart::new(vec![dataset])
-                .block(Block::default().title("Success Rate (%)").borders(Borders::ALL))
+                .block(
+                    Block::default()
+                        .title("Success Rate (%)")
+                        .borders(Borders::ALL),
+                )
                 .x_axis(
                     Axis::default()
                         .title("Time (seconds)")
                         .bounds([0.0, 60.0])
-                        .style(Style::default().fg(Color::Gray))
+                        .style(Style::default().fg(Color::Gray)),
                 )
                 .y_axis(
                     Axis::default()
                         .title("Success %")
                         .bounds([80.0, 100.0])
-                        .style(Style::default().fg(Color::Gray))
+                        .style(Style::default().fg(Color::Gray)),
                 );
             f.render_widget(chart, top_chunks[1]);
         }
 
         // Response Time Chart
         if !metrics.response_time.is_empty() {
-            let data: Vec<(f64, f64)> = metrics.response_time
+            let data: Vec<(f64, f64)> = metrics
+                .response_time
                 .iter()
                 .enumerate()
                 .map(|(i, &value)| (i as f64, value))
@@ -514,18 +526,22 @@ fn render_metrics(f: &mut Frame, area: Rect, app: &AppState) {
                 .data(&data);
 
             let chart = Chart::new(vec![dataset])
-                .block(Block::default().title("Response Time (ms)").borders(Borders::ALL))
+                .block(
+                    Block::default()
+                        .title("Response Time (ms)")
+                        .borders(Borders::ALL),
+                )
                 .x_axis(
                     Axis::default()
                         .title("Time (seconds)")
                         .bounds([0.0, 60.0])
-                        .style(Style::default().fg(Color::Gray))
+                        .style(Style::default().fg(Color::Gray)),
                 )
                 .y_axis(
                     Axis::default()
                         .title("Response Time (ms)")
                         .bounds([0.0, 600.0])
-                        .style(Style::default().fg(Color::Gray))
+                        .style(Style::default().fg(Color::Gray)),
                 );
             f.render_widget(chart, chunks[1]);
         }
@@ -543,23 +559,39 @@ fn render_proxies(f: &mut Frame, area: Rect, app: &AppState) {
         // Proxy Health Gauges
         let health_chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(33), Constraint::Percentage(33), Constraint::Percentage(34)])
+            .constraints([
+                Constraint::Percentage(33),
+                Constraint::Percentage(33),
+                Constraint::Percentage(34),
+            ])
             .split(chunks[0]);
 
         let residential_gauge = Gauge::default()
-            .block(Block::default().title("Residential Proxies").borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title("Residential Proxies")
+                    .borders(Borders::ALL),
+            )
             .gauge_style(Style::default().fg(Color::Green))
             .percent((proxy_status.residential_health * 100.0) as u16);
         f.render_widget(residential_gauge, health_chunks[0]);
 
         let datacenter_gauge = Gauge::default()
-            .block(Block::default().title("Datacenter Proxies").borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title("Datacenter Proxies")
+                    .borders(Borders::ALL),
+            )
             .gauge_style(Style::default().fg(Color::Blue))
             .percent((proxy_status.datacenter_health * 100.0) as u16);
         f.render_widget(datacenter_gauge, health_chunks[1]);
 
         let mobile_gauge = Gauge::default()
-            .block(Block::default().title("Mobile Proxies").borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title("Mobile Proxies")
+                    .borders(Borders::ALL),
+            )
             .gauge_style(Style::default().fg(Color::Magenta))
             .percent((proxy_status.mobile_health * 100.0) as u16);
         f.render_widget(mobile_gauge, health_chunks[2]);
@@ -572,7 +604,7 @@ fn render_proxies(f: &mut Frame, area: Rect, app: &AppState) {
         let residential_health = format!("{:.1}%", proxy_status.residential_health * 100.0);
         let datacenter_health = format!("{:.1}%", proxy_status.datacenter_health * 100.0);
         let mobile_health = format!("{:.1}%", proxy_status.mobile_health * 100.0);
-        
+
         let proxy_data = vec![
             Row::new(vec!["Total Proxies".to_string(), total_proxies]),
             Row::new(vec!["Active Proxies".to_string(), active_proxies]),
@@ -583,9 +615,18 @@ fn render_proxies(f: &mut Frame, area: Rect, app: &AppState) {
             Row::new(vec!["Mobile Health".to_string(), mobile_health]),
         ];
 
-        let proxy_table = Table::new(proxy_data, [Constraint::Percentage(50), Constraint::Percentage(50)])
-            .block(Block::default().title("Proxy Details").borders(Borders::ALL))
-            .header(Row::new(vec!["Metric", "Value"]).style(Style::default().add_modifier(Modifier::BOLD)));
+        let proxy_table = Table::new(
+            proxy_data,
+            [Constraint::Percentage(50), Constraint::Percentage(50)],
+        )
+        .block(
+            Block::default()
+                .title("Proxy Details")
+                .borders(Borders::ALL),
+        )
+        .header(
+            Row::new(vec!["Metric", "Value"]).style(Style::default().add_modifier(Modifier::BOLD)),
+        );
         f.render_widget(proxy_table, chunks[1]);
     }
 }
@@ -593,7 +634,8 @@ fn render_proxies(f: &mut Frame, area: Rect, app: &AppState) {
 /// Render logs tab
 fn render_logs(f: &mut Frame, area: Rect, app: &AppState) {
     if let Ok(logs) = app.logs.lock() {
-        let log_items: Vec<ListItem> = logs.entries
+        let log_items: Vec<ListItem> = logs
+            .entries
             .iter()
             .rev()
             .map(|entry| {
@@ -603,14 +645,14 @@ fn render_logs(f: &mut Frame, area: Rect, app: &AppState) {
                     LogLevel::Error => Style::default().fg(Color::Red),
                     LogLevel::Success => Style::default().fg(Color::Green),
                 };
-                
+
                 let elapsed = entry.timestamp.elapsed();
                 let time_str = if elapsed.as_secs() < 60 {
                     format!("{}s ago", elapsed.as_secs())
                 } else {
                     format!("{}m ago", elapsed.as_secs() / 60)
                 };
-                
+
                 ListItem::new(format!("[{}] {}", time_str, entry.message)).style(style)
             })
             .collect();
@@ -646,10 +688,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Restore terminal
     disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen
-    )?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
 
     if let Err(err) = result {

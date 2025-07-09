@@ -20,18 +20,18 @@ impl RateLimiter {
             last_request: None,
         }
     }
-    
+
     pub async fn wait_if_needed(&mut self) {
         if let Some(last) = self.last_request {
             let min_interval = Duration::from_secs_f64(1.0 / self.requests_per_second);
             let elapsed = last.elapsed();
-            
+
             if elapsed < min_interval {
                 let wait_time = min_interval - elapsed;
                 sleep(wait_time).await;
             }
         }
-        
+
         self.last_request = Some(Instant::now());
     }
 }
@@ -39,17 +39,17 @@ impl RateLimiter {
 /// Normalize URLs by removing fragments and common tracking parameters
 pub fn normalize_url(url: &str) -> String {
     let mut normalized = url.to_string();
-    
+
     // Remove fragment identifier
     if let Some(fragment_pos) = normalized.find('#') {
         normalized.truncate(fragment_pos);
     }
-    
+
     // TODO: Add more normalization rules as needed
     // - Remove common tracking parameters
     // - Normalize case
     // - Remove trailing slashes
-    
+
     normalized
 }
 
@@ -73,7 +73,7 @@ pub fn generate_user_agent() -> String {
 /// Sleep for a random duration to avoid detection
 pub async fn random_delay(min_ms: u64, max_ms: u64) {
     use rand::Rng;
-    
+
     let mut rng = rand::thread_rng();
     let delay_ms = rng.gen_range(min_ms..=max_ms);
     sleep(Duration::from_millis(delay_ms)).await;
@@ -82,29 +82,29 @@ pub async fn random_delay(min_ms: u64, max_ms: u64) {
 /// Detect if content is likely to be bot-protected
 pub fn is_bot_protected(html: &str) -> bool {
     let html_lower = html.to_lowercase();
-    
+
     // Common indicators of bot protection
-    html_lower.contains("captcha") ||
-    html_lower.contains("cloudflare") ||
-    html_lower.contains("access denied") ||
-    html_lower.contains("blocked") ||
-    html_lower.contains("robot") && html_lower.contains("detected")
+    html_lower.contains("captcha")
+        || html_lower.contains("cloudflare")
+        || html_lower.contains("access denied")
+        || html_lower.contains("blocked")
+        || html_lower.contains("robot") && html_lower.contains("detected")
 }
 
 /// Parse robots.txt content
 pub fn parse_robots_txt(content: &str) -> RobotsTxt {
     let mut robots = RobotsTxt::new();
-    
+
     for line in content.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        
+
         if let Some((directive, value)) = line.split_once(':') {
             let directive = directive.trim().to_lowercase();
             let value = value.trim();
-            
+
             match directive.as_str() {
                 "user-agent" => robots.user_agent = Some(value.to_string()),
                 "disallow" => robots.disallow.push(value.to_string()),
@@ -118,7 +118,7 @@ pub fn parse_robots_txt(content: &str) -> RobotsTxt {
             }
         }
     }
-    
+
     robots
 }
 
@@ -140,7 +140,7 @@ impl RobotsTxt {
             crawl_delay: None,
         }
     }
-    
+
     pub fn is_allowed(&self, path: &str) -> bool {
         // Check if path is explicitly disallowed
         for disallow_pattern in &self.disallow {
@@ -148,14 +148,14 @@ impl RobotsTxt {
                 return false;
             }
         }
-        
+
         // Check if path is explicitly allowed
         for allow_pattern in &self.allow {
             if path.starts_with(allow_pattern) {
                 return true;
             }
         }
-        
+
         // Default to allowed if no specific rules match
         true
     }
@@ -173,8 +173,14 @@ mod tests {
 
     #[test]
     fn test_normalize_url() {
-        assert_eq!(normalize_url("https://example.com/path#fragment"), "https://example.com/path");
-        assert_eq!(normalize_url("https://example.com/path"), "https://example.com/path");
+        assert_eq!(
+            normalize_url("https://example.com/path#fragment"),
+            "https://example.com/path"
+        );
+        assert_eq!(
+            normalize_url("https://example.com/path"),
+            "https://example.com/path"
+        );
     }
 
     #[test]
@@ -187,8 +193,14 @@ mod tests {
 
     #[test]
     fn test_extract_domain() {
-        assert_eq!(extract_domain("https://example.com/path").unwrap(), "example.com");
-        assert_eq!(extract_domain("https://sub.example.com/path").unwrap(), "sub.example.com");
+        assert_eq!(
+            extract_domain("https://example.com/path").unwrap(),
+            "example.com"
+        );
+        assert_eq!(
+            extract_domain("https://sub.example.com/path").unwrap(),
+            "sub.example.com"
+        );
     }
 
     #[test]
@@ -206,7 +218,7 @@ mod tests {
             Allow: /public/
             Crawl-delay: 1
         "#;
-        
+
         let robots = parse_robots_txt(robots_content);
         assert_eq!(robots.user_agent, Some("*".to_string()));
         assert!(robots.disallow.contains(&"/private/".to_string()));
@@ -221,7 +233,7 @@ mod tests {
             Disallow: /private/
             Allow: /public/
         "#;
-        
+
         let robots = parse_robots_txt(robots_content);
         assert!(!robots.is_allowed("/private/secret"));
         assert!(robots.is_allowed("/public/info"));
@@ -231,12 +243,12 @@ mod tests {
     #[tokio::test]
     async fn test_rate_limiter() {
         let mut rate_limiter = RateLimiter::new(10.0); // 10 requests per second
-        
+
         let start = Instant::now();
         rate_limiter.wait_if_needed().await;
         rate_limiter.wait_if_needed().await;
         let elapsed = start.elapsed();
-        
+
         // Should have waited at least 100ms between requests
         assert!(elapsed >= Duration::from_millis(100));
     }

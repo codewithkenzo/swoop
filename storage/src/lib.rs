@@ -4,15 +4,16 @@
 //! for time-series data and S3-compatible storage for data archival.
 
 use anyhow::Result;
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 pub mod config;
-pub mod scylla_store;
-pub mod s3_store;
 pub mod models;
+pub mod s3_store;
+pub mod scylla_store;
 
 /// Configuration for storage systems
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct StorageConfig {
     /// ScyllaDB configuration
     pub scylla: ScyllaConfig,
@@ -71,31 +72,24 @@ impl Default for S3Config {
     }
 }
 
-impl Default for StorageConfig {
-    fn default() -> Self {
-        Self {
-            scylla: ScyllaConfig::default(),
-            s3: S3Config::default(),
-        }
-    }
-}
 
 /// Trait for storage backends
+#[async_trait]
 pub trait StorageBackend: Send + Sync {
     /// Store extracted content
-    fn store_content(&self, content: &models::StoredContent) -> impl std::future::Future<Output = Result<String>> + Send;
-    
+    async fn store_content(&self, content: &models::StoredContent) -> Result<String>;
+
     /// Retrieve content by ID
-    fn get_content(&self, id: &str) -> impl std::future::Future<Output = Result<Option<models::StoredContent>>> + Send;
-    
+    async fn get_content(&self, id: &str) -> Result<Option<models::StoredContent>>;
+
     /// Query content by URL
-    fn get_content_by_url(&self, url: &str) -> impl std::future::Future<Output = Result<Vec<models::StoredContent>>> + Send;
-    
+    async fn get_content_by_url(&self, url: &str) -> Result<Vec<models::StoredContent>>;
+
     /// Delete content by ID
-    fn delete_content(&self, id: &str) -> impl std::future::Future<Output = Result<bool>> + Send;
-    
+    async fn delete_content(&self, id: &str) -> Result<bool>;
+
     /// Get storage statistics
-    fn get_stats(&self) -> impl std::future::Future<Output = Result<models::StorageStats>> + Send;
+    async fn get_stats(&self) -> Result<models::StorageStats>;
 }
 
 /// Storage manager that coordinates multiple storage backends
@@ -111,63 +105,63 @@ impl StorageManager {
             s3_store: None,
         }
     }
-    
+
     pub async fn with_scylla(mut self, config: ScyllaConfig) -> Result<Self> {
         self.scylla_store = Some(scylla_store::ScyllaStore::new(config).await?);
         Ok(self)
     }
-    
+
     pub async fn with_s3(mut self, config: S3Config) -> Result<Self> {
         self.s3_store = Some(s3_store::S3Store::new(config).await?);
         Ok(self)
     }
-    
+
     /// Store content in primary storage (ScyllaDB) and optionally archive to S3
     pub async fn store_content(&self, content: &models::StoredContent) -> Result<String> {
         let mut content_id = None;
-        
+
         // Store in ScyllaDB (primary storage)
         if let Some(scylla) = &self.scylla_store {
             content_id = Some(scylla.store_content(content).await?);
         }
-        
+
         // Archive to S3 (secondary storage)
         if let Some(s3) = &self.s3_store {
             s3.store_content(content).await?;
         }
-        
+
         content_id.ok_or_else(|| anyhow::anyhow!("No primary storage configured"))
     }
-    
+
     /// Retrieve content by ID from primary storage
     pub async fn get_content(&self, id: &str) -> Result<Option<models::StoredContent>> {
         if let Some(scylla) = &self.scylla_store {
             return scylla.get_content(id).await;
         }
-        
+
         if let Some(s3) = &self.s3_store {
             return s3.get_content(id).await;
         }
-        
+
         Err(anyhow::anyhow!("No storage backend configured"))
     }
-    
+
     /// Get combined storage statistics
     pub async fn get_stats(&self) -> Result<models::StorageStats> {
         let mut stats = models::StorageStats::default();
-        
+
         if let Some(scylla) = &self.scylla_store {
             let scylla_stats = scylla.get_stats().await?;
             stats.total_documents += scylla_stats.total_documents;
             stats.total_size_bytes += scylla_stats.total_size_bytes;
         }
-        
+
         if let Some(s3) = &self.s3_store {
             let s3_stats = s3.get_stats().await?;
             stats.archived_documents = s3_stats.total_documents;
             stats.archived_size_bytes = s3_stats.total_size_bytes;
         }
-        
+
         Ok(stats)
     }
 }

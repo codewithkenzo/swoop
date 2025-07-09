@@ -56,7 +56,11 @@
   - [x] Integrated `hyper-util` for connection pooling.
   - [x] Implemented request timeouts.
   - [x] Refactored `core` crate to use the new client.
+- [x] **CI Pipeline & Code Quality**
   - [x] Resolved all compilation errors and warnings.
+  - [x] Fixed formatting issues with `cargo fmt`.
+  - [x] Addressed all `cargo clippy` lints.
+  - [x] Corrected `async-trait` usage in the `storage` crate.
 
 # Completed Tasks (Phase 2A - Current Session)
 
