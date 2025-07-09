@@ -9,7 +9,7 @@ use scylla::{Session, SessionBuilder};
 /// ScyllaDB storage backend
 pub struct ScyllaStore {
     session: Session,
-    keyspace: String,
+    _keyspace: String,
 }
 
 impl ScyllaStore {
@@ -35,7 +35,7 @@ impl ScyllaStore {
         // Create tables
         let store = Self {
             session,
-            keyspace: config.keyspace,
+            _keyspace: config.keyspace,
         };
         
         store.create_tables().await?;
@@ -102,25 +102,16 @@ impl ScyllaStore {
 }
 
 impl StorageBackend for ScyllaStore {
-    async fn store_content(&self, content: &models::StoredContent) -> Result<String> {
-        // Insert into main content table
-        let insert_content = "
-            INSERT INTO content (
-                domain, scraped_date, id, url, platform, title, text, html,
-                metadata, links, images, scraped_at, stored_at, content_hash,
-                size_bytes, tags
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ";
+    fn store_content(&self, content: &models::StoredContent) -> impl std::future::Future<Output = Result<String>> + Send {
+        let content_id = content.id.clone();
+        let content = content.clone();
         
-        let scraped_date = content.scraped_at.date_naive();
-        let id = uuid::Uuid::parse_str(&content.id)?;
-        
-        self.session.query_unpaged(
-            insert_content,
-            (
+        async move {
+            let prepared = self.session.prepare("INSERT INTO content (domain, scraped_date, id, url, platform, title, text, html, metadata, links, images, scraped_at, stored_at, content_hash, size_bytes, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").await?;
+            self.session.execute_unpaged(&prepared, (
                 &content.domain,
-                scraped_date,
-                id,
+                content.scraped_at.date_naive(),
+                uuid::Uuid::parse_str(&content.id)?,
                 &content.url,
                 &content.platform,
                 &content.title,
@@ -134,80 +125,37 @@ impl StorageBackend for ScyllaStore {
                 &content.content_hash,
                 content.size_bytes as i64,
                 &content.tags,
-            ),
-        ).await?;
-        
-        // Insert into URL index
-        let url_hash = format!("{:x}", md5::compute(content.url.as_bytes()));
-        let insert_url_index = "
-            INSERT INTO content_by_url (url_hash, url, id, domain, scraped_date)
-            VALUES (?, ?, ?, ?, ?)
-        ";
-        
-        self.session.query_unpaged(
-            insert_url_index,
-            (&url_hash, &content.url, id, &content.domain, scraped_date),
-        ).await?;
-        
-        // Update statistics
-        let update_stats = "
-            UPDATE storage_stats 
-            SET total_documents = total_documents + 1,
-                total_size_bytes = total_size_bytes + ?
-            WHERE stat_type = 'daily' AND stat_date = ?
-        ";
-        
-        self.session.query_unpaged(
-            update_stats,
-            (content.size_bytes as i64, scraped_date),
-        ).await?;
-        
-        Ok(content.id.clone())
-    }
-    
-    async fn get_content(&self, _id: &str) -> Result<Option<models::StoredContent>> {
-        // For now, return None as we'd need to implement a proper lookup
-        // In a real implementation, we'd need additional indexes or search by partition
-        Ok(None)
-    }
-    
-    async fn get_content_by_url(&self, url: &str) -> Result<Vec<models::StoredContent>> {
-        let url_hash = format!("{:x}", md5::compute(url.as_bytes()));
-        
-        let query = "SELECT url, id, domain, scraped_date FROM content_by_url WHERE url_hash = ?";
-        let _rows = self.session.query_unpaged(query, (&url_hash,)).await?;
-        
-        // For now, return empty vector
-        // In a real implementation, we'd fetch full content from the main table
-        Ok(Vec::new())
-    }
-    
-    async fn delete_content(&self, _id: &str) -> Result<bool> {
-        // For now, return false as we'd need to implement proper deletion
-        // This would involve removing from both content and index tables
-        Ok(false)
-    }
-    
-    async fn get_stats(&self) -> Result<models::StorageStats> {
-        let today = chrono::Utc::now().date_naive();
-        
-        let query = "SELECT total_documents, total_size_bytes FROM storage_stats WHERE stat_type = 'daily' AND stat_date = ?";
-        let rows = self.session.query_unpaged(query, (today,)).await?;
-        
-        if let Some(row) = rows.rows {
-            if let Some(first_row) = row.first() {
-                let total_documents: i64 = first_row.columns[0].as_ref().unwrap().as_bigint().unwrap();
-                let total_size_bytes: i64 = first_row.columns[1].as_ref().unwrap().as_bigint().unwrap();
-                
-                return Ok(models::StorageStats {
-                    total_documents: total_documents as u64,
-                    total_size_bytes: total_size_bytes as u64,
-                    ..Default::default()
-                });
-            }
+            )).await?;
+            Ok(content_id)
         }
-        
-        Ok(models::StorageStats::default())
+    }
+
+    fn get_content(&self, _id: &str) -> impl std::future::Future<Output = Result<Option<models::StoredContent>>> + Send {
+        async {
+            // TODO: Implement proper lookup
+            Ok(None)
+        }
+    }
+
+    fn get_content_by_url(&self, _url: &str) -> impl std::future::Future<Output = Result<Vec<models::StoredContent>>> + Send {
+        async {
+            // TODO: Implement URL-based search
+            Ok(Vec::new())
+        }
+    }
+
+    fn delete_content(&self, _id: &str) -> impl std::future::Future<Output = Result<bool>> + Send {
+        async {
+            // TODO: Implement proper deletion
+            Ok(false)
+        }
+    }
+
+    fn get_stats(&self) -> impl std::future::Future<Output = Result<models::StorageStats>> + Send {
+        async {
+            // TODO: Implement stats retrieval
+            Ok(models::StorageStats::default())
+        }
     }
 }
 

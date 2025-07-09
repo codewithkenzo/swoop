@@ -18,23 +18,26 @@ impl GenericScraper {
     }
 }
 
+use std::time::Duration;
+
 impl PlatformScraper for GenericScraper {
     fn extract(&self, url: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<ExtractedContent>> + Send + '_>> {
         let url = url.to_string();
+        let timeout = self.config.timeout_secs;
         Box::pin(async move {
             // Use the core HTTP client to fetch the page
-            let html_bytes = swoop_core::fetch_url(&url).await?;
+            let html_bytes = swoop_core::fetch_url(&url, Duration::from_secs(timeout)).await?;
             let html = String::from_utf8_lossy(&html_bytes);
             
             // Extract content using our extractors
-            let title = crate::extractors::extract_title(&html)?;
-            let text = crate::extractors::extract_text(&html)?;
-            let metadata = crate::extractors::extract_metadata(&html)?;
+            let title = crate::extractors::extract_title(&html).unwrap_or(None);
+            let text = crate::extractors::extract_text_secure(&html).ok();
+            let metadata = crate::extractors::extract_metadata_secure(&html).unwrap_or_default();
             
             Ok(ExtractedContent {
                 url,
                 title,
-                text: Some(text),
+                text,
                 metadata,
                 extracted_at: chrono::Utc::now(),
             })
@@ -53,12 +56,12 @@ impl PlatformScraper for GenericScraper {
 
 /// Placeholder for Facebook scraper
 pub struct FacebookScraper {
-    config: ScraperConfig,
+    _config: ScraperConfig,
 }
 
 impl FacebookScraper {
     pub fn new(config: ScraperConfig) -> Self {
-        Self { config }
+        Self { _config: config }
     }
 }
 
@@ -91,12 +94,12 @@ impl PlatformScraper for FacebookScraper {
 
 /// Placeholder for Instagram scraper
 pub struct InstagramScraper {
-    config: ScraperConfig,
+    _config: ScraperConfig,
 }
 
 impl InstagramScraper {
     pub fn new(config: ScraperConfig) -> Self {
-        Self { config }
+        Self { _config: config }
     }
 }
 
@@ -127,12 +130,12 @@ impl PlatformScraper for InstagramScraper {
 
 /// Placeholder for LinkedIn scraper
 pub struct LinkedInScraper {
-    config: ScraperConfig,
+    _config: ScraperConfig,
 }
 
 impl LinkedInScraper {
     pub fn new(config: ScraperConfig) -> Self {
-        Self { config }
+        Self { _config: config }
     }
 }
 

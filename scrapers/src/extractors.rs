@@ -22,11 +22,6 @@ static WHITESPACE_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"\s+").unwrap()
 });
 
-/// Extract text content from HTML with proper sanitization (LEGACY - use extract_text_secure instead)
-#[deprecated(note = "Use extract_text_secure instead for XSS protection")]
-pub fn extract_text(html: &str) -> Result<String> {
-    extract_text_secure(html)
-}
 
 /// Extract text content from HTML with comprehensive security measures
 pub fn extract_text_secure(html: &str) -> Result<String> {
@@ -68,11 +63,6 @@ pub fn extract_title(html: &str) -> Result<Option<String>> {
     Ok(None)
 }
 
-/// Extract meta tags from HTML (LEGACY - use extract_metadata_secure instead)
-#[deprecated(note = "Use extract_metadata_secure instead for XSS protection")]
-pub fn extract_metadata(html: &str) -> Result<HashMap<String, String>> {
-    extract_metadata_secure(html)
-}
 
 /// Extract meta tags from HTML with proper sanitization
 pub fn extract_metadata_secure(html: &str) -> Result<HashMap<String, String>> {

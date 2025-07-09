@@ -44,8 +44,7 @@ impl Default for ScyllaConfig {
     }
 }
 
-/// S3-compatible storage configuration (DEPRECATED - use config::SecureS3Config)
-#[deprecated(note = "Use config::SecureS3Config for secure credential management")]
+/// S3-compatible storage configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct S3Config {
     /// S3 endpoint URL
@@ -82,21 +81,21 @@ impl Default for StorageConfig {
 }
 
 /// Trait for storage backends
-pub trait StorageBackend {
+pub trait StorageBackend: Send + Sync {
     /// Store extracted content
-    async fn store_content(&self, content: &models::StoredContent) -> Result<String>;
+    fn store_content(&self, content: &models::StoredContent) -> impl std::future::Future<Output = Result<String>> + Send;
     
     /// Retrieve content by ID
-    async fn get_content(&self, id: &str) -> Result<Option<models::StoredContent>>;
+    fn get_content(&self, id: &str) -> impl std::future::Future<Output = Result<Option<models::StoredContent>>> + Send;
     
     /// Query content by URL
-    async fn get_content_by_url(&self, url: &str) -> Result<Vec<models::StoredContent>>;
+    fn get_content_by_url(&self, url: &str) -> impl std::future::Future<Output = Result<Vec<models::StoredContent>>> + Send;
     
     /// Delete content by ID
-    async fn delete_content(&self, id: &str) -> Result<bool>;
+    fn delete_content(&self, id: &str) -> impl std::future::Future<Output = Result<bool>> + Send;
     
     /// Get storage statistics
-    async fn get_stats(&self) -> Result<models::StorageStats>;
+    fn get_stats(&self) -> impl std::future::Future<Output = Result<models::StorageStats>> + Send;
 }
 
 /// Storage manager that coordinates multiple storage backends
