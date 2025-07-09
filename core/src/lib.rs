@@ -8,6 +8,7 @@ use security::UrlValidator;
 use std::time::Duration;
 
 static URL_VALIDATOR: Lazy<UrlValidator> = Lazy::new(UrlValidator::default);
+static CLIENT: Lazy<reqwest::Client> = Lazy::new(client::new_client);
 
 /// Fetches the contents of the given URL and returns the response body as [`bytes::Bytes`].
 ///
@@ -17,8 +18,7 @@ pub async fn fetch_url(url: &str, request_timeout: Duration) -> Result<Bytes> {
     // Validate URL first to prevent SSRF attacks
     URL_VALIDATOR.validate_url(url)?;
 
-    let client = client::new_client();
-    client::fetch_with_timeout(&client, url, request_timeout).await
+    client::fetch_with_timeout(&CLIENT, url, request_timeout).await
 }
 
 #[cfg(test)]

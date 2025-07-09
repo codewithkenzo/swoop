@@ -239,59 +239,60 @@ impl AppState {
 
 /// Fetches data from a test endpoint and updates metrics.
 async fn update_metrics(metrics: Arc<Mutex<Metrics>>, logs: Arc<Mutex<LogBuffer>>) {
-    let mut interval = tokio::time::interval(Duration::from_secs(2));
     let endpoints = [
         "https://httpbin.org/get",
         "https://jsonplaceholder.typicode.com/posts/1",
     ];
-    let mut endpoint_index = 0;
+    let mut interval = tokio::time::interval(Duration::from_millis(500)); // Fetch more frequently
 
     loop {
         interval.tick().await;
-        let start_time = Instant::now();
-        let test_endpoint = endpoints[endpoint_index];
-
-        match swoop_core::fetch_url(test_endpoint, Duration::from_secs(5)).await {
-            Ok(data) => {
-                let duration = start_time.elapsed();
-                if let Ok(mut m) = metrics.lock() {
-                    m.total_requests += 1;
-                    m.total_successful += 1;
-                    m.data_processed += data.len() as u64;
-                    m.response_time.push_back(duration.as_millis() as f64);
-                    if m.response_time.len() > 60 {
-                        m.response_time.pop_front();
+        for &endpoint in &endpoints {
+            let metrics = Arc::clone(&metrics);
+            let logs = Arc::clone(&logs);
+            tokio::spawn(async move {
+                let start_time = Instant::now();
+                match swoop_core::fetch_url(endpoint, Duration::from_secs(5)).await {
+                    Ok(data) => {
+                        let duration = start_time.elapsed();
+                        if let Ok(mut m) = metrics.lock() {
+                            m.total_requests += 1;
+                            m.total_successful += 1;
+                            m.data_processed += data.len() as u64;
+                            m.response_time.push_back(duration.as_millis() as f64);
+                            if m.response_time.len() > 60 {
+                                m.response_time.pop_front();
+                            }
+                            m.success_rate.push_back(1.0);
+                            if m.success_rate.len() > 60 {
+                                m.success_rate.pop_front();
+                            }
+                        }
+                        if let Ok(mut l) = logs.lock() {
+                            l.add_entry(
+                                LogLevel::Success,
+                                format!("Successfully fetched from {}", endpoint),
+                            );
+                        }
                     }
-                    m.success_rate.push_back(1.0);
-                    if m.success_rate.len() > 60 {
-                        m.success_rate.pop_front();
+                    Err(e) => {
+                        if let Ok(mut m) = metrics.lock() {
+                            m.total_requests += 1;
+                            m.total_failed += 1;
+                            m.success_rate.push_back(0.0);
+                            if m.success_rate.len() > 60 {
+                                m.success_rate.pop_front();
+                            }
+                        }
+                        if let Ok(mut l) = logs.lock() {
+                            l.add_entry(
+                                LogLevel::Error,
+                                format!("Failed to fetch from {}: {}", endpoint, e),
+                            );
+                        }
                     }
                 }
-                if let Ok(mut l) = logs.lock() {
-                    l.add_entry(
-                        LogLevel::Success,
-                        format!("Successfully fetched from {}", test_endpoint),
-                    );
-                }
-            }
-            Err(e) => {
-                if let Ok(mut m) = metrics.lock() {
-                    m.total_requests += 1;
-                    m.total_failed += 1;
-                    m.success_rate.push_back(0.0);
-                    if m.success_rate.len() > 60 {
-                        m.success_rate.pop_front();
-                    }
-                }
-                if let Ok(mut l) = logs.lock() {
-                    l.add_entry(
-                        LogLevel::Error,
-                        format!("Failed to fetch from {}: {}", test_endpoint, e),
-                    );
-                }
-                // Switch to the fallback endpoint
-                endpoint_index = (endpoint_index + 1) % endpoints.len();
-            }
+            });
         }
     }
 }

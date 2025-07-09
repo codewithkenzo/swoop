@@ -1,4 +1,4 @@
-use hyper::Uri;
+use hyper::http::Uri;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 #[derive(Debug, thiserror::Error)]

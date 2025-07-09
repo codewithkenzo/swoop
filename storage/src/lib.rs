@@ -72,7 +72,6 @@ impl Default for S3Config {
     }
 }
 
-
 /// Trait for storage backends
 #[async_trait]
 pub trait StorageBackend: Send + Sync {
