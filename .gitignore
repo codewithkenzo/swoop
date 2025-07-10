@@ -3,4 +3,31 @@
 .DS_Store
 .idea/
 .vscode/
-*.log 
+*.log
+
+# Development and documentation files
+/test_output
+/docs
+blueprint.md
+todo.md
+*.txt
+!Cargo.toml
+!rust-toolchain.toml
+!rustfmt.toml
+!clippy.toml
+
+# Cursor IDE rules
+.cursor/
+
+# Test and temporary files
+quick_test.txt
+small_test.txt
+urls.txt
+test_urls.txt
+
+# Output files
+scraped_data_*.json
+scraped_data_*.csv
+
+# Environment files
+.env
