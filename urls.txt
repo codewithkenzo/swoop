@@ -1,0 +1,4 @@
+https://httpbin.org/get
+https://jsonplaceholder.typicode.com/posts/1
+https://www.rust-lang.org
+https://github.com

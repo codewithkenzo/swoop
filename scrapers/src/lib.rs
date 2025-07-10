@@ -7,6 +7,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub mod anti_bot;
 pub mod browser;
 pub mod extractors;
 pub mod platforms;
