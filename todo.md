@@ -81,6 +81,294 @@
   - [x] Thread-safe state management using Arc<Mutex<>>
   - [x] Convenience script for easy launching (./run_tui.sh)
 
+# Completed Tasks (Phase 2B-CLI - CLI Performance Optimization)
+
+- [x] **CLI Scraper Performance Analysis & Optimization** - Identified and fixed critical bottlenecks
+  - [x] Analyzed poor performance (55.4% success rate, 7s average response time)
+  - [x] Implemented connection pooling (10 connections per host)
+  - [x] Extended timeout from 10s to 30s for complex sites
+  - [x] Added retry logic (2 attempts with 200ms delay)
+  - [x] Updated to realistic Chrome user agent for better bot evasion
+  - [x] Added TCP keepalive (60s) for connection efficiency
+  - [x] **Result**: Improved to 76.6% success rate with 8x faster response times
+  - [x] Generated 139MB of scraped content vs 4KB before optimization
+
+# Phase 2C: Advanced Anti-Bot Evasion (Weeks 5-10) - NEXT PRIORITY
+
+## **2C.1 Browser Fingerprint Spoofing Engine** (Week 5-6)
+- [ ] **Canvas Fingerprinting Evasion**
+  - [ ] Implement pixel-level noise injection to Canvas API calls
+  - [ ] Prevent browser fingerprinting through rendering variations
+  - [ ] Add dynamic canvas signature randomization
+- [ ] **WebGL Fingerprinting Spoofing** 
+  - [ ] Dynamically spoof GPU vendor/renderer strings
+  - [ ] Randomize WebGL extensions and rendering capabilities
+  - [ ] Implement hardware-based detection avoidance
+- [ ] **AudioContext Fingerprinting**
+  - [ ] Randomize audio processing signatures and sample rates
+  - [ ] Spoof audio fingerprints used by advanced detection systems
+  - [ ] Add audio context API manipulation
+- [ ] **TLS/HTTP2 Fingerprint Randomization**
+  - [ ] Implement JA3/JA4 signature spoofing
+  - [ ] Randomize cipher suites and TLS extensions
+  - [ ] Vary HTTP/2 header ordering and pseudo-headers
+- [ ] **Screen/Viewport Randomization**
+  - [ ] Dynamically vary resolution, color depth, and timezone
+  - [ ] Randomize language settings and locale information
+  - [ ] Prevent consistent fingerprint patterns
+
+## **2C.2 Residential Proxy Infrastructure** (Week 6-7)
+- [ ] **High-Quality Proxy Pool Management**
+  - [ ] Integrate legitimate residential proxy networks
+  - [ ] Avoid compromised botnets (911 S5 style networks)
+  - [ ] Implement proxy quality scoring and filtering
+- [ ] **Sticky Session Management**
+  - [ ] Maintain IP consistency for session-based scraping
+  - [ ] Implement intelligent rotation policies
+  - [ ] Add session persistence across requests
+- [ ] **Geographic & ISP Targeting**
+  - [ ] Match proxy locations to expected user regions
+  - [ ] Implement ISP diversity for authenticity
+  - [ ] Add geo-location aware routing
+- [ ] **Real-time Health Monitoring**
+  - [ ] Proxy performance tracking and metrics
+  - [ ] Automatic failover mechanisms
+  - [ ] Success rate optimization algorithms
+- [ ] **IP Reputation Management**
+  - [ ] Whitelist high-reputation residential IPs
+  - [ ] Implement IP warm-up procedures
+  - [ ] Traffic distribution pattern optimization
+
+## **2C.3 Behavioral Mimicking Engine** (Week 7-8)
+- [ ] **Human Mouse Movement Simulation**
+  - [ ] Generate realistic Bézier curves for cursor movement
+  - [ ] Implement acceleration and deceleration patterns
+  - [ ] Add natural cursor behavior variations
+- [ ] **Natural Typing Pattern Variation**
+  - [ ] Variable typing speeds with realistic variance
+  - [ ] Natural pauses, corrections, and backspace patterns
+  - [ ] Context-aware typing behavior simulation
+- [ ] **Scroll Behavior Mimicking**
+  - [ ] Natural reading patterns with viewport awareness
+  - [ ] Acceleration/deceleration scrolling physics
+  - [ ] Content-aware scroll timing
+- [ ] **Timing Variation Engine**
+  - [ ] Human-like delays (2-8 seconds) with statistical variance
+  - [ ] Context-aware pausing (page load, content reading)
+  - [ ] Anti-pattern detection avoidance
+- [ ] **Session & Navigation Simulation**
+  - [ ] Tab switching and window focus changes
+  - [ ] Back/forward navigation patterns
+  - [ ] Realistic referrer chain construction
+
+## **2C.4 Advanced Browser Automation & Stealth Mode** (Week 8-9)
+- [ ] **Puppeteer/Playwright Stealth Integration**
+  - [ ] Remove automation indicators (webdriver flags, chrome.runtime)
+  - [ ] Hide automation properties and detection vectors
+  - [ ] Implement undetected browser automation
+- [ ] **Extension & Environment Spoofing**
+  - [ ] Simulate common browser extensions and plugins
+  - [ ] Create realistic browser environments
+  - [ ] Add extension behavior simulation
+- [ ] **JavaScript Challenge Handling**
+  - [ ] Automated bypass of Cloudflare challenges
+  - [ ] CAPTCHA solving integration (legally compliant)
+  - [ ] Dynamic protection mechanism handling
+- [ ] **User Agent & Viewport Consistency**
+  - [ ] Maintain consistent profiles across fingerprint elements
+  - [ ] Realistic device and OS simulation
+  - [ ] Cross-platform compatibility simulation
+- [ ] **Dynamic Content Handling**
+  - [ ] Execute JavaScript-heavy sites and SPAs
+  - [ ] Handle dynamic navigation and content loading
+  - [ ] Simulate realistic user interactions
+
+## **2C.5 Platform-Specific Anti-Detection Modules** (Week 9-10)
+- [ ] **Amazon Module**
+  - [ ] Product browsing and navigation patterns
+  - [ ] Search refinement and filter behavior
+  - [ ] Shopping cart interactions and wishlist management
+  - [ ] Review reading and rating behavior simulation
+- [ ] **eBay Module**
+  - [ ] Auction monitoring with realistic check intervals
+  - [ ] Seller profile browsing patterns
+  - [ ] Watchlist and saved search behavior
+  - [ ] Bidding pattern simulation (monitoring only)
+- [ ] **Facebook Module**
+  - [ ] News feed scrolling with realistic speed variations
+  - [ ] Profile navigation and friend browsing
+  - [ ] Reaction timing and social interaction patterns
+  - [ ] Content engagement simulation
+- [ ] **Instagram Module**
+  - [ ] Story viewing with appropriate timing
+  - [ ] Media browsing patterns (zoom, pan, swipe)
+  - [ ] Hashtag exploration and discovery behavior
+  - [ ] Engagement pattern simulation
+
+## **Technical Implementation Architecture**
+
+### **New Crate Structure:**
+```rust
+scrapers/src/
+├── anti_bot/
+│   ├── mod.rs                    // Anti-bot module coordination
+│   ├── fingerprint_manager.rs   // Browser fingerprint spoofing
+│   ├── proxy_rotator.rs         // Residential proxy management
+│   ├── behavior_engine.rs       // Human-like interaction simulation
+│   ├── stealth_browser.rs       // Advanced browser automation
+│   ├── session_manager.rs       // Cookie and session persistence
+│   └── captcha_solver.rs        // CAPTCHA solving integration
+├── platforms/
+│   ├── amazon/
+│   │   ├── mod.rs               // Amazon-specific evasion
+│   │   ├── product_scraper.rs   // Product page handling
+│   │   ├── search_scraper.rs    // Search result handling
+│   │   └── anti_detection.rs    // Amazon-specific countermeasures
+│   ├── ebay/
+│   │   ├── mod.rs               // eBay-specific evasion  
+│   │   ├── auction_scraper.rs   // Auction monitoring
+│   │   └── seller_scraper.rs    // Seller profile handling
+│   ├── facebook/
+│   │   ├── mod.rs               // Facebook-specific evasion
+│   │   ├── feed_scraper.rs      // News feed handling
+│   │   └── profile_scraper.rs   // Profile data extraction
+│   └── instagram/
+│       ├── mod.rs               // Instagram-specific evasion
+│       ├── media_scraper.rs     // Story and post handling
+│       └── hashtag_scraper.rs   // Hashtag exploration
+```
+
+### **Critical Dependencies to Add:**
+```toml
+# Advanced browser automation with stealth capabilities
+playwright = "0.5.0"
+puppeteer = "0.4.0"
+
+# Residential proxy management
+proxy-pool = "0.3.0"
+residential-proxy = "0.2.0"
+
+# Browser fingerprint spoofing
+web-fingerprint = "0.2.0"
+canvas-noise = "0.1.0"
+webgl-spoof = "0.1.0"
+
+# CAPTCHA solving (for legal compliance)
+captcha-solver = "0.3.0"
+anti-captcha = "0.2.0"
+
+# Advanced HTTP client with fingerprint control
+curl-cffi = "0.1.0"
+tls-fingerprint = "0.1.0"
+```
+
+### **Legal & Ethical Framework:**
+- **Robots.txt Compliance**: First-line respect for website policies
+- **Rate Limiting**: Configurable throttling to respect server resources  
+- **Data Minimization**: Collect only publicly available, necessary data
+- **Terms of Service**: Detection and warning system for policy violations
+- **GDPR Compliance**: Privacy controls and consent management
+- **Audit Logging**: Complete tracking of all scraping activities
+
+## Targeted File Improvements
+
+### 1. `Cargo.toml`
+| Area | Concrete Change | Rationale |
+|------|-----------------|-----------|
+| **Edition** | `edition = "2024"` → `edition = "2024"` (keep) but add `rust-version = "1.79"` (project MSRV for 2025) | Makes the minimum supported Rust version explicit for consumers and CI. |
+| **Dependency Hygiene** | -  Group dependencies by scope: `core`, `scraping`, `observability`, `ops`.-  Add `resolver = "2"` at workspace level. | Clearer cargo tree, avoids feature-unification pitfalls with the new resolver. |
+| **Feature Flags** | Introduce fine-grained features: `tls`, `h3`, `simd`, `edge`, `otel`, `redpanda`, each **default-off**. | Users compile only what they need; smaller binaries and faster CI. |
+| **Profiles** | Add `[profile.release-lto]` with `codegen-units = 1`, `lto = "fat"`, `strip = "symbols"`; set `panic = "abort"` when `cfg(feature = "dist")`. | Produces size-optimized artifacts for container and edge deployment. |
+| **Patch Section** | Patch `hyper = { version = "2.1", features = ["http3"] }` until it lands on crates.io stable. | Forward-ports HTTP/3 support without waiting for upstream release. |
+
+### 2. `clippy.toml`
+| Change | Why |
+|--------|-----|
+| `msrv = "1.82.0"` → `msrv = "1.79.0"` | Align with 2025 MSRV after anticipated backports. |
+| Enable new lints: `return_self_not_must_use`, `str_to_string`, `missing_const_for_fn`. | Catches 2025-era API pitfalls and promotes const-fn adoption. |
+| Add `warn = ["all"]`, then `allow = ["todo", "needless_pass_by_value"]` scoped via `clippy::cargo-toml`. | Elevates lint bar while letting WIP code compile. |
+
+### 3. `rustfmt.toml`
+| Change | Why |
+|--------|-----|
+| `edition = "2021"` → `2024` | Keep formatting aligned with new language constructs (e.g., `let-else`, `if-let-guard`). |
+| Add `group_imports = "StdExternalCrate"` | Canonical import grouping required by most IDEs in 2025. |
+| Set `format_code_in_doc_comments = true` | Ensures code snippets in docs stay compilable after rustdoc tests. |
+
+### 4. `rust-toolchain.toml`
+```toml
+[channel]
+# Switch to the 2025 baseline toolchain, pin to minor for deterministic CI
+channel = "1.79.0"
+
+[components]
+rustfmt = true
+clippy  = true
+rust-src = true        # Enable `rust-analyzer` on CI
+miri = true            # UB checks in nightly jobs
+
+[profile]
+# Use minimal profile in CI runners
+minimal-versions = true
+```
+Key differences: pin to 1.79 (MSRV), add `rust-src` for IDEs and `miri` for UB fuzzing.
+
+## Final To-Do List (Roadmap to 2025 Production-Grade)
+
+### Sprint A – Build & Lint Pipeline
+- Integrate `cargo-deny` with SPDX license checking.
+- Add `cargo-bloat` step under `release-lto` profile to keep < 6 MB binary.
+- Nightly CI job running `miri test` on a reduced test matrix.
+
+### Sprint B – Scraper Core Upgrades
+1. **HTTP/3 Client**
+   - Patch `hyper 2.x` with `quiche` ALPN; behind `h3` feature flag.
+2. **SIMD DOM Parsing**
+   - Migrate to `tl 0.9-simd-avx512`; guard with `simd` flag and `cfg(target_feature = "avx512f")`.
+3. **Selector JIT**
+   - Integrate `cssparser-macro-cache` for pre-compiled selector bytecode.
+
+### Sprint C – Proxy & Resilience
+- Replace custom pool with `oxyproxy` SDK; feedback loop via `tower` layers.
+- Plug `futures-retry` with decorrelated jitter and circuit-breaker metrics.
+
+### Sprint D – Observability 2.0
+- Adopt `opentelemetry 1.2` + OTLP/HTTP push.
+- Promote `tracing` spans to attach W3C Trace Context automatically.
+- Embed `tokio-console` exporter; surface in TUI flamegraph panel.
+
+### Sprint E – Distributed Queue Migration
+- PoC Redpanda stream using `fluvio` client (exactly-once semantics).
+- Feature-gate old NATS implementation; plan sunset once parity reached.
+
+### Sprint F – Edge Execution
+- Compile least-privilege extractors to WASI; run on Fastly Compute@Edge.
+- Provide “edge” feature that moves heavy deps behind `#[cfg(not(feature="edge"))]`.
+
+### Sprint G – Storage Optimizations
+- Enable Scylla **shard-aware** driver and query pipelining.
+- Store raw HTML & JSON as `zstd-chunked Parquet v3`; run Parquet async writes.
+
+### Sprint H – Security & Compliance
+- Integrate dynamic `robots.txt` policy cache + override file.
+- Add OPA sidecar with GDPR and region rules; expose `/policy/violation` metrics.
+
+### Sprint I – Quality Engineering
+- Introduce `proptest` suites for extractor invariants.
+- Run `cargo-nextest` partitioned across 2× CPU cores in CI.
+- Static analysis pass with `cargo-machete`, `ruff-rs` for embedded Python rules.
+
+### Sprint J – Documentation & Release
+- Enable `rustdoc --json` output; feed to `doxidize` for API site.
+- Generate SBOM (`cyclonedx-rust`) per tagged release.
+- Publish containers with `--build-arg PROFILE=release-lto` and `distroless` base.
+
+By completing the **file-level tweaks** and executing this **sprint roadmap**, the project will adhere to 2025 Rust production standards: explicit MSRV, feature-gated lean binaries, modern async & SIMD performance, robust observability, and enterprise-grade compliance.
+
+[1] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/66844311/74454f34-fe8d-4ac8-b310-6e449dc46883/Cargo.toml
+[2] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/66844311/4460d997-8409-4c20-b92b-0aa182e002d8/clippy.toml
+[3] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/66844311/61957b78-36f7-44f8-a190-1707ca0d3cee/rustfmt.toml
+[4] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/66844311/f5c4736f-d98e-45bd-960c-7e7468a2d52f/rust-toolchain.toml
 ---
 
 Based on the comprehensive research and the finalized blueprint, here is a detailed, agentically-structured to-do list for implementing the advanced web crawler project using Rust. This roadmap follows modern agile methodologies and 2024 best practices.
@@ -147,6 +435,9 @@ Quality gates implementation
     ratatui = "0.28"
     crossterm = "0.28"
 
+```shell
+cargo run --bin swoop-tui
+```
     # Task Queue and Messaging
     async-nats = "0.35"
 
