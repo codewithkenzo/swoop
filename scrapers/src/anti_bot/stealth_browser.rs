@@ -192,7 +192,7 @@ impl BrowserPool {
     async fn create_new_instance(
         &self, 
         platform: &str, 
-        config: &StealthConfig
+        _config: &StealthConfig
     ) -> Result<StealthBrowserInstance, Box<dyn std::error::Error + Send + Sync>> {
         let instance = StealthBrowserInstance {
             platform: platform.to_string(),
@@ -279,7 +279,7 @@ pub struct StealthBrowserInstance {
 
 impl StealthBrowserInstance {
     /// Execute JavaScript in the browser context
-    pub async fn execute_script(&mut self, script: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn execute_script(&mut self, _script: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         // In a real implementation, this would execute the script in the browser
         // For now, return a mock response
         self.last_used = std::time::Instant::now();
@@ -321,7 +321,7 @@ impl StealthBrowserInstance {
     }
 
     /// Navigate to URL with stealth features
-    pub async fn navigate(&mut self, url: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn navigate(&mut self, _url: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // In a real implementation, this would navigate the browser
         self.last_used = std::time::Instant::now();
         self.request_count += 1;
@@ -329,7 +329,7 @@ impl StealthBrowserInstance {
     }
 
     /// Wait for element with timeout
-    pub async fn wait_for_element(&mut self, selector: &str, timeout: Duration) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn wait_for_element(&mut self, _selector: &str, _timeout: Duration) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         // Mock implementation
         tokio::time::sleep(Duration::from_millis(100)).await;
         Ok(true)

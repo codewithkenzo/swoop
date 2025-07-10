@@ -122,8 +122,8 @@ impl AntiBotManager {
     /// Apply proxy settings to request
     async fn apply_proxy_settings(
         &self,
-        request: &mut http::Request<hyper::body::Bytes>,
-        proxy: &proxy_rotator::ProxyInfo,
+        _request: &mut http::Request<hyper::body::Bytes>,
+        _proxy: &proxy_rotator::ProxyInfo,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Implementation will be added in proxy_rotator module
         Ok(())

@@ -7,7 +7,6 @@
 //! - TLS/HTTP2 signature randomization (JA3/JA4)
 //! - Screen/viewport randomization
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use rand::{Rng, thread_rng};
@@ -313,7 +312,7 @@ impl ViewportSpoofing {
     }
 
     async fn generate_user_agent(&self) -> String {
-        let viewport = self.generate_viewport().await;
+        let _viewport = self.generate_viewport().await;
         format!(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         )

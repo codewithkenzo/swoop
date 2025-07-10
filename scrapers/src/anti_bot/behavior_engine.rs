@@ -7,7 +7,7 @@
 //! - Timing variation engine with statistical variance
 //! - Session & navigation simulation
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use rand::{Rng, thread_rng};
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
@@ -212,7 +212,7 @@ impl TypingSimulator {
         let mut current_time = 0.0;
         let chars: Vec<char> = text.chars().collect();
 
-        for (i, &char) in chars.iter().enumerate() {
+        for (_i, &char) in chars.iter().enumerate() {
             // Calculate typing delay with variance
             let base_delay = 60000.0 / self.base_typing_speed; // milliseconds per char
             let variance = thread_rng().gen_range(-self.speed_variance..self.speed_variance);
@@ -310,7 +310,7 @@ impl ScrollSimulator {
     }
 
     /// Generate natural scroll sequence
-    async fn generate_scroll_sequence(&self, total_distance: i32, content_height: u32) -> Vec<ScrollEvent> {
+    async fn generate_scroll_sequence(&self, total_distance: i32, _content_height: u32) -> Vec<ScrollEvent> {
         let mut events = Vec::new();
         let mut current_position = 0;
         let mut current_time = 0.0;

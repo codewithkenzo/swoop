@@ -13,7 +13,6 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use rand::{Rng, thread_rng};
 use serde::{Deserialize, Serialize};
-use tokio::time::sleep;
 
 /// Proxy rotator for managing residential proxy infrastructure
 pub struct ProxyRotator {

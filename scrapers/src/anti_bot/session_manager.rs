@@ -128,7 +128,7 @@ impl SessionManager {
         let mut total_successes = 0;
         let mut platform_stats = HashMap::new();
 
-        for (platform_key, session) in sessions.iter() {
+        for (_platform_key, session) in sessions.iter() {
             total_requests += session.request_count;
             total_successes += session.success_count;
             
