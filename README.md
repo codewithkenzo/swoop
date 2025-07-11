@@ -32,31 +32,48 @@ cd swoop
 
 # Build the project
 cargo build --release
+```
 
+### Running the TUI Dashboard
+
+The TUI provides a real-time dashboard for monitoring scraper performance and status.
+
+```bash
 # Run the TUI interface
-cargo run --bin tui
+cargo run --bin swoop-tui
 ```
 
-### Basic Usage
+**TUI Controls:**
+- **`q`** or **`Esc`**: Quit the application
+- **`Tab`** / **`Shift+Tab`**: Cycle through tabs
+- **`←`** / **`→`**: Navigate panes within the Overview tab
+- **`↑`** / **`↓`**: Scroll through lists (Logs, Targets, etc.)
+- **`Spacebar`**: Pause or resume the scraping engine
+- **`i`**: Enter input mode to add new target URLs
+- **`l`**: Load URLs from the default file (`urls.txt`)
+- **`e`**: Switch to the Export tab
+- **`d`**: Launch the advanced, standalone dashboard
 
-```rust
-use swoop_core::fetch_url;
-use scrapers::{ScraperRegistry, ScraperConfig};
+### Running the CLI Scraper
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Simple HTTP fetch
-    let content = fetch_url("https://example.com").await?;
-    println!("Fetched {} bytes", content.len());
+For command-line operations, use the `swoop-cli` binary.
 
-    // Platform-specific scraping
-    let registry = ScraperRegistry::default();
-    let extracted = registry.extract("https://example.com").await?;
-    println!("Title: {:?}", extracted.title);
-    
-    Ok(())
-}
+**Scrape a single URL:**
+```bash
+cargo run --bin swoop-cli -- --url "https://example.com"
 ```
+
+**Scrape a list of URLs from a file:**
+```bash
+cargo run --bin swoop-cli -- --file urls.txt
+```
+
+**CLI Options:**
+- `--url <URL>`: Scrape a single URL.
+- `--file <PATH>`: Scrape URLs from a file (one per line).
+- `--concurrency <NUM>`: Set the number of concurrent requests (default: 10).
+- `--output-dir <DIR>`: Specify the directory for saving results (default: `./test_output`).
+- `--format <FORMAT>`: Set the output format (`json` or `csv`, default: `json`).
 
 ## 📚 Documentation
 
@@ -79,22 +96,23 @@ swoop/
 
 ## 🔧 Configuration
 
-Swoop uses TOML configuration files for easy customization:
+Swoop uses environment variables for configuration. Create a `.env` file in the root directory:
 
-```toml
-# swoop.toml
-[scraper]
-max_concurrent = 10
-rate_limit = 1.0
-user_agent = "Swoop/1.0"
+```env
+# Scraper settings
+MAX_CONCURRENT=10
+RATE_LIMIT=1.0
+USER_AGENT="Swoop/1.0"
 
-[storage.scylla]
-nodes = ["127.0.0.1:9042"]
-keyspace = "swoop"
+# ScyllaDB settings
+SCYLLA_NODES="127.0.0.1:9042"
+SCYLLA_KEYSPACE="swoop"
 
-[storage.s3]
-bucket = "swoop-data"
-region = "us-east-1"
+# S3 settings
+S3_BUCKET="swoop-data"
+S3_REGION="us-east-1"
+AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY"
+AWS_SECRET_ACCESS_KEY="YOUR_SECRET_KEY"
 ```
 
 ## 🛠️ Development
@@ -111,18 +129,6 @@ cargo test
 # Check code quality
 cargo clippy
 cargo fmt
-```
-
-### Running the TUI
-
-```bash
-# Start the interactive dashboard
-cargo run --bin tui
-
-# Controls:
-# - 'q' to quit
-# - Arrow keys to navigate
-# - Space to pause/resume
 ```
 
 ## 🤝 Contributing
