@@ -1,3 +1,6 @@
+mod dashboard;
+mod dashboard_main;
+
 use crossterm::{
     event::{Event, KeyCode, KeyEventKind, EventStream},
     execute,
@@ -471,6 +474,14 @@ impl AppState {
                 }
                 KeyCode::Char('s') => {
                     self.current_tab = 6; // Settings tab
+                }
+                KeyCode::Char('d') => {
+                    // Launch advanced dashboard
+                    tokio::spawn(async {
+                        if let Err(e) = dashboard_main::run_dashboard().await {
+                            eprintln!("Dashboard error: {}", e);
+                        }
+                    });
                 }
                 KeyCode::Char('f') => {
                     if self.current_tab == 5 {
