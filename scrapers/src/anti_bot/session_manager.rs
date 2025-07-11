@@ -29,6 +29,15 @@ impl SessionManager {
         })
     }
 
+    /// Create a new session manager with custom config
+    pub async fn new_with_config(config: SessionConfig) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(Self {
+            sessions: Arc::new(RwLock::new(HashMap::new())),
+            cookie_store: Arc::new(RwLock::new(CookieStore::new())),
+            config,
+        })
+    }
+
     /// Create or retrieve a session for a platform
     pub async fn get_session(&self, platform: &str) -> Result<BrowserSession, Box<dyn std::error::Error + Send + Sync>> {
         let session_key = format!("session_{}", platform);
@@ -116,9 +125,19 @@ impl SessionManager {
         let mut sessions = self.sessions.write().await;
         let initial_count = sessions.len();
         
-        sessions.retain(|_, session| !session.is_expired());
+        sessions.retain(|_, session| !session.is_expired_with_config(&self.config));
         
         (initial_count - sessions.len()) as u32
+    }
+
+    /// Get session configuration
+    pub fn get_config(&self) -> &SessionConfig {
+        &self.config
+    }
+
+    /// Update session configuration
+    pub fn update_config(&mut self, config: SessionConfig) {
+        self.config = config;
     }
 
     /// Get session statistics
@@ -181,12 +200,10 @@ impl SessionManager {
         use rand::{Rng, thread_rng};
         let mut rng = thread_rng();
         
-        let common_viewports = vec![
-            (1920, 1080),
+        let common_viewports = [(1920, 1080),
             (1366, 768),
             (1440, 900),
-            (1536, 864),
-        ];
+            (1536, 864)];
         
         let viewport = common_viewports[rng.gen_range(0..common_viewports.len())];
         
@@ -235,7 +252,7 @@ impl CookieStore {
 
     async fn store_cookies(&mut self, platform: &str, cookies: Vec<Cookie>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Merge with existing cookies, updating duplicates
-        let existing = self.cookies.entry(platform.to_string()).or_insert_with(Vec::new);
+        let existing = self.cookies.entry(platform.to_string()).or_default();
         
         for new_cookie in cookies {
             // Remove existing cookie with same name/domain/path
@@ -285,6 +302,11 @@ impl BrowserSession {
     /// Check if session has expired
     pub fn is_expired(&self) -> bool {
         self.last_activity.elapsed() > Duration::from_secs(1800) // 30 minutes
+    }
+
+    /// Check if session has expired using config timeout
+    pub fn is_expired_with_config(&self, config: &SessionConfig) -> bool {
+        self.last_activity.elapsed() > config.session_timeout
     }
 
     /// Get session success rate

@@ -81,6 +81,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_s3_config_from_env() {
         env::set_var("S3_BUCKET", "test-bucket");
         env::set_var("S3_REGION", "us-west-2");

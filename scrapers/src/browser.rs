@@ -254,7 +254,7 @@ mod tests {
     fn test_browser_config_defaults() {
         let config = BrowserConfig::default();
         assert_eq!(config.max_instances, 5);
-        assert_eq!(config.headless, true);
+        assert!(config.headless);
         assert_eq!(config.window_size, (1920, 1080));
         assert!(!config.capabilities.is_null());
     }

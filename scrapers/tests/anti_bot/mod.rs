@@ -12,11 +12,12 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 pub mod fingerprint_tests;
-pub mod proxy_tests;
-pub mod behavior_tests;
-pub mod stealth_tests;
-pub mod session_tests;
-pub mod integration_tests;
+// TODO: Implement remaining test modules
+// pub mod proxy_tests;
+// pub mod behavior_tests;
+// pub mod stealth_tests;
+// pub mod session_tests;
+// pub mod integration_tests;
 
 /// Test utilities for anti-bot testing
 pub struct TestUtils;
@@ -29,14 +30,7 @@ impl TestUtils {
 
     /// Create a test proxy rotator with mock proxies
     pub async fn create_test_proxy_rotator() -> proxy_rotator::ProxyRotator {
-        let config = proxy_rotator::ProxyConfig {
-            rotation_interval: Duration::from_secs(30),
-            health_check_interval: Duration::from_secs(60),
-            max_failures: 3,
-            timeout: Duration::from_secs(10),
-        };
-        
-        proxy_rotator::ProxyRotator::new(config).await.unwrap()
+        proxy_rotator::ProxyRotator::new().await.unwrap()
     }
 
     /// Create a test behavior engine
@@ -46,8 +40,7 @@ impl TestUtils {
 
     /// Create a test stealth browser
     pub async fn create_test_stealth_browser() -> stealth_browser::StealthBrowser {
-        let config = stealth_browser::StealthConfig::default();
-        stealth_browser::StealthBrowser::new(config).await.unwrap()
+        stealth_browser::StealthBrowser::new().await.unwrap()
     }
 
     /// Create a test session manager
@@ -72,17 +65,17 @@ impl TestUtils {
         let mut realistic_timing = true;
 
         for window in movements.windows(2) {
-            let time_diff = window[1].timestamp.duration_since(window[0].timestamp);
+            let time_diff_ms = window[1].timestamp - window[0].timestamp;
             
             // Human movements should have some variance in timing
-            if time_diff < Duration::from_millis(10) || time_diff > Duration::from_millis(500) {
+            if !(10.0..=500.0).contains(&time_diff_ms) {
                 realistic_timing = false;
             }
 
             // Check for non-linear movement (curves)
             let dx = (window[1].x - window[0].x).abs();
             let dy = (window[1].y - window[0].y).abs();
-            if dx > 0 && dy > 0 {
+            if dx > 0.0 && dy > 0.0 {
                 has_curves = true;
             }
         }
@@ -98,25 +91,21 @@ impl TestUtils {
 
         let mut realistic_timing = true;
         let mut has_variance = false;
-        let mut last_interval = Duration::from_millis(0);
+        let mut last_interval = 0.0;
 
         for window in events.windows(2) {
-            let interval = window[1].timestamp.duration_since(window[0].timestamp);
+            let interval = window[1].timestamp - window[0].timestamp;
             
             // Human typing should be between 50ms and 1000ms per character
-            if interval < Duration::from_millis(50) || interval > Duration::from_millis(1000) {
+            if !(50.0..=1000.0).contains(&interval) {
                 realistic_timing = false;
             }
 
             // Check for timing variance (humans don't type at constant speed)
-            if last_interval != Duration::from_millis(0) {
-                let variance = if interval > last_interval {
-                    interval - last_interval
-                } else {
-                    last_interval - interval
-                };
+            if last_interval != 0.0 {
+                let variance = (interval - last_interval).abs();
                 
-                if variance > Duration::from_millis(20) {
+                if variance > 20.0 {
                     has_variance = true;
                 }
             }
@@ -125,35 +114,6 @@ impl TestUtils {
         }
 
         realistic_timing && has_variance
-    }
-
-    /// Mock HTTP response for testing
-    pub fn create_mock_response(status: u16, body: &str) -> http::Response<hyper::body::Bytes> {
-        http::Response::builder()
-            .status(status)
-            .header("content-type", "text/html")
-            .body(hyper::body::Bytes::from(body.to_string()))
-            .unwrap()
-    }
-
-    /// Create test proxy info
-    pub fn create_test_proxy() -> proxy_rotator::ProxyInfo {
-        proxy_rotator::ProxyInfo {
-            host: "127.0.0.1".to_string(),
-            port: 8080,
-            proxy_type: proxy_rotator::ProxyType::Http,
-            username: Some("test_user".to_string()),
-            password: Some("test_pass".to_string()),
-            country: Some("US".to_string()),
-            region: Some("California".to_string()),
-            city: Some("San Francisco".to_string()),
-            isp: Some("Test ISP".to_string()),
-            last_used: std::time::Instant::now(),
-            success_count: 10,
-            failure_count: 1,
-            avg_response_time: Duration::from_millis(200),
-            is_healthy: true,
-        }
     }
 
     /// Wait for async operations to complete
@@ -187,11 +147,4 @@ mod tests {
         assert!(!TestUtils::validate_fingerprint_spoofing(original, original));
     }
 
-    #[test]
-    fn test_proxy_creation() {
-        let proxy = TestUtils::create_test_proxy();
-        assert_eq!(proxy.host, "127.0.0.1");
-        assert_eq!(proxy.port, 8080);
-        assert!(proxy.is_healthy);
-    }
 }

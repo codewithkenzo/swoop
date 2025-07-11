@@ -212,7 +212,7 @@ impl TypingSimulator {
         let mut current_time = 0.0;
         let chars: Vec<char> = text.chars().collect();
 
-        for (_i, &char) in chars.iter().enumerate() {
+        for &char in chars.iter() {
             // Calculate typing delay with variance
             let base_delay = 60000.0 / self.base_typing_speed; // milliseconds per char
             let variance = thread_rng().gen_range(-self.speed_variance..self.speed_variance);
@@ -411,31 +411,43 @@ impl NavigationSimulator {
     /// Generate navigation behavior pattern
     async fn generate_navigation_behavior(&self, nav_type: NavigationType) -> NavigationBehavior {
         let mut rng = thread_rng();
+        let mut actions = Vec::new();
         
         match nav_type {
-            NavigationType::PageLoad => NavigationBehavior {
-                actions: vec![
-                    NavigationAction::LoadPage,
-                    NavigationAction::WaitForLoad(Duration::from_millis(rng.gen_range(1000..3000))),
-                    NavigationAction::ScrollToTop,
-                ],
-                referrer_behavior: self.generate_referrer_behavior().await,
+            NavigationType::PageLoad => {
+                actions.push(NavigationAction::LoadPage);
+                actions.push(NavigationAction::WaitForLoad(Duration::from_millis(rng.gen_range(1000..3000))));
+                actions.push(NavigationAction::ScrollToTop);
+                
+                // Maybe switch tabs based on probability
+                if rng.gen_bool(self.tab_switch_probability) {
+                    actions.push(NavigationAction::SwitchTab);
+                }
             },
-            NavigationType::LinkClick => NavigationBehavior {
-                actions: vec![
-                    NavigationAction::MouseHover(Duration::from_millis(rng.gen_range(200..800))),
-                    NavigationAction::Click,
-                    NavigationAction::WaitForLoad(Duration::from_millis(rng.gen_range(800..2000))),
-                ],
-                referrer_behavior: self.generate_referrer_behavior().await,
+            NavigationType::LinkClick => {
+                actions.push(NavigationAction::MouseHover(Duration::from_millis(rng.gen_range(200..800))));
+                actions.push(NavigationAction::Click);
+                actions.push(NavigationAction::WaitForLoad(Duration::from_millis(rng.gen_range(800..2000))));
+                
+                // Maybe open in new tab based on probability
+                if rng.gen_bool(self.new_tab_probability) {
+                    actions.push(NavigationAction::OpenNewTab);
+                }
             },
-            NavigationType::BackNavigation => NavigationBehavior {
-                actions: vec![
-                    NavigationAction::BackButton,
-                    NavigationAction::WaitForLoad(Duration::from_millis(rng.gen_range(500..1500))),
-                ],
-                referrer_behavior: ReferrerBehavior::KeepReferrer,
+            NavigationType::BackNavigation => {
+                actions.push(NavigationAction::BackButton);
+                actions.push(NavigationAction::WaitForLoad(Duration::from_millis(rng.gen_range(500..1500))));
             },
+        }
+        
+        // Add back navigation behavior based on probability
+        if nav_type != NavigationType::BackNavigation && rng.gen_bool(self.back_navigation_probability) {
+            actions.push(NavigationAction::BackButton);
+        }
+        
+        NavigationBehavior {
+            actions,
+            referrer_behavior: self.generate_referrer_behavior().await,
         }
     }
 
@@ -453,21 +465,17 @@ impl NavigationSimulator {
     }
 
     fn generate_search_referrer(&self) -> String {
-        let search_engines = vec![
-            "https://www.google.com/",
+        let search_engines = ["https://www.google.com/",
             "https://www.bing.com/",
-            "https://duckduckgo.com/",
-        ];
+            "https://duckduckgo.com/"];
         let mut rng = thread_rng();
         search_engines[rng.gen_range(0..search_engines.len())].to_string()
     }
 
     fn generate_social_referrer(&self) -> String {
-        let social_sites = vec![
-            "https://www.facebook.com/",
+        let social_sites = ["https://www.facebook.com/",
             "https://twitter.com/",
-            "https://www.linkedin.com/",
-        ];
+            "https://www.linkedin.com/"];
         let mut rng = thread_rng();
         social_sites[rng.gen_range(0..social_sites.len())].to_string()
     }
@@ -522,7 +530,7 @@ pub enum ScrollType {
 }
 
 /// Navigation types
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NavigationType {
     PageLoad,
     LinkClick,
@@ -544,6 +552,8 @@ pub enum NavigationAction {
     Click,
     ScrollToTop,
     BackButton,
+    SwitchTab,
+    OpenNewTab,
 }
 
 #[derive(Debug, Clone)]

@@ -210,7 +210,7 @@ impl BrowserPool {
     }
 
     async fn return_browser(&mut self, instance: StealthBrowserInstance) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let platform_instances = self.instances.entry(instance.platform.clone()).or_insert_with(Vec::new);
+        let platform_instances = self.instances.entry(instance.platform.clone()).or_default();
         
         if platform_instances.len() < self.max_instances_per_platform {
             platform_instances.push(instance);
@@ -443,13 +443,26 @@ impl ChallengeHandler {
         use rand::{Rng, thread_rng};
         let mut rng = thread_rng();
         
-        tokio::time::sleep(Duration::from_millis(rng.gen_range(2000..5000))).await;
+        // Adjust timing based on challenge type
+        let solve_time = match self.handler_type {
+            ChallengeType::Cloudflare => rng.gen_range(2000..5000),
+            ChallengeType::Recaptcha => rng.gen_range(3000..8000),
+            ChallengeType::Hcaptcha => rng.gen_range(2500..6000),
+            ChallengeType::CustomJs => rng.gen_range(1000..3000),
+        };
+        
+        tokio::time::sleep(Duration::from_millis(solve_time)).await;
         
         if rng.gen_bool(self.success_rate) {
-            Ok("challenge_solved".to_string())
+            Ok(format!("challenge_solved_{:?}", self.handler_type))
         } else {
             Err("Challenge solving failed".into())
         }
+    }
+
+    /// Get challenge handler type
+    pub fn get_handler_type(&self) -> &ChallengeType {
+        &self.handler_type
     }
 }
 

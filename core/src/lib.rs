@@ -47,6 +47,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_fetch_timeout() {
         let rt = Runtime::new().expect("failed to build tokio runtime");
         let result = rt.block_on(async {

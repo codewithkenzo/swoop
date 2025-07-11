@@ -37,12 +37,3 @@ pub async fn run_dashboard() -> Result<()> {
 
     result
 }
-
-/// Run the dashboard with custom terminal setup
-pub async fn run_dashboard_with_terminal<B>(terminal: &mut Terminal<B>) -> Result<()>
-where
-    B: ratatui::backend::Backend,
-{
-    let mut dashboard = Dashboard::new();
-    dashboard.run(terminal).await
-}

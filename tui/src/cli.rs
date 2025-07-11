@@ -92,45 +92,6 @@ impl CliScraper {
         }
     }
 
-    async fn scrape_url(&self, url: String) -> ScrapedData {
-        let start_time = Instant::now();
-        match fetch_url_simple(&url).await {
-            Ok(data) => {
-                let duration = start_time.elapsed();
-                let content = String::from_utf8_lossy(&data).to_string();
-                info!("✅ Successfully scraped: {}", url);
-                ScrapedData {
-                    url,
-                    timestamp: Utc::now(),
-                    content,
-                    status_code: Some(200),
-                    headers: HashMap::new(),
-                    response_time: duration.as_millis() as u64,
-                    content_length: data.len(),
-                    content_type: Some("text/html".to_string()),
-                    title: None,
-                    success: true,
-                    error: None,
-                }
-            }
-            Err(e) => {
-                error!("❌ Failed to scrape {}: {}", url, e);
-                ScrapedData {
-                    url,
-                    timestamp: Utc::now(),
-                    content: String::new(),
-                    status_code: None,
-                    headers: HashMap::new(),
-                    response_time: start_time.elapsed().as_millis() as u64,
-                    content_length: 0,
-                    content_type: None,
-                    title: None,
-                    success: false,
-                    error: Some(e.to_string()),
-                }
-            }
-        }
-    }
 
     async fn scrape_urls(&self, urls: Vec<String>) {
         let semaphore = Arc::new(Semaphore::new(self.concurrency));

@@ -77,7 +77,6 @@ pub struct AntiBotManager {
     fingerprint_manager: fingerprint_manager::FingerprintManager,
     proxy_rotator: proxy_rotator::ProxyRotator,
     behavior_engine: behavior_engine::BehaviorEngine,
-    #[allow(dead_code)]
     session_manager: session_manager::SessionManager,
 }
 
@@ -144,6 +143,10 @@ impl AntiBotManager {
             detection_events: self.get_detection_count().await,
             success_rate: self.calculate_success_rate().await,
         }
+    }
+    
+    pub fn get_session_manager(&self) -> &session_manager::SessionManager {
+        &self.session_manager
     }
 
     async fn get_detection_count(&self) -> u64 {

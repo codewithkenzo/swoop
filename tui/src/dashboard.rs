@@ -17,7 +17,7 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     sync::{Arc, RwLock},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -35,8 +35,6 @@ pub struct DashboardState {
     pub performance_metrics: PerformanceMetrics,
     pub recent_logs: VecDeque<LogEntry>,
     pub proxy_status: ProxyStatus,
-    #[allow(dead_code)]
-    pub fingerprint_status: FingerprintStatus,
     pub last_update: Instant,
 }
 
@@ -62,7 +60,6 @@ pub struct AntiBotMetrics {
     pub js_challenges: u64,
     pub js_solved: u64,
     pub evasion_success_rate: f64,
-    pub detection_events: VecDeque<DetectionEvent>,
     pub current_fingerprint: String,
     pub current_proxy: String,
 }
@@ -75,7 +72,6 @@ pub struct PerformanceMetrics {
     pub browser_instances: u32,
     pub active_connections: u32,
     pub cache_hit_rate: f64,
-    pub system_metrics: VecDeque<(f64, f64, f64)>, // (timestamp, cpu, memory)
 }
 
 #[derive(Debug, Clone)]
@@ -89,42 +85,20 @@ pub struct LogEntry {
 #[derive(Debug, Clone)]
 pub enum LogLevel {
     Info,
-    Warning,
-    Error,
     Success,
     Debug,
 }
 
-#[derive(Debug, Clone)]
-pub struct DetectionEvent {
-    pub timestamp: SystemTime,
-    pub event_type: String,
-    pub domain: String,
-    pub severity: String,
-    pub action_taken: String,
-}
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct ProxyStatus {
     pub total_proxies: u32,
     pub healthy_proxies: u32,
     pub rotating_proxies: u32,
     pub failed_proxies: u32,
-    pub current_rotation_interval: Duration,
-    pub geographic_distribution: HashMap<String, u32>,
 }
 
-#[derive(Debug, Clone)]
-pub struct FingerprintStatus {
-    pub canvas_spoofing: bool,
-    pub webgl_spoofing: bool,
-    pub audio_spoofing: bool,
-    pub tls_spoofing: bool,
-    pub user_agent_rotation: bool,
-    pub viewport_randomization: bool,
-    pub last_rotation: SystemTime,
-    pub rotation_interval: Duration,
-}
 
 impl Default for DashboardState {
     fn default() -> Self {
@@ -135,7 +109,6 @@ impl Default for DashboardState {
             performance_metrics: PerformanceMetrics::default(),
             recent_logs: VecDeque::with_capacity(1000),
             proxy_status: ProxyStatus::default(),
-            fingerprint_status: FingerprintStatus::default(),
             last_update: Instant::now(),
         }
     }
@@ -167,7 +140,6 @@ impl Default for AntiBotMetrics {
             js_challenges: 0,
             js_solved: 0,
             evasion_success_rate: 0.0,
-            detection_events: VecDeque::with_capacity(100),
             current_fingerprint: "Chrome/120.0.6099.109".to_string(),
             current_proxy: "192.168.1.100:8080".to_string(),
         }
@@ -183,38 +155,11 @@ impl Default for PerformanceMetrics {
             browser_instances: 0,
             active_connections: 0,
             cache_hit_rate: 0.0,
-            system_metrics: VecDeque::with_capacity(MAX_DATA_POINTS),
         }
     }
 }
 
-impl Default for ProxyStatus {
-    fn default() -> Self {
-        Self {
-            total_proxies: 0,
-            healthy_proxies: 0,
-            rotating_proxies: 0,
-            failed_proxies: 0,
-            current_rotation_interval: Duration::from_secs(300),
-            geographic_distribution: HashMap::new(),
-        }
-    }
-}
 
-impl Default for FingerprintStatus {
-    fn default() -> Self {
-        Self {
-            canvas_spoofing: true,
-            webgl_spoofing: true,
-            audio_spoofing: true,
-            tls_spoofing: true,
-            user_agent_rotation: true,
-            viewport_randomization: true,
-            last_rotation: SystemTime::now(),
-            rotation_interval: Duration::from_secs(600),
-        }
-    }
-}
 
 /// Main dashboard application
 pub struct Dashboard {
@@ -667,8 +612,6 @@ impl Dashboard {
             .take(20)
             .map(|log| {
                 let style = match log.level {
-                    LogLevel::Error => Style::default().fg(Color::Red),
-                    LogLevel::Warning => Style::default().fg(Color::Yellow),
                     LogLevel::Success => Style::default().fg(Color::Green),
                     LogLevel::Info => Style::default().fg(Color::Blue),
                     LogLevel::Debug => Style::default().fg(Color::Gray),
@@ -705,8 +648,6 @@ impl LogLevel {
     fn as_str(&self) -> &'static str {
         match self {
             LogLevel::Info => "INFO",
-            LogLevel::Warning => "WARN",
-            LogLevel::Error => "ERROR",
             LogLevel::Success => "SUCCESS",
             LogLevel::Debug => "DEBUG",
         }
@@ -780,13 +721,11 @@ async fn simulate_data(state: Arc<RwLock<DashboardState>>) {
 
             // Add log entries periodically
             if counter % 5 == 0 {
-                let log_messages = vec![
-                    ("Scraper", LogLevel::Info, "Successfully scraped product page"),
+                let log_messages = [("Scraper", LogLevel::Info, "Successfully scraped product page"),
                     ("AntiBot", LogLevel::Success, "Fingerprint rotation completed"),
                     ("Proxy", LogLevel::Info, "Switched to new residential proxy"),
                     ("Browser", LogLevel::Debug, "Canvas fingerprint randomized"),
-                    ("System", LogLevel::Info, "Memory usage optimized"),
-                ];
+                    ("System", LogLevel::Info, "Memory usage optimized")];
 
                 let (component, level, message) = &log_messages[counter as usize % log_messages.len()];
                 state.recent_logs.push_back(LogEntry {

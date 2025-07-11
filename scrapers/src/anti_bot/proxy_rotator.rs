@@ -120,6 +120,23 @@ impl ProxyRotator {
         Ok(())
     }
 
+    /// Perform health check on all proxies
+    pub async fn health_check_all(&self) -> Result<u32, Box<dyn std::error::Error + Send + Sync>> {
+        let mut healthy_count = 0;
+        let pools = self.proxy_pools.read().await;
+        
+        for pool in pools.values() {
+            healthy_count += pool.health_check_proxies(&self.health_monitor).await?;
+        }
+        
+        Ok(healthy_count)
+    }
+
+    /// Get proxy configuration
+    pub fn get_config(&self) -> &ProxyConfig {
+        &self.config
+    }
+
     /// Remove unhealthy proxies
     pub async fn cleanup_unhealthy_proxies(&self) -> Result<u32, Box<dyn std::error::Error + Send + Sync>> {
         let mut removed_count = 0;
@@ -279,6 +296,32 @@ impl ProxyPool {
             healthy_proxies: healthy,
             region: self.region.clone(),
         }
+    }
+
+    /// Perform health check on all proxies in this pool
+    async fn health_check_proxies(&self, health_monitor: &HealthMonitor) -> Result<u32, Box<dyn std::error::Error + Send + Sync>> {
+        let proxies = self.proxies.read().await;
+        let mut healthy_count = 0;
+
+        for proxy in proxies.iter() {
+            if health_monitor.check_proxy_health(proxy).await? {
+                healthy_count += 1;
+            }
+        }
+
+        // Update last health check time
+        {
+            let mut last_check = self.last_health_check.write().await;
+            *last_check = Instant::now();
+        }
+
+        Ok(healthy_count)
+    }
+
+    /// Get time since last health check
+    pub async fn time_since_last_health_check(&self) -> Duration {
+        let last_check = self.last_health_check.read().await;
+        last_check.elapsed()
     }
 }
 

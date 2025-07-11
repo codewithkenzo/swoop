@@ -128,9 +128,7 @@ impl FingerprintManager {
 
 /// Canvas fingerprinting evasion
 pub struct CanvasSpoofing {
-    #[allow(dead_code)]
     noise_patterns: Vec<NoisePattern>,
-    #[allow(dead_code)]
     current_signature: Arc<RwLock<String>>,
 }
 
@@ -151,9 +149,88 @@ impl CanvasSpoofing {
     }
 
     async fn generate_signature(&self) -> String {
+        // Use noise patterns to create unique signature
+        let pattern = &self.noise_patterns[thread_rng().gen_range(0..self.noise_patterns.len())];
+        let signature = match pattern {
+            NoisePattern::PixelShift { intensity } => {
+                format!("canvas_pixel_{:.3}_{}", intensity, thread_rng().gen::<u32>())
+            }
+            NoisePattern::ColorJitter { variance } => {
+                format!("canvas_color_{:.3}_{}", variance, thread_rng().gen::<u32>())
+            }
+            NoisePattern::GammaAdjust { factor } => {
+                format!("canvas_gamma_{:.3}_{}", factor, thread_rng().gen::<u32>())
+            }
+        };
+        
+        // Update current signature
+        {
+            let mut current = self.current_signature.write().await;
+            *current = signature.clone();
+        }
+        
+        signature
+    }
+
+    /// Apply noise pattern to canvas data
+    pub async fn apply_noise_to_canvas(&self, canvas_data: &mut [u8]) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let pattern = &self.noise_patterns[thread_rng().gen_range(0..self.noise_patterns.len())];
+        
+        match pattern {
+            NoisePattern::PixelShift { intensity } => {
+                self.apply_pixel_shift(canvas_data, *intensity).await?;
+            }
+            NoisePattern::ColorJitter { variance } => {
+                self.apply_color_jitter(canvas_data, *variance).await?;
+            }
+            NoisePattern::GammaAdjust { factor } => {
+                self.apply_gamma_adjust(canvas_data, *factor).await?;
+            }
+        }
+        
+        Ok(())
+    }
+
+    async fn apply_pixel_shift(&self, canvas_data: &mut [u8], intensity: f64) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut rng = thread_rng();
-        let noise_level = rng.gen_range(0.01..0.05);
-        format!("canvas_sig_{:.3}_{}", noise_level, rng.gen::<u32>())
+        for pixel in canvas_data.chunks_mut(4) {
+            if rng.gen_bool(intensity) {
+                // Shift pixel values slightly
+                for component in pixel.iter_mut().take(3) {
+                    let shift = rng.gen_range(-2..=2);
+                    *component = (*component as i16 + shift).clamp(0, 255) as u8;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn apply_color_jitter(&self, canvas_data: &mut [u8], variance: f64) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut rng = thread_rng();
+        for pixel in canvas_data.chunks_mut(4) {
+            for component in pixel.iter_mut().take(3) {
+                let jitter = rng.gen_range(-variance..variance);
+                let new_value = (*component as f64 * (1.0 + jitter)).clamp(0.0, 255.0);
+                *component = new_value as u8;
+            }
+        }
+        Ok(())
+    }
+
+    async fn apply_gamma_adjust(&self, canvas_data: &mut [u8], factor: f64) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        for pixel in canvas_data.chunks_mut(4) {
+            for component in pixel.iter_mut().take(3) {
+                let normalized = *component as f64 / 255.0;
+                let adjusted = normalized.powf(factor);
+                *component = (adjusted * 255.0).clamp(0.0, 255.0) as u8;
+            }
+        }
+        Ok(())
+    }
+
+    /// Get current signature
+    pub async fn get_current_signature(&self) -> String {
+        self.current_signature.read().await.clone()
     }
 
     async fn generate_accept_header(&self) -> String {
@@ -165,7 +242,6 @@ impl CanvasSpoofing {
 pub struct WebGLSpoofing {
     gpu_vendors: Vec<String>,
     renderers: Vec<String>,
-    #[allow(dead_code)]
     extensions: Vec<String>,
 }
 
@@ -196,13 +272,24 @@ impl WebGLSpoofing {
         let mut rng = thread_rng();
         let vendor = &self.gpu_vendors[rng.gen_range(0..self.gpu_vendors.len())];
         let renderer = &self.renderers[rng.gen_range(0..self.renderers.len())];
-        format!("webgl_{}_{}", vendor, renderer)
+        let extension = &self.extensions[rng.gen_range(0..self.extensions.len())];
+        format!("webgl_{}_{}_{}", vendor, renderer, extension)
     }
 
     async fn generate_accept_language(&self) -> String {
-        let languages = vec!["en-US,en;q=0.9", "en-GB,en;q=0.8", "de-DE,de;q=0.7"];
+        let languages = ["en-US,en;q=0.9", "en-GB,en;q=0.8", "de-DE,de;q=0.7"];
         let mut rng = thread_rng();
         languages[rng.gen_range(0..languages.len())].to_string()
+    }
+
+    /// Get supported WebGL extensions for spoofing
+    pub async fn get_supported_extensions(&self) -> Vec<String> {
+        // Return a subset of extensions to appear realistic
+        let mut rng = thread_rng();
+        let count = rng.gen_range(2..=self.extensions.len());
+        let mut selected = self.extensions.clone();
+        selected.truncate(count);
+        selected
     }
 }
 
@@ -236,7 +323,6 @@ impl AudioSpoofing {
 pub struct TLSSpoofing {
     cipher_suites: Vec<String>,
     tls_versions: Vec<String>,
-    #[allow(dead_code)]
     extensions: Vec<String>,
 }
 
@@ -270,7 +356,18 @@ impl TLSSpoofing {
         let mut rng = thread_rng();
         let version = &self.tls_versions[rng.gen_range(0..self.tls_versions.len())];
         let cipher = &self.cipher_suites[rng.gen_range(0..self.cipher_suites.len())];
-        format!("tls_v{}_cipher_{}", version, cipher)
+        let extension = &self.extensions[rng.gen_range(0..self.extensions.len())];
+        format!("tls_v{}_cipher_{}_{}", version, cipher, extension)
+    }
+
+    /// Get TLS extensions for fingerprint spoofing
+    pub async fn get_tls_extensions(&self) -> Vec<String> {
+        // Return randomized subset of extensions
+        let mut rng = thread_rng();
+        let count = rng.gen_range(2..=self.extensions.len());
+        let mut selected = self.extensions.clone();
+        selected.truncate(count);
+        selected
     }
 }
 
@@ -317,18 +414,16 @@ impl ViewportSpoofing {
 
     async fn generate_user_agent(&self) -> String {
         let _viewport = self.generate_viewport().await;
-        format!(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        )
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36".to_string()
     }
 }
 
 /// Noise patterns for canvas fingerprint evasion
 #[derive(Debug, Clone)]
 enum NoisePattern {
-    PixelShift { #[allow(dead_code)] intensity: f64 },
-    ColorJitter { #[allow(dead_code)] variance: f64 },
-    GammaAdjust { #[allow(dead_code)] factor: f64 },
+    PixelShift { intensity: f64 },
+    ColorJitter { variance: f64 },
+    GammaAdjust { factor: f64 },
 }
 
 /// Complete browser fingerprint profile

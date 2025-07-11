@@ -89,8 +89,6 @@ struct AppState {
     scraped_data: VecDeque<ScrapedData>,
     /// Export state
     export_state: ExportState,
-    /// Settings state
-    settings_state: SettingsState,
     /// Whether the app should quit
     should_quit: bool,
     /// System information
@@ -176,7 +174,6 @@ struct LogEntry {
 
 /// Log levels
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 enum LogLevel {
     Info,
     Warning,
@@ -186,7 +183,6 @@ enum LogLevel {
 
 /// Control state for user interactions
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 struct ControlState {
     is_paused: bool,
     rate_limit: f64,
@@ -234,28 +230,23 @@ struct ExportState {
 
 /// Settings UI state
 #[derive(Debug, Clone)]
+#[derive(Default)]
 struct SettingsState {
-    #[allow(dead_code)]
     selected_index: usize,
-    #[allow(dead_code)]
     is_editing: bool,
-    #[allow(dead_code)]
     edit_value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default)]
 enum FocusedPane {
+    #[default]
     SystemStatus,
     QuickStats,
     InfrastructureStatus,
     RecentActivity,
 }
 
-impl Default for FocusedPane {
-    fn default() -> Self {
-        FocusedPane::SystemStatus
-    }
-}
 
 impl Default for Metrics {
     fn default() -> Self {
@@ -338,15 +329,6 @@ impl Default for ExportState {
     }
 }
 
-impl Default for SettingsState {
-    fn default() -> Self {
-        Self {
-            selected_index: 0,
-            is_editing: false,
-            edit_value: String::new(),
-        }
-    }
-}
 
 impl ExportFormat {
     fn as_str(&self) -> &str {
@@ -376,7 +358,6 @@ impl AppState {
             targets: VecDeque::new(),
             scraped_data: VecDeque::with_capacity(10000),
             export_state: ExportState::default(),
-            settings_state: SettingsState::default(),
             should_quit: false,
             system_info: SystemInfo::default(),
             export_requested: false,
@@ -474,9 +455,6 @@ impl AppState {
                 }
                 KeyCode::Char('e') => {
                     self.current_tab = 5; // Export tab
-                }
-                KeyCode::Char('s') => {
-                    self.current_tab = 6; // Settings tab
                 }
                 KeyCode::Char('d') => {
                     // Launch advanced dashboard
@@ -740,7 +718,6 @@ fn render_dashboard(f: &mut Frame, app: &AppState) {
         3 => render_logs(f, chunks[1], app),
         4 => render_targets(f, chunks[1], app),
         5 => render_export(f, chunks[1], app),
-        6 => render_settings(f, chunks[1], app),
         _ => {}
     }
 
@@ -1207,58 +1184,6 @@ fn render_export(f: &mut Frame, area: Rect, app: &AppState) {
         .wrap(Wrap { trim: true });
 }
 
-fn render_settings(f: &mut Frame, area: Rect, app: &AppState) {
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-        .split(area);
-
-    let controls = &app.controls;
-    let settings_data = vec![
-        Row::new(vec!["Concurrency".to_string(), controls.concurrency.to_string()]),
-        Row::new(vec!["Rate Limit (req/s)".to_string(), format!("{:.1}", controls.rate_limit)]),
-        Row::new(vec!["Request Timeout (s)".to_string(), controls.request_timeout.to_string()]),
-        Row::new(vec!["URL File".to_string(), controls.url_file.to_string_lossy().to_string()]),
-        Row::new(vec!["Export Directory".to_string(), controls.export_dir.to_string_lossy().to_string()]),
-        Row::new(vec!["Auto Export".to_string(), if controls.auto_export { "Enabled" } else { "Disabled" }.to_string()]),
-    ];
-
-    let settings_table = Table::new(
-        settings_data,
-        [Constraint::Percentage(50), Constraint::Percentage(50)],
-    )
-    .block(
-        Block::default()
-            .title("Configuration Settings")
-            .borders(Borders::ALL),
-    )
-    .header(
-        Row::new(vec!["Setting", "Value"]).style(Style::default().add_modifier(Modifier::BOLD)),
-    );
-    f.render_widget(settings_table, chunks[0]);
-
-    let metrics = &app.metrics;
-    let info = &app.system_info;
-    let system_info = format!(
-        "🔥 Scraper CPU {:.2}% | RAM {} MB ({:.1}%) | Threads: {}\n\nPerformance:\n• Total Requests: {}\n• Success Rate: {:.1}%\n• Avg Response Time: {:.0}ms",
-        info.cpu_usage,
-        info.mem_usage / 1024,
-        (info.mem_usage as f64 * 100.0) / (System::new().total_memory() as f64),
-        info.threads,
-        metrics.total_requests,
-        if metrics.total_requests > 0 {
-            (metrics.total_successful as f64 / metrics.total_requests as f64) * 100.0
-        } else {
-            0.0
-        },
-        metrics.response_time.iter().sum::<f64>() / metrics.response_time.len().max(1) as f64
-    );
-
-    let system_info_widget = Paragraph::new(system_info)
-        .block(Block::default().title("System Information").borders(Borders::ALL))
-        .wrap(Wrap { trim: true });
-    f.render_widget(system_info_widget, chunks[1]);
-}
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
