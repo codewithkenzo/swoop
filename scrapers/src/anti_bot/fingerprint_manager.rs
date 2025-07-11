@@ -128,7 +128,9 @@ impl FingerprintManager {
 
 /// Canvas fingerprinting evasion
 pub struct CanvasSpoofing {
+    #[allow(dead_code)]
     noise_patterns: Vec<NoisePattern>,
+    #[allow(dead_code)]
     current_signature: Arc<RwLock<String>>,
 }
 
@@ -163,6 +165,7 @@ impl CanvasSpoofing {
 pub struct WebGLSpoofing {
     gpu_vendors: Vec<String>,
     renderers: Vec<String>,
+    #[allow(dead_code)]
     extensions: Vec<String>,
 }
 
@@ -233,6 +236,7 @@ impl AudioSpoofing {
 pub struct TLSSpoofing {
     cipher_suites: Vec<String>,
     tls_versions: Vec<String>,
+    #[allow(dead_code)]
     extensions: Vec<String>,
 }
 
@@ -322,9 +326,9 @@ impl ViewportSpoofing {
 /// Noise patterns for canvas fingerprint evasion
 #[derive(Debug, Clone)]
 enum NoisePattern {
-    PixelShift { intensity: f64 },
-    ColorJitter { variance: f64 },
-    GammaAdjust { factor: f64 },
+    PixelShift { #[allow(dead_code)] intensity: f64 },
+    ColorJitter { #[allow(dead_code)] variance: f64 },
+    GammaAdjust { #[allow(dead_code)] factor: f64 },
 }
 
 /// Complete browser fingerprint profile

@@ -235,8 +235,11 @@ struct ExportState {
 /// Settings UI state
 #[derive(Debug, Clone)]
 struct SettingsState {
+    #[allow(dead_code)]
     selected_index: usize,
+    #[allow(dead_code)]
     is_editing: bool,
+    #[allow(dead_code)]
     edit_value: String,
 }
 
@@ -584,7 +587,7 @@ async fn scraping_engine(app: Arc<Mutex<AppState>>) {
         }
 
         let url_to_process_index = {
-            let mut app_guard = app.lock().unwrap();
+            let app_guard = app.lock().unwrap();
             app_guard.targets.iter().position(|t| t.status == TargetStatus::Pending)
         };
 

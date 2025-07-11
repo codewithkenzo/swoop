@@ -6,13 +6,13 @@
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     symbols,
-    text::{Line, Span, Text},
+    text::{Line, Text},
     widgets::{
-        Axis, BarChart, Block, Borders, Chart, Clear, Dataset, Gauge, List, ListItem,
-        Paragraph, Row, Sparkline, Table, Tabs, Wrap,
+        Axis, Block, Borders, Chart, Dataset, Gauge, List, ListItem,
+        Paragraph, Tabs, Wrap,
     },
     Frame, Terminal,
 };
@@ -35,6 +35,7 @@ pub struct DashboardState {
     pub performance_metrics: PerformanceMetrics,
     pub recent_logs: VecDeque<LogEntry>,
     pub proxy_status: ProxyStatus,
+    #[allow(dead_code)]
     pub fingerprint_status: FingerprintStatus,
     pub last_update: Instant,
 }
@@ -282,7 +283,7 @@ impl Dashboard {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Length(3), Constraint::Min(0)])
-            .split(f.size());
+            .split(f.area());
 
         // Header with tabs
         self.draw_header(f, chunks[0], &state);

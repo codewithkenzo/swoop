@@ -77,6 +77,7 @@ pub struct AntiBotManager {
     fingerprint_manager: fingerprint_manager::FingerprintManager,
     proxy_rotator: proxy_rotator::ProxyRotator,
     behavior_engine: behavior_engine::BehaviorEngine,
+    #[allow(dead_code)]
     session_manager: session_manager::SessionManager,
 }
 
